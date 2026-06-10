@@ -1,0 +1,767 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' =====================================================
+' APP CONTEXT / SERVICES / STORAGE
+' =====================================================
+
+class App {
+  - context: AppContext
+  + start()
+  + changeMenu(menu: Menu)
+  + logout()
+}
+
+class AppContext {
+  - currentUser: User
+  - currentMenu: Menu
+  - userRepository: UserRepository
+  - authService: AuthService
+  - profileService: ProfileService
+  - collectionService: CollectionService
+  - gameService: GameService
+  - newsService: NewsService
+  - questService: QuestService
+  + getCurrentUser(): User
+  + setCurrentUser(user: User)
+}
+
+class SaveService {
+  - usersFilePath: String
+  + loadUsers(): List<User>
+  + saveUsers(users: List<User>)
+}
+
+class UserRepository {
+  - users: List<User>
+  - saveService: SaveService
+  + findByUsername(username: String): User
+  + addUser(user: User)
+  + saveAll()
+}
+
+class AuthService {
+  - userRepository: UserRepository
+  + register(username: String, password: String, nickname: String, email: String, gender: Gender)
+  + login(username: String, password: String): User
+  + logout()
+  + hashPassword(password: String): String
+}
+
+class ProfileService {
+  - userRepository: UserRepository
+  + changeUsername(user: User, username: String)
+  + changeNickname(user: User, nickname: String)
+  + changeEmail(user: User, email: String)
+  + changePassword(user: User, oldPassword: String, newPassword: String)
+}
+
+class CollectionService {
+  - userRepository: UserRepository
+  + purchasePlant(user: User, type: PlantType)
+  + upgradePlant(user: User, type: PlantType)
+}
+
+class GameService {
+  - userRepository: UserRepository
+  + startGame(user: User, level: Level): GameEngine
+  + finishGame(user: User, result: GameResult)
+}
+
+App "1" *-- "1" AppContext
+AppContext "1" --> "0..1" User
+AppContext "1" --> "1" UserRepository
+AppContext "1" --> "1" AuthService
+AppContext "1" --> "1" ProfileService
+AppContext "1" --> "1" CollectionService
+AppContext "1" --> "1" GameService
+AppContext "1" --> "1" NewsService
+AppContext "1" --> "1" QuestService
+
+UserRepository "1" --> "1" SaveService
+AuthService "1" --> "1" UserRepository
+ProfileService "1" --> "1" UserRepository
+CollectionService "1" --> "1" UserRepository
+GameService "1" --> "1" UserRepository
+
+
+' =====================================================
+' USER / ACCOUNT DATA
+' =====================================================
+
+class User {
+  - username: String
+  - hashedPassword: String
+  - nickname: String
+  - email: String
+  - gender: Gender
+  - coins: int
+  - gems: int
+  - miopoint: int
+  - gamesPlayed: int
+  - unlockedLevels: Set<LevelId>
+  - settings: Settings
+  - collection: Collection
+  - greenhouse: Greenhouse
+  + checkPassword(password: String): boolean
+  + addCoins(amount: int)
+  + addGems(amount: int)
+  + unlockLevel(levelId: LevelId)
+}
+
+class Settings {
+  - difficultyLevel: int
+  + changeDifficulty(level: int)
+}
+
+class Collection {
+  - ownedPlants: Map<PlantType, PlantCard>
+  - seenZombies: Set<ZombieType>
+  - zombieCards: List<ZombieCard>
+  + showPlants()
+  + showZombies()
+  + purchasePlant(type: PlantType)
+  + upgradePlant(type: PlantType)
+  + hasPlant(type: PlantType): boolean
+}
+
+class PlantCard {
+  - type: PlantType
+  - level: int
+  - seedPackets: int
+  - unlocked: boolean
+  + upgrade()
+}
+
+class ZombieCard {
+  - type: ZombieType
+  - seen: boolean
+  - unlocked: boolean
+  + showInfo()
+}
+
+class Greenhouse {
+  - pots: int
+  + addPot()
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+User "1" *-- "1" Settings
+User "1" *-- "1" Collection
+User "1" *-- "1" Greenhouse
+Collection "1" *-- "*" PlantCard
+Collection "1" *-- "*" ZombieCard
+
+
+' =====================================================
+' MENUS
+' =====================================================
+
+abstract class Menu {
+  # context: AppContext
+  + enter()
+  + exit()
+  + handleCommand(command: String)
+}
+
+class RegisterMenu
+class LoginMenu
+class MainMenu
+class GameMenu
+class SettingsMenu
+class NewsMenu
+class ProfileMenu
+class CollectionMenu
+class PlantSelectionMenu
+class TravelMenu
+class MiniGameMenu
+
+Menu <|-- RegisterMenu
+Menu <|-- LoginMenu
+Menu <|-- MainMenu
+Menu <|-- GameMenu
+Menu <|-- SettingsMenu
+Menu <|-- NewsMenu
+Menu <|-- ProfileMenu
+Menu <|-- CollectionMenu
+Menu <|-- PlantSelectionMenu
+Menu <|-- TravelMenu
+Menu <|-- MiniGameMenu
+
+Menu "1" --> "1" AppContext
+TravelMenu --> MiniGameMenu
+MiniGameMenu --> MiniGame
+
+
+' =====================================================
+' PROGRESSION SYSTEMS
+' =====================================================
+
+class Shop {
+  + buyPlant(user: User, type: PlantType)
+  + buyItem(user: User, item: ShopItem)
+}
+
+class Leaderboard {
+  - entries: List<LeaderboardEntry>
+  + update(user: User)
+  + getTopPlayers(): List<LeaderboardEntry>
+}
+
+class LeaderboardEntry {
+  - username: String
+  - miopoint: int
+}
+
+class NewsService {
+  - news: List<NewsItem>
+  + addNews(user: User, text: String)
+  + showUnread(user: User)
+  + showAll(user: User)
+}
+
+class NewsItem {
+  - text: String
+  - read: boolean
+  - type: NewsType
+}
+
+class QuestService {
+  - quests: List<Quest>
+  + getActiveQuests(user: User): List<Quest>
+  + completeQuest(user: User, quest: Quest)
+}
+
+class Quest {
+  - title: String
+  - priority: QuestPriority
+  - reward: Reward
+  - completed: boolean
+}
+
+class Reward {
+  - rewardType: RewardType
+  - amount: int
+  + apply(user: User)
+}
+
+Leaderboard "1" *-- "*" LeaderboardEntry
+NewsService "1" *-- "*" NewsItem
+QuestService "1" *-- "*" Quest
+Quest "1" *-- "1" Reward
+
+
+' =====================================================
+' GAME / PLAYER / LEVEL
+' =====================================================
+
+class Player {
+  - user: User
+  - sunPoints: int
+  - plantFoods: int
+  - chosenPlants: List<PlantType>
+  - boostedPlants: Set<PlantType>
+  + choosePlant(type: PlantType)
+  + removePlant(type: PlantType)
+  + boostPlant(type: PlantType)
+  + addSun(amount: int)
+  + usePlantFood(position: Position)
+}
+
+class GameEngine {
+  - player: Player
+  - level: Level
+  - map: GameMap
+  - waveManager: WaveManager
+  - timeManager: TimeManager
+  - plantFactory: PlantFactory
+  - zombieFactory: ZombieFactory
+  - projectileFactory: ProjectileFactory
+  - gameState: GameState
+  + start()
+  + advanceTime(ticks: int)
+  + plant(type: PlantType, position: Position)
+  + pluckPlant(position: Position)
+  + collectSun(position: Position)
+  + checkWinningLogic()
+  + showMap()
+}
+
+class Level {
+  - id: LevelId
+  - name: String
+  - chapter: Chapter
+  - rows: int
+  - columns: int
+  - unlocked: boolean
+  - selectablePlantCount: int
+  - waves: List<Wave>
+}
+
+class Chapter {
+  - name: String
+  - levels: List<Level>
+  - unlocked: boolean
+}
+
+class TimeManager {
+  - currentTick: int
+  + advance(ticks: int)
+  + getSeconds(): double
+}
+
+class Position {
+  - x: double
+  - y: int
+}
+
+enum GameState {
+  PLANT_SELECTION
+  RUNNING
+  WON
+  LOST
+}
+
+enum GameResult {
+  WIN
+  LOSE
+}
+
+User "1" --> "0..1" Player
+Player "1" --> "1" User
+GameEngine "1" *-- "1" Player
+GameEngine "1" *-- "1" GameMap
+GameEngine "1" *-- "1" WaveManager
+GameEngine "1" *-- "1" TimeManager
+GameEngine "1" --> "1" Level
+Chapter "1" *-- "*" Level
+Level "1" *-- "*" Wave
+
+
+' =====================================================
+' MAP / TILES / LAWN MOWER
+' =====================================================
+
+class GameMap {
+  - tiles: Tile[][]
+  - lawnMowers: List<LawnMower>
+  + getTile(position: Position): Tile
+  + addPlant(plant: Plant, position: Position)
+  + removePlant(position: Position)
+  + addZombie(zombie: Zombie)
+  + moveZombies()
+  + getZombiesInLane(lane: int): List<Zombie>
+}
+
+class Tile {
+  - position: Position
+  - terrainType: TerrainType
+  - plants: List<Plant>
+  - zombies: List<Zombie>
+  + canPlant(type: PlantType): boolean
+  + addPlant(plant: Plant)
+  + removePlant(plant: Plant)
+}
+
+class LawnMower {
+  - lane: int
+  - used: boolean
+  + trigger(zombies: List<Zombie>)
+}
+
+enum TerrainType {
+  NORMAL
+  GRAVE
+  ICE
+  SLIPPERY_UP
+  SLIPPERY_DOWN
+  WATER
+  LOW_TIDE
+  NECROMANCY
+}
+
+GameMap "1" *-- "*" Tile
+GameMap "1" *-- "*" LawnMower
+Tile "1" o-- "*" Plant
+Tile "1" o-- "*" Zombie
+
+
+' =====================================================
+' PLANTS
+' =====================================================
+
+class Plant {
+  - type: PlantType
+  - hp: int
+  - rechargeTime: int
+  - actionTime: int
+  - cost: int
+  - category: PlantCategory
+  - position: Position
+  - tags: Set<PlantTag>
+  - sunProduceBehavior: SunProduceBehavior
+  - attackBehavior: AttackBehavior
+  - specialAbility: SpecialAbility
+  + act(engine: GameEngine)
+  + takeDamage(amount: int)
+  + usePlantFood(engine: GameEngine)
+  + isDead(): boolean
+}
+
+interface SunProduceBehavior {
+  + produce(plant: Plant, engine: GameEngine)
+}
+
+class NoSunProduction
+class NormalSunProduction
+class OnDeathSunProduction
+
+SunProduceBehavior <|.. NoSunProduction
+SunProduceBehavior <|.. NormalSunProduction
+SunProduceBehavior <|.. OnDeathSunProduction
+
+interface AttackBehavior {
+  + attack(plant: Plant, engine: GameEngine)
+}
+
+class NoAttack
+class ShooterAttack
+class LobberAttack
+class MeleeAttack
+class ExplosiveAttack
+
+AttackBehavior <|.. NoAttack
+AttackBehavior <|.. ShooterAttack
+AttackBehavior <|.. LobberAttack
+AttackBehavior <|.. MeleeAttack
+AttackBehavior <|.. ExplosiveAttack
+
+interface SpecialAbility {
+  + activate(plant: Plant, engine: GameEngine)
+}
+
+class PlantFactory {
+  + create(type: PlantType, position: Position): Plant
+}
+
+enum PlantType {
+  SUNFLOWER
+  PEASHOOTER
+  WALL_NUT
+  CHERRY_BOMB
+  JALAPENO
+  SQUASH
+}
+
+enum PlantCategory {
+  SUN_PRODUCER
+  SHOOTER
+  LOBBER
+  EXPLOSIVE
+  MELEE
+  WALL_NUT
+  MODIFIER
+  HOMING
+  MINT
+}
+
+enum PlantTag {
+  FIRE
+  ICE
+  POISON
+  WATER
+  BOOSTED
+}
+
+Plant "1" *-- "1" Position
+Plant "1" --> "1" SunProduceBehavior
+Plant "1" --> "1" AttackBehavior
+Plant "1" --> "1" SpecialAbility
+PlantFactory --> Plant
+
+
+' =====================================================
+' PROJECTILES
+' =====================================================
+
+class Projectile {
+  - speed: double
+  - direction: Direction
+  - damage: int
+  - position: Position
+  - collisionLogic: CollisionLogic
+  - effect: ProjectileEffect
+  + move()
+  + checkCollision(engine: GameEngine)
+  + applyEffect(target: Zombie)
+}
+
+interface CollisionLogic {
+  + hasCollided(projectile: Projectile, engine: GameEngine): boolean
+}
+
+class NormalCollision
+class LobberCollision
+class PiercingCollision
+
+CollisionLogic <|.. NormalCollision
+CollisionLogic <|.. LobberCollision
+CollisionLogic <|.. PiercingCollision
+
+interface ProjectileEffect {
+  + apply(zombie: Zombie)
+}
+
+class NormalEffect
+class IceEffect
+class FireEffect
+class PoisonEffect
+class AreaEffect
+
+ProjectileEffect <|.. NormalEffect
+ProjectileEffect <|.. IceEffect
+ProjectileEffect <|.. FireEffect
+ProjectileEffect <|.. PoisonEffect
+ProjectileEffect <|.. AreaEffect
+
+class ProjectileFactory {
+  + create(type: ProjectileType, position: Position): Projectile
+}
+
+enum Direction {
+  LEFT
+  RIGHT
+  UP
+  DOWN
+}
+
+enum ProjectileType {
+  NORMAL
+  ICE
+  FIRE
+  POISON
+  AOE
+  WALLNUT
+  EXPLODE_WALLNUT
+  GIANT_WALLNUT
+}
+
+Projectile "1" *-- "1" Position
+Projectile "1" --> "1" CollisionLogic
+Projectile "1" --> "1" ProjectileEffect
+ProjectileFactory --> Projectile
+ShooterAttack --> ProjectileFactory
+LobberAttack --> ProjectileFactory
+
+
+' =====================================================
+' ZOMBIES / WAVES
+' =====================================================
+
+class Zombie {
+  - type: ZombieType
+  - position: Position
+  - armor: int
+  - health: int
+  - waveCost: int
+  - effects: List<StatusEffect>
+  - glowing: boolean
+  - movementLogic: MovementLogic
+  - attackLogic: ZombieAttackLogic
+  + move(engine: GameEngine)
+  + attack(plant: Plant)
+  + takeHit(projectile: Projectile)
+  + die(engine: GameEngine)
+  + isDead(): boolean
+}
+
+interface MovementLogic {
+  + move(zombie: Zombie, engine: GameEngine)
+}
+
+class NormalMovement
+class SlidingMovement
+class BowlingMovement
+
+MovementLogic <|.. NormalMovement
+MovementLogic <|.. SlidingMovement
+MovementLogic <|.. BowlingMovement
+
+interface ZombieAttackLogic {
+  + attack(zombie: Zombie, plant: Plant)
+}
+
+class NormalZombieAttack
+
+ZombieAttackLogic <|.. NormalZombieAttack
+
+class StatusEffect {
+  - type: EffectType
+  - durationTicks: int
+  - power: int
+}
+
+class ZombieFactory {
+  + create(type: ZombieType, lane: int): Zombie
+}
+
+class WaveManager {
+  - currentWaveIndex: int
+  - waves: List<Wave>
+  - zombieFactory: ZombieFactory
+  + startNextWave()
+  + shouldStartNextWave(): boolean
+  + spawnWave(wave: Wave)
+}
+
+class Wave {
+  - number: int
+  - difficulty: int
+  - finalWave: boolean
+  - initialTotalHealth: int
+  - zombies: List<Zombie>
+  + getCurrentTotalHealth(): int
+}
+
+enum ZombieType {
+  BASIC
+  CONEHEAD
+  BUCKETHEAD
+  PEASHOOTER_ZOMBIE
+  WALLNUT_ZOMBIE
+  JALAPENO_ZOMBIE
+  SQUASH_ZOMBIE
+  SUNFLOWER_ZOMBIE
+}
+
+enum EffectType {
+  ICE
+  POISON
+  FIRE
+  STUN
+}
+
+Zombie "1" *-- "1" Position
+Zombie "1" --> "1" MovementLogic
+Zombie "1" --> "1" ZombieAttackLogic
+Zombie "1" o-- "*" StatusEffect
+ZombieFactory --> Zombie
+WaveManager "1" *-- "*" Wave
+WaveManager "1" --> "1" ZombieFactory
+Wave "1" o-- "*" Zombie
+
+
+' =====================================================
+' MINIGAMES
+' =====================================================
+
+abstract class MiniGame {
+  - name: String
+  - unlocked: boolean
+  + start(user: User)
+  + finish(result: GameResult)
+}
+
+class Zombotany {
+  + createSpecialZombies()
+}
+
+class Brain {
+  - health: int
+  + takeDamage(amount: int)
+  + isDestroyed(): boolean
+}
+
+class PeashooterZombie
+class WallNutZombie
+class JalapenoZombie
+class SquashZombie
+class SunflowerZombie
+
+MiniGame <|-- Zombotany
+
+Zombie <|-- PeashooterZombie
+Zombie <|-- WallNutZombie
+Zombie <|-- JalapenoZombie
+Zombie <|-- SquashZombie
+Zombie <|-- SunflowerZombie
+
+Zombotany --> ZombieFactory
+Zombotany --> Brain
+
+
+' =====================================================
+' VASE BREAKER
+' =====================================================
+
+class VaseBreaker {
+  - vases: List<Vase>
+  + breakVase(position: Position)
+  + revealContent(vase: Vase)
+}
+
+class Vase {
+  - position: Position
+  - contentType: VaseContentType
+  - broken: boolean
+  + break()
+}
+
+class SeedPacket {
+  - plantType: PlantType
+  - amount: int
+}
+
+enum VaseContentType {
+  PLANT
+  ZOMBIE
+  SEED_PACKET
+  SUN
+  EMPTY
+}
+
+MiniGame <|-- VaseBreaker
+VaseBreaker "1" *-- "*" Vase
+Vase --> VaseContentType
+Vase --> SeedPacket
+Vase --> Plant
+Vase --> Zombie
+
+
+' =====================================================
+' BOWLING WALLNUT
+' =====================================================
+
+class BowlingWallnut {
+  - conveyorBelt: ConveyorBelt
+  + launchWallnut(type: ProjectileType, lane: int)
+}
+
+class ConveyorBelt {
+  - packets: Queue<SeedPacket>
+  + addPacket(packet: SeedPacket)
+  + getNextPacket(): SeedPacket
+}
+
+class WallnutProjectile
+class ExplodeWallnutProjectile
+class GiantWallnutProjectile
+
+MiniGame <|-- BowlingWallnut
+
+BowlingWallnut "1" *-- "1" ConveyorBelt
+ConveyorBelt "1" o-- "*" SeedPacket
+
+Projectile <|-- WallnutProjectile
+Projectile <|-- ExplodeWallnutProjectile
+Projectile <|-- GiantWallnutProjectile
+
+WallnutProjectile --> BowlingMovement
+ExplodeWallnutProjectile --> BowlingMovement
+GiantWallnutProjectile --> BowlingMovement
+
+@enduml
