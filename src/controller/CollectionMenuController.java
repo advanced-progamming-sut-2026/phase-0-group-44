@@ -1,40 +1,93 @@
 package controller;
 
 import model.Result;
+import model.enums.PlantType;
 import model.inGame.plant.Plant;
+import model.inGame.plant.PlantCollectionView;
+import model.inGame.plant.PlantDefinition;
+import model.inGame.plant.PlantRepository;
 import model.inGame.zombie.Zombie;
+import model.inGame.zombie.ZombieDefinition;
+import model.inGame.zombie.ZombieRepository;
+import model.user.Collection;
+import model.user.PlantCard;
 import model.user.User;
 
 import java.util.ArrayList;
 
+import java.util.ArrayList;
+import java.util.Map;
+
 public class CollectionMenuController {
     private static final int PLANT_PURCHASE_COST = 2000;
 
-    public Result<ArrayList<Plant>> showPlants(User user) {
-        Result<ArrayList<Plant>> result = new Result<>();
+    private final PlantRepository plantRepository;
+    private final ZombieRepository zombieRepository;
 
-        ArrayList<Plant> plants = user.getUnlockedPlants();
+    public CollectionMenuController(
+            PlantRepository plantRepository,
+            ZombieRepository zombieRepository
+    ) {
+        this.plantRepository = plantRepository;
+        this.zombieRepository = zombieRepository;
+    }
+
+    public Result<ArrayList<PlantCollectionView>> showPlants(
+            User user
+    ) {
+        Result<ArrayList<PlantCollectionView>> result =
+                new Result<ArrayList<PlantCollectionView>>();
+
+        if (user == null) {
+            return failure(result, "No user is logged in.");
+        }
+
+        ArrayList<PlantCollectionView> views =
+                new ArrayList<PlantCollectionView>();
+
+        for (Map.Entry<PlantType, PlantCard> entry
+                : user.getCollection().getOwnedPlants().entrySet()) {
+
+            PlantCard card = entry.getValue();
+
+            if (!card.isUnlocked()) {
+                continue;
+            }
+
+            PlantDefinition definition = plantRepository.findByType(entry.getKey());
+
+            if (definition != null) {
+                views.add(
+                        new PlantCollectionView(definition, card)
+                );
+            }
+        }
 
         result.setStatus(true);
-        result.setData(plants);
+        result.setData(views);
 
-        if (plants.isEmpty()) {
+        if (views.isEmpty()) {
             result.appendToMessage("No unlocked plants.");
             return result;
         }
 
-        for (Plant plant : plants) {
-            result.appendToMessage(plant.getDisplayText());
-            result.appendToMessage("\n\n");
+        for (int i = 0; i < views.size(); i++) {
+            result.appendToMessage(views.get(i).getDisplayText());
+
+            if (i < views.size() - 1) {
+                result.appendToMessage("\n\n");
+            }
         }
 
         return result;
     }
 
-    public Result<ArrayList<Plant>> showAllPlants() {
-        Result<ArrayList<Plant>> result = new Result<>();
+    public Result<ArrayList<PlantDefinition>> showAllPlants() {
+        Result<ArrayList<PlantDefinition>> result =
+                new Result<ArrayList<PlantDefinition>>();
 
-        ArrayList<Plant> plants = GameData.getAllPlants();
+        ArrayList<PlantDefinition> plants =
+                plantRepository.findAll();
 
         result.setStatus(true);
         result.setData(plants);
@@ -44,18 +97,189 @@ public class CollectionMenuController {
             return result;
         }
 
-        for (Plant plant : plants) {
-            result.appendToMessage(plant.getDisplayText());
-            result.appendToMessage("\n\n");
+        for (int i = 0; i < plants.size(); i++) {
+            result.appendToMessage(
+                    plants.get(i).getDisplayText()
+            );
+
+            if (i < plants.size() - 1) {
+                result.appendToMessage("\n\n");
+            }
         }
 
         return result;
     }
 
-    public Result<ArrayList<Zombie>> showZombies(User user) {
-        Result<ArrayList<Zombie>> result = new Result<>();
+    public Result<PlantCollectionView> showPlant(
+            User user,
+            String plantName
+    ) {
+        Result<PlantCollectionView> result =
+                new Result<PlantCollectionView>();
 
-        ArrayList<Zombie> zombies = user.getSeenZombies();
+        if (user == null) {
+            return failure(result, "No user is logged in.");
+        }
+
+        PlantDefinition definition =
+                plantRepository.findByName(plantName);
+
+        if (definition == null) {
+            return failure(result, "Plant does not exist.");
+        }
+
+        PlantCard card = user.getCollection().getPlantCard(definition.getType());
+
+        if (card == null || !card.isUnlocked()) {
+            return failure(
+                    result,
+                    "Plant not found in your collection."
+            );
+        }
+
+        PlantCollectionView view =
+                new PlantCollectionView(definition, card);
+
+        result.setStatus(true);
+        result.setData(view);
+        result.appendToMessage(view.getDisplayText());
+
+        return result;
+    }
+
+    public Result<PlantCollectionView> purchasePlant(
+            User user,
+            String plantName
+    ) {
+        Result<PlantCollectionView> result =
+                new Result<PlantCollectionView>();
+
+        if (user == null) {
+            return failure(result, "No user is logged in.");
+        }
+
+        PlantDefinition definition =
+                plantRepository.findByName(plantName);
+
+        if (definition == null) {
+            return failure(result, "Plant does not exist.");
+        }
+
+        Collection collection = user.getCollection();
+
+        if (collection.hasPlant(definition.getType())) {
+            return failure(
+                    result,
+                    "You already have this plant."
+            );
+        }
+
+        if (user.getCoins() < PLANT_PURCHASE_COST) {
+            return failure(result, "Not enough coins.");
+        }
+
+        user.decreaseCoins(PLANT_PURCHASE_COST);
+        collection.purchasePlant(definition.getType());
+
+        PlantCard card = collection.getPlantCard(
+                definition.getType()
+        );
+
+        PlantCollectionView view =
+                new PlantCollectionView(definition, card);
+
+        result.setStatus(true);
+        result.setData(view);
+        result.appendToMessage(
+                "Plant purchased successfully."
+        );
+
+        return result;
+    }
+
+    public Result<PlantCollectionView> upgradePlant(
+            User user,
+            String plantName
+    ) {
+        Result<PlantCollectionView> result =
+                new Result<PlantCollectionView>();
+
+        if (user == null) {
+            return failure(result, "No user is logged in.");
+        }
+
+        PlantDefinition definition =
+                plantRepository.findByName(plantName);
+
+        if (definition == null) {
+            return failure(result, "Plant does not exist.");
+        }
+
+        PlantCard card = user.getCollection().getPlantCard(definition.getType());
+
+        if (card == null || !card.isUnlocked()) {
+            return failure(
+                    result,
+                    "Plant not found in your collection."
+            );
+        }
+
+        int coinCost = card.getUpgradeCoinCost();
+        int seedPacketCost =
+                card.getUpgradeSeedPacketCost();
+
+        if (user.getCoins() < coinCost) {
+            return failure(result, "Not enough coins.");
+        }
+
+        if (card.getSeedPackets() < seedPacketCost) {
+            return failure(
+                    result,
+                    "Not enough seed packets."
+            );
+        }
+
+        user.decreaseCoins(coinCost);
+        card.decreaseSeedPackets(seedPacketCost);
+        user.getCollection().upgradePlant(
+                definition.getType()
+        );
+
+        PlantCollectionView view =
+                new PlantCollectionView(definition, card);
+
+        result.setStatus(true);
+        result.setData(view);
+        result.appendToMessage(
+                "Plant upgraded successfully."
+        );
+
+        return result;
+    }
+
+    public Result<ArrayList<ZombieDefinition>> showZombies(
+            User user
+    ) {
+        Result<ArrayList<ZombieDefinition>> result =
+                new Result<ArrayList<ZombieDefinition>>();
+
+        if (user == null) {
+            return failure(result, "No user is logged in.");
+        }
+
+        ArrayList<ZombieDefinition> zombies =
+                new ArrayList<ZombieDefinition>();
+
+        for (ZombieType type
+                : user.getCollection().getSeenZombies()) {
+
+            ZombieDefinition definition =
+                    zombieRepository.findByType(type);
+
+            if (definition != null) {
+                zombies.add(definition);
+            }
+        }
 
         result.setStatus(true);
         result.setData(zombies);
@@ -65,18 +289,16 @@ public class CollectionMenuController {
             return result;
         }
 
-        for (Zombie zombie : zombies) {
-            result.appendToMessage(zombie.getDisplayText());
-            result.appendToMessage("\n\n");
-        }
-
+        appendZombies(result, zombies);
         return result;
     }
 
-    public Result<ArrayList<Zombie>> showAllZombies() {
-        Result<ArrayList<Zombie>> result = new Result<>();
+    public Result<ArrayList<ZombieDefinition>> showAllZombies() {
+        Result<ArrayList<ZombieDefinition>> result =
+                new Result<ArrayList<ZombieDefinition>>();
 
-        ArrayList<Zombie> zombies = GameData.getAllZombies();
+        ArrayList<ZombieDefinition> zombies =
+                zombieRepository.findAll();
 
         result.setStatus(true);
         result.setData(zombies);
@@ -86,41 +308,36 @@ public class CollectionMenuController {
             return result;
         }
 
-        for (Zombie zombie : zombies) {
-            result.appendToMessage(zombie.getDisplayText());
-            result.appendToMessage("\n\n");
-        }
-
+        appendZombies(result, zombies);
         return result;
     }
 
-    public Result<Plant> showPlant(User user, String plantName) {
-        Result<Plant> result = new Result<>();
+    public Result<ZombieDefinition> showZombie(
+            User user,
+            String zombieName
+    ) {
+        Result<ZombieDefinition> result =
+                new Result<ZombieDefinition>();
 
-        Plant plant = findPlantByName(user.getUnlockedPlants(), plantName);
-
-        if (plant == null) {
-            result.setStatus(false);
-            result.appendToMessage("Plant not found in your collection.");
-            return result;
+        if (user == null) {
+            return failure(result, "No user is logged in.");
         }
 
-        result.setStatus(true);
-        result.setData(plant);
-        result.appendToMessage(plant.getDisplayText());
-
-        return result;
-    }
-
-    public Result<Zombie> showZombie(User user, String zombieName) {
-        Result<Zombie> result = new Result<>();
-
-        Zombie zombie = findZombieByName(user.getSeenZombies(), zombieName);
+        ZombieDefinition zombie =
+                zombieRepository.findByName(zombieName);
 
         if (zombie == null) {
-            result.setStatus(false);
-            result.appendToMessage("Zombie not found in your collection.");
-            return result;
+            return failure(result, "Zombie does not exist.");
+        }
+
+        if (!user.getCollection()
+                .getSeenZombies()
+                .contains(zombie.getType())) {
+
+            return failure(
+                    result,
+                    "Zombie not found in your collection."
+            );
         }
 
         result.setStatus(true);
@@ -130,93 +347,28 @@ public class CollectionMenuController {
         return result;
     }
 
-    public Result<Plant> purchasePlant(User user, String plantName) {
-        Result<Plant> result = new Result<>();
+    private void appendZombies(
+            Result<ArrayList<ZombieDefinition>> result,
+            ArrayList<ZombieDefinition> zombies
+    ) {
+        for (int i = 0; i < zombies.size(); i++) {
+            result.appendToMessage(
+                    zombies.get(i).getDisplayText()
+            );
 
-        Plant plant = GameData.findPlantByName(plantName);
-
-        if (plant == null) {
-            result.setStatus(false);
-            result.appendToMessage("Plant does not exist.");
-            return result;
-        }
-
-        if (findPlantByName(user.getUnlockedPlants(), plantName) != null) {
-            result.setStatus(false);
-            result.appendToMessage("You already have this plant.");
-            return result;
-        }
-
-        if (user.getCoins() < PLANT_PURCHASE_COST) {
-            result.setStatus(false);
-            result.appendToMessage("Not enough coins.");
-            return result;
-        }
-
-        user.decreaseCoins(PLANT_PURCHASE_COST);
-        user.getUnlockedPlants().add(plant.copy());
-
-        result.setStatus(true);
-        result.setData(plant);
-        result.appendToMessage("Plant purchased successfully.");
-
-        return result;
-    }
-
-    public Result<Plant> upgradePlant(User user, String plantName) {
-        Result<Plant> result = new Result<>();
-
-        Plant plant = findPlantByName(user.getUnlockedPlants(), plantName);
-
-        if (plant == null) {
-            result.setStatus(false);
-            result.appendToMessage("Plant not found in your collection.");
-            return result;
-        }
-
-        int coinCost = plant.getUpgradeCoinCost();
-        int seedPacketCost = plant.getUpgradeSeedPacketCost();
-
-        if (user.getCoins() < coinCost) {
-            result.setStatus(false);
-            result.appendToMessage("Not enough coins.");
-            return result;
-        }
-
-        if (plant.getSeedPackets() < seedPacketCost) {
-            result.setStatus(false);
-            result.appendToMessage("Not enough seed packets.");
-            return result;
-        }
-
-        user.decreaseCoins(coinCost);
-        plant.decreaseSeedPackets(seedPacketCost);
-        plant.upgrade();
-
-        result.setStatus(true);
-        result.setData(plant);
-        result.appendToMessage("Plant upgraded successfully.");
-
-        return result;
-    }
-
-    private Plant findPlantByName(ArrayList<Plant> plants, String plantName) {
-        for (Plant plant : plants) {
-            if (plant.getName().equalsIgnoreCase(plantName)) {
-                return plant;
+            if (i < zombies.size() - 1) {
+                result.appendToMessage("\n\n");
             }
         }
-
-        return null;
     }
 
-    private Zombie findZombieByName(ArrayList<Zombie> zombies, String zombieName) {
-        for (Zombie zombie : zombies) {
-            if (zombie.getName().equalsIgnoreCase(zombieName)) {
-                return zombie;
-            }
-        }
-
-        return null;
+    private <T> Result<T> failure(
+            Result<T> result,
+            String message
+    ) {
+        result.setStatus(false);
+        result.appendToMessage(message);
+        return result;
     }
 }
+

@@ -4,6 +4,8 @@ import model.News;
 import model.Result;
 import model.enums.PlantType;
 import model.enums.ZombieType;
+import model.inGame.plant.Plant;
+import model.inGame.zombie.Zombie;
 import model.miniGame.GreenHouse;
 
 import java.nio.charset.StandardCharsets;
@@ -118,10 +120,6 @@ public class User {
 
     public void setGamesPlayed(int gamesPlayed) {
         this.gamesPlayed = gamesPlayed;
-    }
-
-    public Collection getCollection() {
-        return collection;
     }
 
     public void setCollection(Collection collection) {
@@ -344,6 +342,30 @@ public class User {
             if (gender == null) return false;
             return gender.matches("^(male|female)$");
         }
+
+    public Collection getCollection() {
+        if (collection == null) {
+            collection = new Collection();
+        }
+
+        return collection;
+    }
+
+    public void decreaseCoins(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException(
+                    "Amount cannot be negative."
+            );
+        }
+
+        if (coins < amount) {
+            throw new IllegalStateException(
+                    "Not enough coins."
+            );
+        }
+
+        coins -= amount;
+    }
 
 
 
