@@ -3,6 +3,7 @@ package model.user;
 import model.News;
 import model.Result;
 import model.enums.PlantType;
+import model.enums.ZombieType;
 import model.miniGame.GreenHouse;
 
 import java.nio.charset.StandardCharsets;
@@ -10,6 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class User {
     private String username;
@@ -25,6 +27,8 @@ public class User {
     private ArrayList<PlantType> upgradedPlants;
     private Settings settings;
     private int coins;
+    private Set<ZombieType> seenZombies;
+    private List<PlayerPlant> plants = new ArrayList<>();
     private int gems;
     private int mioPoint;
     private GreenHouse greenHouse;

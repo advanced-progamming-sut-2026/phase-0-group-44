@@ -2,6 +2,7 @@ package controller;
 
 import model.Result;
 import model.inGame.plant.Plant;
+import model.inGame.zombie.Zombie;
 import model.user.User;
 
 import java.util.ArrayList;
@@ -199,9 +200,6 @@ public class CollectionMenuController {
         return result;
     }
 
-   /*
-
-    inaro tooye khod plant o zombie mizarim
     private Plant findPlantByName(ArrayList<Plant> plants, String plantName) {
         for (Plant plant : plants) {
             if (plant.getName().equalsIgnoreCase(plantName)) {
@@ -220,5 +218,5 @@ public class CollectionMenuController {
         }
 
         return null;
-    } */
+    }
 }
