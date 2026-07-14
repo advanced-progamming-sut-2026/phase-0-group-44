@@ -1,5 +1,8 @@
 package model.inGame.plant;
 
+import model.GameEngine;
+import model.enums.PlantType;
+
 public class PlantDefinition {
     private PlantType type;
     private String name;
@@ -57,4 +60,12 @@ public class PlantDefinition {
                 + "Description: " + description;
     }
 }
+
+
+
+
+
+
+
+
 

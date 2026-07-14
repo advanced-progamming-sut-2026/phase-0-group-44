@@ -4,6 +4,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import model.enums.PlantType;
 
 public class JsonPlantRepository implements PlantRepository {
     private final String filePath;
@@ -21,12 +24,9 @@ public class JsonPlantRepository implements PlantRepository {
         try (FileReader reader = new FileReader(filePath)) {
             Gson gson = new Gson();
 
-            Type listType =
-                    new TypeToken<ArrayList<PlantDefinition>>() {
-                    }.getType();
+            Type listType = new TypeToken<ArrayList<PlantDefinition>>() {}.getType();
 
-            ArrayList<PlantDefinition> loadedPlants =
-                    gson.fromJson(reader, listType);
+            ArrayList<PlantDefinition> loadedPlants = gson.fromJson(reader, listType);
 
             if (loadedPlants != null) {
                 plants.addAll(loadedPlants);

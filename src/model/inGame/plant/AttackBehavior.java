@@ -1,4 +1,7 @@
 package model.inGame.plant;
 
-public interface AttackBehavior {
+import model.GameEngine;
+
+interface AttackBehavior {
+    void attack(Plant plant, GameEngine engine);
 }

@@ -2,11 +2,10 @@ package controller;
 
 import model.Result;
 import model.enums.PlantType;
-import model.inGame.plant.Plant;
+import model.enums.ZombieType;
 import model.inGame.plant.PlantCollectionView;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRepository;
-import model.inGame.zombie.Zombie;
 import model.inGame.zombie.ZombieDefinition;
 import model.inGame.zombie.ZombieRepository;
 import model.user.Collection;
@@ -273,8 +272,7 @@ public class CollectionMenuController {
         for (ZombieType type
                 : user.getCollection().getSeenZombies()) {
 
-            ZombieDefinition definition =
-                    zombieRepository.findByType(type);
+            ZombieDefinition definition = zombieRepository.findByType(type);
 
             if (definition != null) {
                 zombies.add(definition);

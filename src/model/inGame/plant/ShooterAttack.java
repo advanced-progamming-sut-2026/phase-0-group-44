@@ -1,4 +1,13 @@
 package model.inGame.plant;
 
-public class ShooterAttack {
+import model.GameEngine;
+import model.inGame.projectile.ProjectileFactory;
+
+class ShooterAttack implements AttackBehavior {
+    private ProjectileFactory projectileFactory = new ProjectileFactory();
+
+    @Override
+    public void attack(Plant plant, GameEngine engine) {
+        // TODO: use projectileFactory to spawn a projectile from plant's position
+    }
 }

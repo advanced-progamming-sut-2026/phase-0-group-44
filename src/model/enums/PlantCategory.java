@@ -1,4 +1,13 @@
 package model.enums;
 
-public enum PlantCategory {
+enum PlantCategory {
+    SUN_PRODUCER,
+    SHOOTER,
+    LOBBER,
+    EXPLOSIVE,
+    MELEE,
+    WALL_NUT,
+    MODIFIER,
+    HOMING,
+    MINT
 }

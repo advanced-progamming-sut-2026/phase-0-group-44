@@ -1,5 +1,7 @@
 package model.inGame.zombie;
 
+import model.enums.ZombieType;
+
 public class ZombieDefinition {
     private ZombieType type;
     private String name;

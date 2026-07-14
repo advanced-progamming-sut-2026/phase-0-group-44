@@ -1,111 +1,97 @@
 package model.inGame.plant;
 
-public class Plant {
-    private String name;
+import model.GameEngine;
+import model.Position;
+
+import java.util.HashSet;
+import java.util.Set;
+
+class Plant {
     private PlantType type;
-    private int level;
-    private int seedPackets;
+    private int hp;
+    private int rechargeTime;
+    private int actionTime;
+    private int cost;
+    private PlantCategory category;
+    private Position position;
+    private Set<PlantTag> tags = new HashSet<>();
+    private SunProduceBehavior sunProduceBehavior;
+    private AttackBehavior attackBehavior;
+    private SpecialAbility specialAbility;
 
-    private int sunCost;
-    private int cooldown;
-    private int health;
-    private int damage;
-    private String description;
-
-    private int upgradeCoinCost;
-    private int upgradeSeedPacketCost;
-
-    public Plant() {
-        // Needed for JSON libraries like Gson/Jackson
-    }
-
-    public Plant(String name, PlantType type, int level, int seedPackets,
-                 int sunCost, int cooldown, int health, int damage,
-                 String description, int upgradeCoinCost, int upgradeSeedPacketCost) {
-        this.name = name;
+    public Plant(PlantType type, int hp, int rechargeTime, int actionTime, int cost,
+                 PlantCategory category, SunProduceBehavior sunProduceBehavior,
+                 AttackBehavior attackBehavior, SpecialAbility specialAbility) {
         this.type = type;
-        this.level = level;
-        this.seedPackets = seedPackets;
-        this.sunCost = sunCost;
-        this.cooldown = cooldown;
-        this.health = health;
-        this.damage = damage;
-        this.description = description;
-        this.upgradeCoinCost = upgradeCoinCost;
-        this.upgradeSeedPacketCost = upgradeSeedPacketCost;
+        this.hp = hp;
+        this.rechargeTime = rechargeTime;
+        this.actionTime = actionTime;
+        this.cost = cost;
+        this.category = category;
+        this.sunProduceBehavior = sunProduceBehavior;
+        this.attackBehavior = attackBehavior;
+        this.specialAbility = specialAbility;
     }
 
-    public String getName() {
-        return name;
+    public void act(GameEngine engine) {
+        if (sunProduceBehavior != null) {
+            sunProduceBehavior.produce(this, engine);
+        }
+        if (attackBehavior != null) {
+            attackBehavior.attack(this, engine);
+        }
+    }
+
+    public void takeDamage(int amount) {
+        this.hp -= amount;
+        if (this.hp < 0) {
+            this.hp = 0;
+        }
+    }
+
+    public void usePlantFood(GameEngine engine) {
+        if (specialAbility != null) {
+            specialAbility.activate(this, engine);
+        }
+    }
+
+    public boolean isDead() {
+        return hp <= 0;
     }
 
     public PlantType getType() {
         return type;
     }
 
-    public int getLevel() {
-        return level;
+    public int getHp() {
+        return hp;
     }
 
-    public int getSeedPackets() {
-        return seedPackets;
+    public int getRechargeTime() {
+        return rechargeTime;
     }
 
-    public int getUpgradeCoinCost() {
-        return upgradeCoinCost;
+    public int getActionTime() {
+        return actionTime;
     }
 
-    public int getUpgradeSeedPacketCost() {
-        return upgradeSeedPacketCost;
+    public int getCost() {
+        return cost;
     }
 
-    public void decreaseSeedPackets(int amount) {
-        this.seedPackets -= amount;
+    public PlantCategory getCategory() {
+        return category;
     }
 
-    public void addSeedPackets(int amount) {
-        this.seedPackets += amount;
+    public Position getPosition() {
+        return position;
     }
 
-    public void upgrade() {
-        this.level++;
-
-        // اگر خواستی با ارتقا ویژگی‌ها هم بهتر شوند:
-        this.health += 50;
-        this.damage += 5;
-
-        // می‌تونی هزینه ارتقای بعدی رو هم بیشتر کنی
-        this.upgradeCoinCost += 500;
-        this.upgradeSeedPacketCost += 5;
+    public void setPosition(Position position) {
+        this.position = position;
     }
 
-    public Plant copy() {
-        return new Plant(
-                this.name,
-                this.type,
-                1,
-                0,
-                this.sunCost,
-                this.cooldown,
-                this.health,
-                this.damage,
-                this.description,
-                this.upgradeCoinCost,
-                this.upgradeSeedPacketCost
-        );
-    }
-
-    public String getDisplayText() {
-        return "Name: " + name + "\n"
-                + "Type: " + type + "\n"
-                + "Level: " + level + "\n"
-                + "Seed Packets: " + seedPackets + "\n"
-                + "Sun Cost: " + sunCost + "\n"
-                + "Cooldown: " + cooldown + "\n"
-                + "Health: " + health + "\n"
-                + "Damage: " + damage + "\n"
-                + "Description: " + description + "\n"
-                + "Upgrade Coin Cost: " + upgradeCoinCost + "\n"
-                + "Upgrade Seed Packet Cost: " + upgradeSeedPacketCost;
+    public Set<PlantTag> getTags() {
+        return tags;
     }
 }

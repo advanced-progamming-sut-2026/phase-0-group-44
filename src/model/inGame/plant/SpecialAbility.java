@@ -1,4 +1,7 @@
 package model.inGame.plant;
 
-public interface SpecialAbility {
+import model.GameEngine;
+
+interface SpecialAbility {
+    void activate(Plant plant, GameEngine engine);
 }

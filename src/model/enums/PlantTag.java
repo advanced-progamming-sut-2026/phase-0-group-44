@@ -1,4 +1,9 @@
 package model.enums;
 
-public enum PlantTag {
+enum PlantTag {
+    FIRE,
+    ICE,
+    POISON,
+    WATER,
+    BOOSTED
 }

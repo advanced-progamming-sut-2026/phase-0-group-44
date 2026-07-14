@@ -1,5 +1,7 @@
 package model.inGame.plant;
 
+import model.enums.PlantType;
+
 import java.util.ArrayList;
 
 public interface PlantRepository {

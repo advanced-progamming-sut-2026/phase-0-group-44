@@ -1,4 +1,10 @@
 package model.inGame.plant;
 
-public class NoSunProduction {
+import model.GameEngine;
+
+class NoSunProduction implements SunProduceBehavior {
+    @Override
+    public void produce(Plant plant, GameEngine engine) {
+        // does not produce sun
+    }
 }
