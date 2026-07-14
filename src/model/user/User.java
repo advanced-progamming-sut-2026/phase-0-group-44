@@ -319,7 +319,7 @@ public class User {
                 result.appendToMessage("Local part (before @) cannot be empty.");
                 return result;
             }
-            if (!localPart.matches("^[A-Za-z0-9][A-Za-z0-9._-]*[A-Za-z0-9]$")) {
+            if (!localPart.matches("^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$")) {
                 result.appendToMessage("Local part must start and end with a letter/digit, and only contain letters, digits, dot (.), dash (-), or underscore (_).");
                 return result;
             }
@@ -347,7 +347,7 @@ public class User {
                     result.appendToMessage("Domain cannot have empty parts (e.g., trailing or leading dots).");
                     return result;
                 }
-                if (!part.matches("^[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]$")) {
+                if (!part.matches("^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$")) {
                     result.appendToMessage("Each domain part must start and end with a letter/digit, and only contain letters, digits, or hyphens (-).");
                     return result;
                 }
