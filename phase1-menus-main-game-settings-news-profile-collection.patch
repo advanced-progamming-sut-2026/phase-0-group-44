@@ -1,0 +1,2275 @@
+diff --git a/UML.puml b/UML.puml
+index 025b784..04a0976 100644
+--- a/UML.puml
++++ b/UML.puml
+@@ -364,6 +364,113 @@ User --> Gender
+ App --> RegisterMenuController
+ App --> LoginMenuController
+ 
++' MAIN / GAME / SETTINGS / NEWS / PROFILE / COLLECTION MENUS '
++
++class DifficultyScaling <<static>> {
++  + {static} NEUTRAL_DIFFICULTY: int = 3
++  + {static} STEP_PER_LEVEL: double
++  + {static} zombieHealthMultiplier(difficulty: int): double
++  + {static} zombieDamageMultiplier(difficulty: int): double
++  + {static} gameSpeedMultiplier(difficulty: int): double
++  + {static} waveCostMultiplier(difficulty: int): double
++  + {static} skySunRateMultiplier(difficulty: int): double
++}
++
++enum GameWorld {
++  ANCIENT_EGYPT
++  FROSTBITE_CAVES
++  BIG_WAVE_BEACH
++  DARK_AGES
++  + getChapterNumber(): int
++  + {static} fromName(input: String): GameWorld
++}
++
++class ChapterCatalog <<static>> {
++  + {static} first(): GameWorld
++  + {static} next(world: GameWorld): GameWorld
++  + {static} applyDefaultUnlocks(user: User)
++  + {static} isUnlocked(user: User, world: GameWorld): boolean
++  + {static} unlockNext(user: User, completed: GameWorld): GameWorld
++}
++
++class NewsService {
++  - userService: UserService
++  + plantUnlocked(user: User, plantName: String): News
++  + zombieEncountered(user: User, zombieName: String): News
++  + levelUnlocked(user: User, levelName: String): News
++  + miniGameUnlocked(user: User, miniGameName: String): News
++}
++
++class MainMenuController {
++  - userService: UserService
++  + logout(): Result<String>
++}
++
++class GameMenuController {
++  - userService: UserService
++  + enterChapter(chapterName: String): Result<String>
++  + greenhouse(): Result<String>
++  + travelLog(): Result<String>
++  + leaderboard(): Result<String>
++  + showCoinWallet(): Result<Integer>
++  + showGemWallet(): Result<Integer>
++  + cheatAdd(amount: int, currency: String): Result<Integer>
++}
++
++class SettingsMenuController {
++  - userService: UserService
++  + changeDifficulty(level: int): Result<Integer>
++  + showDifficulty(): Result<Integer>
++}
++
++class NewsMenuController {
++  - userService: UserService
++  + showAllNews(): Result<ArrayList<News>>
++  + showUnreadNews(): Result<ArrayList<News>>
++}
++
++class ProfileMenuController {
++  - userService: UserService
++  - passwordService: PasswordService
++  + changeUsername(username: String): Result<String>
++  + changeNickname(nickname: String): Result<String>
++  + changeEmail(email: String): Result<String>
++  + changePassword(newPassword: String, oldPassword: String): Result<String>
++  + showInfo(): Result<String>
++}
++
++class GameMenuView extends MenuView
++class SettingsMenuView extends MenuView
++class NewsMenuView extends MenuView
++class ProfileMenuView extends MenuView
++class CollectionMenuView extends MenuView
++
++GameMenuController --> ChapterCatalog
++ChapterCatalog --> GameWorld
++ChapterCatalog --> User
++DifficultyScaling ..> Settings
++NewsService --> UserService
++NewsService --> User
++MainMenuController --> UserService
++GameMenuController --> UserService
++SettingsMenuController --> UserService
++SettingsMenuController ..> DifficultyScaling
++NewsMenuController --> UserService
++ProfileMenuController --> UserService
++ProfileMenuController --> PasswordService
++CollectionMenuController --> UserService
++MenuRouter --> GameMenuView
++MenuRouter --> SettingsMenuView
++MenuRouter --> NewsMenuView
++MenuRouter --> ProfileMenuView
++MenuRouter --> CollectionMenuView
++App --> MainMenuController
++App --> GameMenuController
++App --> SettingsMenuController
++App --> NewsMenuController
++App --> ProfileMenuController
++App --> NewsService
++
+ abstract class MenuView {
+   - menuController: MenuController
+   + handleCommonCommand(input: String): boolean
+diff --git a/docs/uml/main-class-diagram.puml b/docs/uml/main-class-diagram.puml
+index 025b784..04a0976 100644
+--- a/docs/uml/main-class-diagram.puml
++++ b/docs/uml/main-class-diagram.puml
+@@ -364,6 +364,113 @@ User --> Gender
+ App --> RegisterMenuController
+ App --> LoginMenuController
+ 
++' MAIN / GAME / SETTINGS / NEWS / PROFILE / COLLECTION MENUS '
++
++class DifficultyScaling <<static>> {
++  + {static} NEUTRAL_DIFFICULTY: int = 3
++  + {static} STEP_PER_LEVEL: double
++  + {static} zombieHealthMultiplier(difficulty: int): double
++  + {static} zombieDamageMultiplier(difficulty: int): double
++  + {static} gameSpeedMultiplier(difficulty: int): double
++  + {static} waveCostMultiplier(difficulty: int): double
++  + {static} skySunRateMultiplier(difficulty: int): double
++}
++
++enum GameWorld {
++  ANCIENT_EGYPT
++  FROSTBITE_CAVES
++  BIG_WAVE_BEACH
++  DARK_AGES
++  + getChapterNumber(): int
++  + {static} fromName(input: String): GameWorld
++}
++
++class ChapterCatalog <<static>> {
++  + {static} first(): GameWorld
++  + {static} next(world: GameWorld): GameWorld
++  + {static} applyDefaultUnlocks(user: User)
++  + {static} isUnlocked(user: User, world: GameWorld): boolean
++  + {static} unlockNext(user: User, completed: GameWorld): GameWorld
++}
++
++class NewsService {
++  - userService: UserService
++  + plantUnlocked(user: User, plantName: String): News
++  + zombieEncountered(user: User, zombieName: String): News
++  + levelUnlocked(user: User, levelName: String): News
++  + miniGameUnlocked(user: User, miniGameName: String): News
++}
++
++class MainMenuController {
++  - userService: UserService
++  + logout(): Result<String>
++}
++
++class GameMenuController {
++  - userService: UserService
++  + enterChapter(chapterName: String): Result<String>
++  + greenhouse(): Result<String>
++  + travelLog(): Result<String>
++  + leaderboard(): Result<String>
++  + showCoinWallet(): Result<Integer>
++  + showGemWallet(): Result<Integer>
++  + cheatAdd(amount: int, currency: String): Result<Integer>
++}
++
++class SettingsMenuController {
++  - userService: UserService
++  + changeDifficulty(level: int): Result<Integer>
++  + showDifficulty(): Result<Integer>
++}
++
++class NewsMenuController {
++  - userService: UserService
++  + showAllNews(): Result<ArrayList<News>>
++  + showUnreadNews(): Result<ArrayList<News>>
++}
++
++class ProfileMenuController {
++  - userService: UserService
++  - passwordService: PasswordService
++  + changeUsername(username: String): Result<String>
++  + changeNickname(nickname: String): Result<String>
++  + changeEmail(email: String): Result<String>
++  + changePassword(newPassword: String, oldPassword: String): Result<String>
++  + showInfo(): Result<String>
++}
++
++class GameMenuView extends MenuView
++class SettingsMenuView extends MenuView
++class NewsMenuView extends MenuView
++class ProfileMenuView extends MenuView
++class CollectionMenuView extends MenuView
++
++GameMenuController --> ChapterCatalog
++ChapterCatalog --> GameWorld
++ChapterCatalog --> User
++DifficultyScaling ..> Settings
++NewsService --> UserService
++NewsService --> User
++MainMenuController --> UserService
++GameMenuController --> UserService
++SettingsMenuController --> UserService
++SettingsMenuController ..> DifficultyScaling
++NewsMenuController --> UserService
++ProfileMenuController --> UserService
++ProfileMenuController --> PasswordService
++CollectionMenuController --> UserService
++MenuRouter --> GameMenuView
++MenuRouter --> SettingsMenuView
++MenuRouter --> NewsMenuView
++MenuRouter --> ProfileMenuView
++MenuRouter --> CollectionMenuView
++App --> MainMenuController
++App --> GameMenuController
++App --> SettingsMenuController
++App --> NewsMenuController
++App --> ProfileMenuController
++App --> NewsService
++
+ abstract class MenuView {
+   - menuController: MenuController
+   + handleCommonCommand(input: String): boolean
+diff --git a/src/controller/App.java b/src/controller/App.java
+index 551e47f..5c1014a 100644
+--- a/src/controller/App.java
++++ b/src/controller/App.java
+@@ -10,6 +10,7 @@ import model.inGame.zombie.ZombieRepository;
+ import repository.JsonUserRepository;
+ import repository.UserRepository;
+ import service.PasswordService;
++import service.NewsService;
+ import service.SecurityQuestionCatalog;
+ import service.Sha256PasswordService;
+ import service.UserService;
+@@ -29,6 +30,12 @@ public class App {
+     private final SecurityQuestionCatalog questionCatalog;
+     private final RegisterMenuController registerController;
+     private final LoginMenuController loginController;
++    private final MainMenuController mainController;
++    private final GameMenuController gameController;
++    private final SettingsMenuController settingsController;
++    private final NewsMenuController newsController;
++    private final ProfileMenuController profileController;
++    private final NewsService newsService;
+ 
+     public App() {
+         this(new JsonUserRepository(), Clock.systemDefaultZone());
+@@ -38,17 +45,38 @@ public class App {
+         plantRepository = new JsonPlantRepository(PLANTS_PATH);
+         zombieRepository = new JsonZombieRepository(ZOMBIES_PATH);
+ 
+-        plantRepository.load();
+-        zombieRepository.load();
++        loadQuietly(plantRepository::load, "plant");
++        loadQuietly(zombieRepository::load, "zombie");
+ 
+-        collectionController = new CollectionMenuController(plantRepository, zombieRepository);
+         userService = new UserService(userRepository, clock);
++        collectionController =
++                new CollectionMenuController(plantRepository, zombieRepository, userService);
+         menuController = new MenuController(userService);
+         passwordService = new Sha256PasswordService();
+         questionCatalog = SecurityQuestionCatalog.fromFile(SecurityQuestionCatalog.DEFAULT_PATH);
+         registerController =
+                 new RegisterMenuController(userService, passwordService, questionCatalog);
+         loginController = new LoginMenuController(userService, passwordService);
++        mainController = new MainMenuController(userService);
++        gameController = new GameMenuController(userService);
++        settingsController = new SettingsMenuController(userService);
++        newsController = new NewsMenuController(userService);
++        profileController = new ProfileMenuController(userService, passwordService);
++        newsService = new NewsService(userService);
++    }
++
++    /**
++     * Loads a data source without letting a malformed file abort start-up. A
++     * failure leaves the registry empty and the menus usable; the collection
++     * detail commands then report no data until the source is corrected.
++     */
++    private void loadQuietly(Runnable load, String label) {
++        try {
++            load.run();
++        } catch (RuntimeException exception) {
++            System.out.println("warning: could not load " + label
++                    + " data (" + exception.getMessage() + ")");
++        }
+     }
+ 
+     /** Restores saved accounts and arranges for progress to be flushed on exit. */
+@@ -83,4 +111,28 @@ public class App {
+     public CollectionMenuController getCollectionController() {
+         return collectionController;
+     }
++
++    public MainMenuController getMainController() {
++        return mainController;
++    }
++
++    public GameMenuController getGameController() {
++        return gameController;
++    }
++
++    public SettingsMenuController getSettingsController() {
++        return settingsController;
++    }
++
++    public NewsMenuController getNewsController() {
++        return newsController;
++    }
++
++    public ProfileMenuController getProfileController() {
++        return profileController;
++    }
++
++    public NewsService getNewsService() {
++        return newsService;
++    }
+ }
+diff --git a/src/controller/CollectionMenuController.java b/src/controller/CollectionMenuController.java
+index 2797930..4b8fb94 100644
+--- a/src/controller/CollectionMenuController.java
++++ b/src/controller/CollectionMenuController.java
+@@ -11,8 +11,7 @@ import model.inGame.zombie.ZombieRepository;
+ import model.user.Collection;
+ import model.user.PlantCard;
+ import model.user.User;
+-
+-import java.util.ArrayList;
++import service.UserService;
+ 
+ import java.util.ArrayList;
+ import java.util.Map;
+@@ -22,13 +21,16 @@ public class CollectionMenuController {
+ 
+     private final PlantRepository plantRepository;
+     private final ZombieRepository zombieRepository;
++    private final UserService userService;
+ 
+     public CollectionMenuController(
+             PlantRepository plantRepository,
+-            ZombieRepository zombieRepository
++            ZombieRepository zombieRepository,
++            UserService userService
+     ) {
+         this.plantRepository = plantRepository;
+         this.zombieRepository = zombieRepository;
++        this.userService = userService;
+     }
+ 
+     public Result<ArrayList<PlantCollectionView>> showPlants(
+@@ -179,6 +181,7 @@ public class CollectionMenuController {
+ 
+         user.decreaseCoins(PLANT_PURCHASE_COST);
+         collection.purchasePlant(definition.getType());
++        userService.updateUser(user);
+ 
+         PlantCard card = collection.getPlantCard(
+                 definition.getType()
+@@ -243,6 +246,7 @@ public class CollectionMenuController {
+         user.getCollection().upgradePlant(
+                 definition.getType()
+         );
++        userService.updateUser(user);
+ 
+         PlantCollectionView view =
+                 new PlantCollectionView(definition, card);
+diff --git a/src/controller/GameMenuController.java b/src/controller/GameMenuController.java
+index 655bde5..54522d2 100644
+--- a/src/controller/GameMenuController.java
++++ b/src/controller/GameMenuController.java
+@@ -2,107 +2,168 @@ package controller;
+ 
+ import model.Result;
+ import model.Store;
++import model.config.ChapterCatalog;
++import model.config.GameWorld;
+ import model.user.User;
++import service.UserService;
+ 
++/**
++ * The game menu: navigation into worlds and the sub-screens, wallet queries and
++ * the cheat command. No chapter gameplay lives here; entering a world is a
++ * guarded navigation that ends at a stable placeholder.
++ */
+ public class GameMenuController {
+ 
++    private final UserService userService;
++
++    public GameMenuController(UserService userService) {
++        this.userService = userService;
++    }
++
++    /** Handles {@code menu enter chapter -c <chaptername>}. */
++    public Result<String> enterChapter(String chapterName) {
++        Result<String> result = new Result<>();
++        User user = requireUser(result);
++
++        if (user == null) {
++            return result;
++        }
++
++        GameWorld world = GameWorld.fromName(chapterName);
++
++        if (world == null) {
++            result.appendToMessage("no chapter named \"" + chapterName + "\"");
++            return result;
++        }
++
++        if (!ChapterCatalog.isUnlocked(user, world)) {
++            result.appendToMessage(world.getDisplayName() + " is locked");
++            return result;
++        }
++
++        result.setStatus(true);
++        result.setData(world.getDisplayName());
++        result.appendToMessage("entered chapter " + world.getDisplayName());
++
++        return result;
++    }
++
++    public Result<String> greenhouse() {
++        return placeholder("greenhouse");
++    }
++
++    public Result<String> travelLog() {
++        return placeholder("travel log");
++    }
++
++    public Result<String> leaderboard() {
++        return placeholder("leaderboard");
++    }
++
+     public Result<Integer> showCoinWallet() {
+         Result<Integer> result = new Result<>();
+-        User user = Store.getLoggedInUser();
++        User user = requireUser(result);
+ 
+         if (user == null) {
+-            result.setStatus(false);
+-            result.appendToMessage("no user is logged in");
+             return result;
+         }
+ 
+         result.setStatus(true);
+         result.setData(user.getCoins());
+-        result.appendToMessage(
+-                "coins: " + user.getCoins()
+-        );
++        result.appendToMessage("coins: " + user.getCoins());
+ 
+         return result;
+     }
+ 
+     public Result<Integer> showGemWallet() {
+         Result<Integer> result = new Result<>();
+-        User user = Store.getLoggedInUser();
++        User user = requireUser(result);
+ 
+         if (user == null) {
+-            result.setStatus(false);
+-            result.appendToMessage("no user is logged in");
+             return result;
+         }
+ 
+         result.setStatus(true);
+         result.setData(user.getGems());
+-        result.appendToMessage(
+-                "gems: " + user.getGems()
+-        );
++        result.appendToMessage("gems: " + user.getGems());
+ 
+         return result;
+     }
+ 
+-    public Result<Integer> cheatAdd(
+-            int amount,
+-            String currency
+-    ) {
++    /** Handles {@code menu cheat add <n> <coin/diamond>}. */
++    public Result<Integer> cheatAdd(int amount, String currency) {
+         Result<Integer> result = new Result<>();
+-        User user = Store.getLoggedInUser();
++        User user = requireUser(result);
+ 
+         if (user == null) {
+-            result.setStatus(false);
+-            result.appendToMessage("no user is logged in");
+             return result;
+         }
+ 
+         if (amount <= 0) {
+-            result.setStatus(false);
+-            result.appendToMessage(
+-                    "amount must be positive"
+-            );
++            result.appendToMessage("amount must be a positive number");
+             return result;
+         }
+ 
+-        if (currency == null) {
+-            result.setStatus(false);
+-            result.appendToMessage(
+-                    "currency must be coin or diamond"
+-            );
++        if (isCoin(currency)) {
++            user.setCoins(user.getCoins() + amount);
++            userService.updateUser(user);
++
++            result.setStatus(true);
++            result.setData(user.getCoins());
++            result.appendToMessage("coins: " + user.getCoins());
++
+             return result;
+         }
+ 
+-        if (currency.equalsIgnoreCase("coin")) {
+-            int newBalance = user.getCoins() + amount;
+-            user.setCoins(newBalance);
++        if (isDiamond(currency)) {
++            user.setGems(user.getGems() + amount);
++            userService.updateUser(user);
+ 
+             result.setStatus(true);
+-            result.setData(newBalance);
+-            result.appendToMessage(
+-                    "coins: " + newBalance
+-            );
++            result.setData(user.getGems());
++            result.appendToMessage("gems: " + user.getGems());
++
+             return result;
+         }
+ 
+-        if (currency.equalsIgnoreCase("diamond")
+-                || currency.equalsIgnoreCase("gem")) {
+-            int newBalance = user.getGems() + amount;
+-            user.setGems(newBalance);
++        result.appendToMessage("currency must be coin or diamond");
+ 
+-            result.setStatus(true);
+-            result.setData(newBalance);
+-            result.appendToMessage(
+-                    "gems: " + newBalance
+-            );
++        return result;
++    }
++
++    private boolean isCoin(String currency) {
++        return "coin".equalsIgnoreCase(currency) || "coins".equalsIgnoreCase(currency);
++    }
++
++    private boolean isDiamond(String currency) {
++        return "diamond".equalsIgnoreCase(currency)
++                || "diamonds".equalsIgnoreCase(currency)
++                || "gem".equalsIgnoreCase(currency)
++                || "gems".equalsIgnoreCase(currency);
++    }
++
++    private Result<String> placeholder(String screenName) {
++        Result<String> result = new Result<>();
++        User user = requireUser(result);
++
++        if (user == null) {
+             return result;
+         }
+ 
+-        result.setStatus(false);
+-        result.appendToMessage(
+-                "currency must be coin or diamond"
+-        );
++        result.setStatus(true);
++        result.setData(screenName);
++        result.appendToMessage("opened " + screenName);
+ 
+         return result;
+     }
++
++    private <T> User requireUser(Result<T> result) {
++        User user = Store.getLoggedInUser();
++
++        if (user == null) {
++            result.appendToMessage("no user is logged in");
++        }
++
++        return user;
++    }
+ }
+diff --git a/src/controller/MainMenuController.java b/src/controller/MainMenuController.java
+index 8403e74..a64082f 100644
+--- a/src/controller/MainMenuController.java
++++ b/src/controller/MainMenuController.java
+@@ -4,20 +4,30 @@ import model.Result;
+ import model.Store;
+ import model.enums.MenuName;
+ import model.user.User;
++import service.UserService;
+ 
++/** The main menu's own command: logging out. */
+ public class MainMenuController {
+ 
++    private final UserService userService;
++
++    public MainMenuController(UserService userService) {
++        this.userService = userService;
++    }
++
++    /** Handles {@code menu logout}: clears the session and returns to registration. */
+     public Result<String> logout() {
+         Result<String> result = new Result<>();
+         User user = Store.getLoggedInUser();
+ 
+         if (user == null) {
+-            result.setStatus(false);
+             result.appendToMessage("no user is logged in");
+             return result;
+         }
+ 
+         user.setStayLoggedIn(false);
++        userService.updateUser(user);
++
+         Store.setLoggedInUser(null);
+         Store.setCurrentMenu(MenuName.REGISTER);
+ 
+diff --git a/src/controller/NewsMenuController.java b/src/controller/NewsMenuController.java
+index 03e0caa..826adeb 100644
+--- a/src/controller/NewsMenuController.java
++++ b/src/controller/NewsMenuController.java
+@@ -2,14 +2,29 @@ package controller;
+ 
+ import model.News;
+ import model.Result;
++import model.Store;
+ import model.user.User;
++import service.UserService;
+ 
+ import java.util.ArrayList;
+ 
++/** The news menu: listing all news, and listing unread news (which marks them read). */
+ public class NewsMenuController {
+ 
+-    public Result<ArrayList<News>> showAllNews(User user) {
++    private final UserService userService;
++
++    public NewsMenuController(UserService userService) {
++        this.userService = userService;
++    }
++
++    /** Handles {@code menu news show-all}. */
++    public Result<ArrayList<News>> showAllNews() {
+         Result<ArrayList<News>> result = new Result<>();
++        User user = requireUser(result);
++
++        if (user == null) {
++            return result;
++        }
+ 
+         ArrayList<News> newsList = user.getNewsList();
+ 
+@@ -17,43 +32,71 @@ public class NewsMenuController {
+         result.setData(newsList);
+ 
+         if (newsList.isEmpty()) {
+-            result.appendToMessage("No news found.");
++            result.appendToMessage("no news");
+             return result;
+         }
+ 
+-        for (News news : newsList) {
+-            result.appendToMessage(news.getDisplayText());
+-             result.appendToMessage("\n\n");
+-        }
++        appendAll(result, newsList);
+ 
+         return result;
+     }
+ 
+-    public Result<ArrayList<News>> showUnreadNews(User user) {
++    /**
++     * Handles {@code menu news show-unread}. Every entry returned is marked read
++     * and the change is persisted, so the next call will not return it again.
++     */
++    public Result<ArrayList<News>> showUnreadNews() {
+         Result<ArrayList<News>> result = new Result<>();
++        User user = requireUser(result);
+ 
+-        ArrayList<News> unreadNews = new ArrayList<>();
++        if (user == null) {
++            return result;
++        }
++
++        ArrayList<News> unread = new ArrayList<>();
+ 
+         for (News news : user.getNewsList()) {
+             if (!news.isRead()) {
+-                unreadNews.add(news);
+-                result.appendToMessage(news.getDisplayText());
+-                result.appendToMessage("\n\n");
++                unread.add(news);
+             }
+         }
+ 
+-        for (News news : unreadNews) {
+-            news.markAsRead();
++        result.setStatus(true);
++        result.setData(unread);
++
++        if (unread.isEmpty()) {
++            result.appendToMessage("no unread news");
++            return result;
+         }
+ 
+-        result.setStatus(true);
+-        result.setData(unreadNews);
++        appendAll(result, unread);
+ 
+-        if (unreadNews.isEmpty()) {
+-            result.appendToMessage("No unread news.");
++        for (News news : unread) {
++            news.markAsRead();
+         }
+ 
++        userService.updateUser(user);
++
+         return result;
+     }
+ 
++    private void appendAll(Result<ArrayList<News>> result, ArrayList<News> list) {
++        for (int i = 0; i < list.size(); i++) {
++            result.appendToMessage(list.get(i).getDisplayText());
++
++            if (i < list.size() - 1) {
++                result.appendToMessage("\n\n");
++            }
++        }
++    }
++
++    private User requireUser(Result<ArrayList<News>> result) {
++        User user = Store.getLoggedInUser();
++
++        if (user == null) {
++            result.appendToMessage("no user is logged in");
++        }
++
++        return user;
++    }
+ }
+diff --git a/src/controller/ProfileMenuController.java b/src/controller/ProfileMenuController.java
+index c723696..9a9988b 100644
+--- a/src/controller/ProfileMenuController.java
++++ b/src/controller/ProfileMenuController.java
+@@ -3,87 +3,177 @@ package controller;
+ import model.Result;
+ import model.Store;
+ import model.user.User;
++import service.PasswordService;
++import service.UserService;
+ 
++/**
++ * The profile menu: changing the account's own fields and showing its info.
++ *
++ * <p>Field validators are reused from {@link User} (the same rules registration
++ * uses). Password checks go through {@link PasswordService}, so hashing stays out
++ * of this controller.</p>
++ */
+ public class ProfileMenuController {
++
++    private final UserService userService;
++    private final PasswordService passwordService;
++
++    public ProfileMenuController(UserService userService, PasswordService passwordService) {
++        this.userService = userService;
++        this.passwordService = passwordService;
++    }
++
++    /** Handles {@code menu profile change-username -u <username>}. */
+     public Result<String> changeUsername(String username) {
+         Result<String> result = new Result<>();
+-        if (Store.getLoggedInUser().getUsername().equals(username)){
+-            result.appendToMessage("you can not change it to what it already is");
++        User user = requireUser(result);
++
++        if (user == null) {
+             return result;
+         }
+-        for (User u:Store.getUsers()){
+-            if (u.getUsername().equals(username)){
+-                result.appendToMessage("username is already taken");
+-                return result;
+-            }
++
++        if (user.getUsername().equals(username)) {
++            result.appendToMessage("this is already your username");
++            return result;
+         }
+-        if (!User.isUserNameValid(username)){
+-            result.appendToMessage("wrong username format");
++
++        if (!User.isUserNameValid(username)) {
++            result.appendToMessage("incorrect username format");
+             return result;
+         }
+-        Store.getLoggedInUser().setUsername(username);
+-        result.appendToMessage("username Changed!!!");
+-        return result;
++
++        if (userService.findByUsername(username) != null) {
++            result.appendToMessage("username already taken");
++            return result;
++        }
++
++        user.setUsername(username);
++        userService.updateUser(user);
++
++        return success(result, username, "username changed");
+     }
++
++    /** Handles {@code menu profile change-nickname -u <nickname>}. */
+     public Result<String> changeNickname(String nickname) {
+         Result<String> result = new Result<>();
+-        if (Store.getLoggedInUser().getNickname().equals(nickname)){
+-            result.appendToMessage("you can not change it to what it already is");
++        User user = requireUser(result);
++
++        if (user == null) {
+             return result;
+         }
+ 
+-        if (!User.isNickNameValid(nickname)){
+-            result.appendToMessage("wrong nickname format");
++        if (user.getNickname().equals(nickname)) {
++            result.appendToMessage("this is already your nickname");
+             return result;
+         }
+-        Store.getLoggedInUser().setNickname(nickname);
+-        result.appendToMessage("nickname Changed!!!");
+-        return result;
++
++        if (!User.isNickNameValid(nickname)) {
++            result.appendToMessage("the nickname must be between 3 and 30 characters");
++            return result;
++        }
++
++        user.setNickname(nickname);
++        userService.updateUser(user);
++
++        return success(result, nickname, "nickname changed");
+     }
++
++    /** Handles {@code menu profile change-email -e <email>}. */
+     public Result<String> changeEmail(String email) {
+         Result<String> result = new Result<>();
+-        if (Store.getLoggedInUser().getEmail().equals(email)){
+-            result.appendToMessage("you can not change it to what it already is");
++        User user = requireUser(result);
++
++        if (user == null) {
+             return result;
+         }
+ 
+-        if (User.isEmailNameValid(email)!=null){
++        if (user.getEmail() != null && user.getEmail().equals(email)) {
++            result.appendToMessage("this is already your email");
++            return result;
++        }
+ 
+-            return User.isEmailNameValid(email);
++        Result<String> invalidEmail = User.isEmailNameValid(email);
++
++        if (invalidEmail != null) {
++            return invalidEmail;
+         }
+-        Store.getLoggedInUser().setEmail(email);
+-        result.appendToMessage("email Changed!!!");
+-        return result;
++
++        user.setEmail(email);
++        userService.updateUser(user);
++
++        return success(result, email, "email changed");
+     }
+-    public Result<String> newPassword(String newPassword,String oldPassword) {
++
++    /** Handles {@code menu profile change-password -p <new> -o <old>}. */
++    public Result<String> changePassword(String newPassword, String oldPassword) {
+         Result<String> result = new Result<>();
+-        if (!User.hashPassword(oldPassword).equals(Store.getLoggedInUser())){
+-            result.appendToMessage("incorrect old password");
++        User user = requireUser(result);
++
++        if (user == null) {
+             return result;
+         }
+-        if (User.isPasswordValid(newPassword)!=null){
+-            return User.isPasswordValid(newPassword);
++
++        if (!passwordService.matches(oldPassword, user.getHashOfPassword())) {
++            result.appendToMessage("the old password is incorrect");
++            return result;
+         }
+ 
+-        String hashOfPassword=User.hashPassword(newPassword);
+-        Store.getLoggedInUser().setHashOfPassword(hashOfPassword);
+-        result.appendToMessage("password Changed!!!");
+-        return result;
++        if (passwordService.matches(newPassword, user.getHashOfPassword())) {
++            result.appendToMessage("the new password is the same as the current one");
++            return result;
++        }
++
++        Result<String> weakPassword = User.isPasswordValid(newPassword);
++
++        if (weakPassword != null) {
++            return weakPassword;
++        }
++
++        user.setHashOfPassword(passwordService.store(newPassword));
++        userService.updateUser(user);
++
++        return success(result, user.getUsername(), "password changed");
+     }
+-    public Result<String> showDetails() {
++
++    /** Handles {@code menu profile show-info}. */
++    public Result<String> showInfo() {
+         Result<String> result = new Result<>();
+-        User u=Store.getLoggedInUser();
+-        String text = String.format(
+-                "Username: %s\nNickname: %s\nGames Played: %d\nCoins Earned: %d\nGems Earned: %d\nLevels Passed: %d\nHighest MioPoint: %d",
+-                u.getUsername(),
+-                u.getNickname(),
+-                u.getGamesPlayed(),
+-                u.getCoins(),
+-                u.getGems(),
+-                u.getProgress(),
+-                u.getMioPoint()
+-        );
+-        result.appendToMessage(text);
++        User user = requireUser(result);
++
++        if (user == null) {
++            return result;
++        }
++
++        String info = "username: " + user.getUsername()
++                + "\nnickname: " + user.getNickname()
++                + "\nplayed games: " + user.getGamesPlayed()
++                + "\ncoins: " + user.getCoins()
++                + "\ndiamonds: " + user.getGems()
++                + "\ncompleted levels: " + user.getCompletedLevelCount()
++                + "\nhighest Mew Point: " + user.getHighestMewPoint();
++
++        result.setStatus(true);
++        result.setData(info);
++        result.appendToMessage(info);
++
++        return result;
++    }
++
++    private Result<String> success(Result<String> result, String data, String message) {
++        result.setStatus(true);
++        result.setData(data);
++        result.appendToMessage(message);
++
+         return result;
+     }
++
++    private User requireUser(Result<String> result) {
++        User user = Store.getLoggedInUser();
++
++        if (user == null) {
++            result.appendToMessage("no user is logged in");
++        }
++
++        return user;
++    }
+ }
+diff --git a/src/controller/RegisterMenuController.java b/src/controller/RegisterMenuController.java
+index 65f3ff2..01e27a1 100644
+--- a/src/controller/RegisterMenuController.java
++++ b/src/controller/RegisterMenuController.java
+@@ -4,6 +4,7 @@ import model.Result;
+ import model.Store;
+ import model.enums.Gender;
+ import model.enums.MenuName;
++import model.config.ChapterCatalog;
+ import model.enums.PlantType;
+ import model.miniGame.GreenHouse;
+ import model.user.Collection;
+@@ -98,6 +99,7 @@ public class RegisterMenuController {
+ 
+         pending.setQuestion(questionCatalog.getQuestion(questionNumber));
+         pending.setAnswerToQuestion(answer);
++        ChapterCatalog.applyDefaultUnlocks(pending);
+ 
+         Result<String> stored = userService.addUser(pending);
+ 
+diff --git a/src/controller/SettingsMenuController.java b/src/controller/SettingsMenuController.java
+index 96b8f75..01f90c0 100644
+--- a/src/controller/SettingsMenuController.java
++++ b/src/controller/SettingsMenuController.java
+@@ -2,29 +2,32 @@ package controller;
+ 
+ import model.Result;
+ import model.Store;
++import model.config.DifficultyScaling;
+ import model.user.Settings;
+ import model.user.User;
++import service.UserService;
+ 
++/** The settings menu: changing and reporting difficulty. */
+ public class SettingsMenuController {
+-    private static final int MIN_DIFFICULTY = 1;
+-    private static final int MAX_DIFFICULTY = 5;
+ 
++    private final UserService userService;
++
++    public SettingsMenuController(UserService userService) {
++        this.userService = userService;
++    }
++
++    /** Handles {@code menu settings change-difficulty -l <level>}. */
+     public Result<Integer> changeDifficulty(int difficultyLevel) {
+         Result<Integer> result = new Result<>();
+-        User user = Store.getLoggedInUser();
++        User user = requireUser(result);
+ 
+         if (user == null) {
+-            result.setStatus(false);
+-            result.appendToMessage("no user is logged in");
+             return result;
+         }
+ 
+-        if (difficultyLevel < MIN_DIFFICULTY
+-                || difficultyLevel > MAX_DIFFICULTY) {
+-            result.setStatus(false);
+-            result.appendToMessage(
+-                    "difficulty must be between 1 and 5"
+-            );
++        if (difficultyLevel < DifficultyScaling.MIN_DIFFICULTY
++                || difficultyLevel > DifficultyScaling.MAX_DIFFICULTY) {
++            result.appendToMessage("difficulty must be an integer from 1 through 5");
+             return result;
+         }
+ 
+@@ -33,23 +36,20 @@ public class SettingsMenuController {
+         }
+ 
+         user.getSettings().setDifficultyLevel(difficultyLevel);
++        userService.updateUser(user);
+ 
+         result.setStatus(true);
+         result.setData(difficultyLevel);
+-        result.appendToMessage(
+-                "difficulty changed to " + difficultyLevel
+-        );
++        result.appendToMessage("difficulty changed to " + difficultyLevel);
+ 
+         return result;
+     }
+ 
+     public Result<Integer> showDifficulty() {
+         Result<Integer> result = new Result<>();
+-        User user = Store.getLoggedInUser();
++        User user = requireUser(result);
+ 
+         if (user == null) {
+-            result.setStatus(false);
+-            result.appendToMessage("no user is logged in");
+             return result;
+         }
+ 
+@@ -57,15 +57,22 @@ public class SettingsMenuController {
+             user.setSettings(new Settings());
+         }
+ 
+-        int difficultyLevel =
+-                user.getSettings().getDifficultyLevel();
++        int level = user.getSettings().getDifficultyLevel();
+ 
+         result.setStatus(true);
+-        result.setData(difficultyLevel);
+-        result.appendToMessage(
+-                "current difficulty: " + difficultyLevel
+-        );
++        result.setData(level);
++        result.appendToMessage("current difficulty: " + level);
+ 
+         return result;
+     }
++
++    private User requireUser(Result<Integer> result) {
++        User user = Store.getLoggedInUser();
++
++        if (user == null) {
++            result.appendToMessage("no user is logged in");
++        }
++
++        return user;
++    }
+ }
+diff --git a/src/model/config/ChapterCatalog.java b/src/model/config/ChapterCatalog.java
+new file mode 100644
+index 0000000..c08f30e
+--- /dev/null
++++ b/src/model/config/ChapterCatalog.java
+@@ -0,0 +1,54 @@
++package model.config;
++
++import model.user.User;
++
++/**
++ * Read-only knowledge about chapter ordering and unlocking.
++ *
++ * <p>Holds no gameplay: it only answers "which chapter is first", "what comes
++ * next", and "is this chapter unlocked for this user". Completing a chapter's
++ * content (done by gameplay, later) calls {@link #unlockNext} to open the
++ * following world.</p>
++ */
++public final class ChapterCatalog {
++
++    private ChapterCatalog() {
++    }
++
++    public static GameWorld first() {
++        return GameWorld.ANCIENT_EGYPT;
++    }
++
++    /** The world after the given one, or {@code null} if it is the last. */
++    public static GameWorld next(GameWorld world) {
++        return GameWorld.fromChapterNumber(world.getChapterNumber() + 1);
++    }
++
++    /** Ensures a brand-new player can enter the first world and nothing else. */
++    public static void applyDefaultUnlocks(User user) {
++        if (user.getUnlockedChapters().isEmpty()) {
++            user.getUnlockedChapters().add(first().getChapterNumber());
++        }
++    }
++
++    public static boolean isUnlocked(User user, GameWorld world) {
++        return user.getUnlockedChapters().contains(world.getChapterNumber());
++    }
++
++    /**
++     * Opens the world that follows the given one. Returns the newly unlocked
++     * world, or {@code null} when there is nothing further or it was already
++     * open.
++     */
++    public static GameWorld unlockNext(User user, GameWorld completed) {
++        GameWorld following = next(completed);
++
++        if (following == null) {
++            return null;
++        }
++
++        boolean added = user.getUnlockedChapters().add(following.getChapterNumber());
++
++        return added ? following : null;
++    }
++}
+diff --git a/src/model/config/DifficultyScaling.java b/src/model/config/DifficultyScaling.java
+new file mode 100644
+index 0000000..c71a775
+--- /dev/null
++++ b/src/model/config/DifficultyScaling.java
+@@ -0,0 +1,69 @@
++package model.config;
++
++/**
++ * The single place that turns a difficulty level (1-5) into gameplay multipliers.
++ *
++ * <p>Difficulty 3 is the neutral point: every multiplier is exactly 1.0 there.
++ * As difficulty rises, zombie health, zombie damage and game speed scale up,
++ * while wave cost and sky-sun appearance rate scale down; as it falls, the
++ * reverse. All five are derived from one {@link #STEP_PER_LEVEL} constant so the
++ * balance lives in a single spot.</p>
++ *
++ * <p><b>Source note:</b> the specification states only the direction of each
++ * axis, not the magnitude, and no formula was found in the project's data files
++ * or tests. The 10%-per-level step below is therefore a placeholder assumption,
++ * deliberately isolated here so the real numbers can be dropped in without
++ * touching any gameplay or menu code.</p>
++ */
++public final class DifficultyScaling {
++
++    public static final int NEUTRAL_DIFFICULTY = 3;
++    public static final int MIN_DIFFICULTY = 1;
++    public static final int MAX_DIFFICULTY = 5;
++
++    /** Placeholder magnitude: fraction of change per level away from neutral. */
++    public static final double STEP_PER_LEVEL = 0.10;
++
++    private DifficultyScaling() {
++    }
++
++    /** Distance above (positive) or below (negative) the neutral difficulty. */
++    private static int stepsFromNeutral(int difficulty) {
++        require(difficulty);
++
++        return difficulty - NEUTRAL_DIFFICULTY;
++    }
++
++    /** Zombie health multiplier: rises with difficulty. */
++    public static double zombieHealthMultiplier(int difficulty) {
++        return 1.0 + STEP_PER_LEVEL * stepsFromNeutral(difficulty);
++    }
++
++    /** Zombie damage multiplier: rises with difficulty. */
++    public static double zombieDamageMultiplier(int difficulty) {
++        return 1.0 + STEP_PER_LEVEL * stepsFromNeutral(difficulty);
++    }
++
++    /** Game speed multiplier: rises with difficulty. */
++    public static double gameSpeedMultiplier(int difficulty) {
++        return 1.0 + STEP_PER_LEVEL * stepsFromNeutral(difficulty);
++    }
++
++    /** Wave cost multiplier: falls with difficulty (cheaper waves mean more zombies). */
++    public static double waveCostMultiplier(int difficulty) {
++        return 1.0 - STEP_PER_LEVEL * stepsFromNeutral(difficulty);
++    }
++
++    /** Sky-sun appearance rate multiplier: falls with difficulty. */
++    public static double skySunRateMultiplier(int difficulty) {
++        return 1.0 - STEP_PER_LEVEL * stepsFromNeutral(difficulty);
++    }
++
++    private static void require(int difficulty) {
++        if (difficulty < MIN_DIFFICULTY || difficulty > MAX_DIFFICULTY) {
++            throw new IllegalArgumentException(
++                    "Difficulty must be between " + MIN_DIFFICULTY + " and " + MAX_DIFFICULTY + "."
++            );
++        }
++    }
++}
+diff --git a/src/model/config/GameWorld.java b/src/model/config/GameWorld.java
+new file mode 100644
+index 0000000..9db336f
+--- /dev/null
++++ b/src/model/config/GameWorld.java
+@@ -0,0 +1,65 @@
++package model.config;
++
++/**
++ * The four Adventure worlds, in play order.
++ *
++ * <p>Names and order come from the project's zombie chapter guide
++ * ({@code Zombies.md}): Ancient Egypt, Frostbite Caves, Big Wave Beach, Dark
++ * Ages. Chapter numbers match {@code User.getUnlockedChapters()} (1-based).
++ * Per-world level layouts and gameplay are defined elsewhere and are not
++ * modelled here.</p>
++ */
++public enum GameWorld {
++    ANCIENT_EGYPT(1, "Ancient Egypt"),
++    FROSTBITE_CAVES(2, "Frostbite Caves"),
++    BIG_WAVE_BEACH(3, "Big Wave Beach"),
++    DARK_AGES(4, "Dark Ages");
++
++    private final int chapterNumber;
++    private final String displayName;
++
++    GameWorld(int chapterNumber, String displayName) {
++        this.chapterNumber = chapterNumber;
++        this.displayName = displayName;
++    }
++
++    public int getChapterNumber() {
++        return chapterNumber;
++    }
++
++    public String getDisplayName() {
++        return displayName;
++    }
++
++    /** Resolves a typed chapter name, tolerating case, spaces, hyphens and underscores. */
++    public static GameWorld fromName(String input) {
++        if (input == null) {
++            return null;
++        }
++
++        String normalized = normalize(input);
++
++        for (GameWorld world : values()) {
++            if (normalize(world.displayName).equals(normalized)
++                    || normalize(world.name()).equals(normalized)) {
++                return world;
++            }
++        }
++
++        return null;
++    }
++
++    public static GameWorld fromChapterNumber(int chapterNumber) {
++        for (GameWorld world : values()) {
++            if (world.chapterNumber == chapterNumber) {
++                return world;
++            }
++        }
++
++        return null;
++    }
++
++    private static String normalize(String value) {
++        return value.trim().toLowerCase().replace("-", "").replace("_", "").replace(" ", "");
++    }
++}
+diff --git a/src/model/enums/Command.java b/src/model/enums/Command.java
+index 90b7080..b82be87 100644
+--- a/src/model/enums/Command.java
++++ b/src/model/enums/Command.java
+@@ -19,6 +19,30 @@ public enum Command {
+     ANSWER("^answer\\s+-a\\s+(.+)$"),
+     NEW_PASSWORD("^new\\s+password\\s+-p\\s+(\\S+)$"),
+ 
++    // Main Menu
++    MENU_LOGOUT("^menu\\s+logout$"),
++
++    // Game Menu
++    MENU_ENTER_CHAPTER("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)$"),
++    MENU_GREENHOUSE("^menu\\s+greenhouse$"),
++    MENU_TRAVEL_LOG("^menu\\s+travel-log$"),
++    MENU_LEADERBOARD("^menu\\s+leaderboard$"),
++    MENU_COIN_WALLET("^menu\\s+coin-wallet$"),
++    MENU_GEM_WALLET("^menu\\s+gem-wallet$"),
++    MENU_CHEAT_ADD("^menu\\s+cheat\\s+add\\s+(-?\\d+)\\s+(\\S+)$"),
++
++    // Settings Menu
++    MENU_SETTINGS_CHANGE_DIFFICULTY(
++            "^menu\\s+settings\\s+change-difficulty\\s+-l\\s+(-?\\d+)$"),
++
++    // Profile Menu
++    MENU_PROFILE_CHANGE_USERNAME("^menu\\s+profile\\s+change-username\\s+-u\\s+(\\S+)$"),
++    MENU_PROFILE_CHANGE_NICKNAME("^menu\\s+profile\\s+change-nickname\\s+-u\\s+(.+)$"),
++    MENU_PROFILE_CHANGE_EMAIL("^menu\\s+profile\\s+change-email\\s+-e\\s+(\\S+)$"),
++    MENU_PROFILE_CHANGE_PASSWORD(
++            "^menu\\s+profile\\s+change-password\\s+-p\\s+(\\S+)\\s+-o\\s+(\\S+)$"),
++    MENU_PROFILE_SHOW_INFO("^menu\\s+profile\\s+show-info$"),
++
+     // News Menu
+ 
+     MENU_NEWS_SHOW_UNREAD("^menu\\s+news\\s+show-unread$"),
+diff --git a/src/service/NewsService.java b/src/service/NewsService.java
+new file mode 100644
+index 0000000..d4c94d2
+--- /dev/null
++++ b/src/service/NewsService.java
+@@ -0,0 +1,61 @@
++package service;
++
++import model.News;
++import model.enums.NewsType;
++import model.user.User;
++
++/**
++ * Creates the news entries the player sees when new content opens up.
++ *
++ * <p>Each entry starts unread; read state is flipped by the news menu and
++ * persisted by {@link UserService}. This service is the one place that knows how
++ * an unlock becomes a news item, so gameplay code only has to call it.</p>
++ */
++public class NewsService {
++
++    private final UserService userService;
++
++    public NewsService(UserService userService) {
++        this.userService = userService;
++    }
++
++    public News plantUnlocked(User user, String plantName) {
++        return add(user, new News(
++                "New plant unlocked",
++                "You unlocked the plant " + plantName + ".",
++                NewsType.PLANT_UNLOCKED
++        ));
++    }
++
++    /** Created only once a zombie has actually been encountered. */
++    public News zombieEncountered(User user, String zombieName) {
++        return add(user, new News(
++                "New zombie discovered",
++                "You encountered the zombie " + zombieName + ".",
++                NewsType.ZOMBIE_UNLOCKED
++        ));
++    }
++
++    public News levelUnlocked(User user, String levelName) {
++        return add(user, new News(
++                "New level unlocked",
++                "You unlocked " + levelName + ".",
++                NewsType.LEVEL_UNLOCKED
++        ));
++    }
++
++    public News miniGameUnlocked(User user, String miniGameName) {
++        return add(user, new News(
++                "New mini-game unlocked",
++                "You unlocked the mini-game " + miniGameName + ".",
++                NewsType.MINIGAME_UNLOCKED
++        ));
++    }
++
++    private News add(User user, News news) {
++        user.getNewsList().add(news);
++        userService.updateUser(user);
++
++        return news;
++    }
++}
+diff --git a/src/view/CollectionMenuView.java b/src/view/CollectionMenuView.java
+index 7786895..38efd9a 100644
+--- a/src/view/CollectionMenuView.java
++++ b/src/view/CollectionMenuView.java
+@@ -1,67 +1,90 @@
+ package view;
+ 
+ import controller.CollectionMenuController;
+-import model.Result;
++import controller.MainMenuController;
++import controller.MenuController;
++import model.Store;
+ import model.enums.Command;
+ import model.user.User;
+ 
+-import java.util.List;
+ import java.util.regex.Matcher;
+ 
+-public class CollectionMenuView {
++/** Reads collection-menu commands. */
++public class CollectionMenuView extends MenuView {
++
+     private final CollectionMenuController controller;
++    private final MainMenuController mainController;
+ 
+-    public CollectionMenuView(CollectionMenuController controller) {
++    public CollectionMenuView(
++            MenuController menuController,
++            CollectionMenuController controller,
++            MainMenuController mainController
++    ) {
++        super(menuController);
+         this.controller = controller;
++        this.mainController = mainController;
+     }
+ 
+-    public void checkCommand(String input, User currentUser) {
+-        Matcher matcher;
++    public void checkCommand(String input) {
++        User user = Store.getLoggedInUser();
+ 
+         if (Command.MENU_COLLECTION_SHOW_PLANTS.matches(input)) {
+-            System.out.println(controller.showPlants(currentUser).getMessage());
++            print(controller.showPlants(user));
+             return;
+         }
+ 
+         if (Command.MENU_COLLECTION_SHOW_ALL_PLANTS.matches(input)) {
+-            System.out.println(controller.showAllPlants().getMessage());
++            print(controller.showAllPlants());
+             return;
+         }
+ 
+         if (Command.MENU_COLLECTION_SHOW_ZOMBIES.matches(input)) {
+-            System.out.println(controller.showZombies(currentUser).getMessage());
++            print(controller.showZombies(user));
+             return;
+         }
+ 
+         if (Command.MENU_COLLECTION_SHOW_ALL_ZOMBIES.matches(input)) {
+-            System.out.println(controller.showAllZombies().getMessage());
++            print(controller.showAllZombies());
++            return;
++        }
++
++        if (Command.MENU_COLLECTION_SHOW_PLANT.matches(input)) {
++            print(controller.showPlant(user, group(Command.MENU_COLLECTION_SHOW_PLANT, input)));
++            return;
++        }
++
++        if (Command.MENU_COLLECTION_SHOW_ZOMBIE.matches(input)) {
++            print(controller.showZombie(user, group(Command.MENU_COLLECTION_SHOW_ZOMBIE, input)));
+             return;
+         }
+ 
+-        matcher = Command.MENU_COLLECTION_SHOW_PLANT.getMatcher(input);
+-        if (matcher.matches()) {
+-            System.out.println(controller.showPlant(currentUser, matcher.group(1)).getMessage());
++        if (Command.MENU_COLLECTION_UPGRADE_PLANT.matches(input)) {
++            print(controller.upgradePlant(user, group(Command.MENU_COLLECTION_UPGRADE_PLANT, input)));
+             return;
+         }
+ 
+-        matcher = Command.MENU_COLLECTION_SHOW_ZOMBIE.getMatcher(input);
+-        if (matcher.matches()) {
+-            System.out.println(controller.showZombie(currentUser, matcher.group(1)).getMessage());
++        if (Command.MENU_COLLECTION_PURCHASE_PLANT.matches(input)) {
++            print(controller.purchasePlant(
++                    user, group(Command.MENU_COLLECTION_PURCHASE_PLANT, input)));
+             return;
+         }
+ 
+-        matcher = Command.MENU_COLLECTION_UPGRADE_PLANT.getMatcher(input);
+-        if (matcher.matches()) {
+-            System.out.println(controller.upgradePlant(currentUser, matcher.group(1)).getMessage());
++        if (Command.MENU_LOGOUT.matches(input)) {
++            print(mainController.logout());
+             return;
+         }
+ 
+-        matcher = Command.MENU_COLLECTION_PURCHASE_PLANT.getMatcher(input);
+-        if (matcher.matches()) {
+-            System.out.println(controller.purchasePlant(currentUser, matcher.group(1)).getMessage());
++        if (handleCommonCommand(input)) {
+             return;
+         }
+ 
+-        System.out.println("Invalid command.");
++        System.out.println("invalid command");
++    }
++
++    private String group(Command command, String input) {
++        Matcher matcher = command.getMatcher(input);
++        matcher.matches();
++
++        return matcher.group(1);
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/view/CommonMenuView.java b/src/view/CommonMenuView.java
+index 0d11c77..d194255 100644
+--- a/src/view/CommonMenuView.java
++++ b/src/view/CommonMenuView.java
+@@ -1,19 +1,28 @@
+ package view;
+ 
++import controller.MainMenuController;
+ import controller.MenuController;
++import model.enums.Command;
+ 
+ /**
+- * Placeholder view used while the individual menu views are still empty: it
+- * offers the shared menu commands and nothing else.
++ * The view for menus that have only the shared commands plus logout — currently
++ * the main menu. Sub-menu-specific views extend {@link MenuView} directly.
+  */
+ public class CommonMenuView extends MenuView {
+ 
+-    public CommonMenuView(MenuController menuController) {
++    private final MainMenuController mainController;
++
++    public CommonMenuView(MenuController menuController, MainMenuController mainController) {
+         super(menuController);
++        this.mainController = mainController;
+     }
+ 
+-    /** Reads one line of input and reports whether it was understood. */
+     public void checkCommand(String input) {
++        if (Command.MENU_LOGOUT.matches(input)) {
++            print(mainController.logout());
++            return;
++        }
++
+         if (!handleCommonCommand(input)) {
+             System.out.println("invalid command");
+         }
+diff --git a/src/view/GameMenuView.java b/src/view/GameMenuView.java
+index e0e6acc..81192df 100644
+--- a/src/view/GameMenuView.java
++++ b/src/view/GameMenuView.java
+@@ -1,4 +1,79 @@
+ package view;
+ 
+-public class GameMenuView {
++import controller.GameMenuController;
++import controller.MainMenuController;
++import controller.MenuController;
++import model.enums.Command;
++
++import java.util.regex.Matcher;
++
++/** Reads game-menu commands. Chapter entry is checked before the generic menu commands. */
++public class GameMenuView extends MenuView {
++
++    private final GameMenuController controller;
++    private final MainMenuController mainController;
++
++    public GameMenuView(
++            MenuController menuController,
++            GameMenuController controller,
++            MainMenuController mainController
++    ) {
++        super(menuController);
++        this.controller = controller;
++        this.mainController = mainController;
++    }
++
++    public void checkCommand(String input) {
++        if (Command.MENU_ENTER_CHAPTER.matches(input)) {
++            Matcher matcher = Command.MENU_ENTER_CHAPTER.getMatcher(input);
++            matcher.matches();
++            print(controller.enterChapter(matcher.group(1)));
++
++            return;
++        }
++
++        if (Command.MENU_GREENHOUSE.matches(input)) {
++            print(controller.greenhouse());
++            return;
++        }
++
++        if (Command.MENU_TRAVEL_LOG.matches(input)) {
++            print(controller.travelLog());
++            return;
++        }
++
++        if (Command.MENU_LEADERBOARD.matches(input)) {
++            print(controller.leaderboard());
++            return;
++        }
++
++        if (Command.MENU_COIN_WALLET.matches(input)) {
++            print(controller.showCoinWallet());
++            return;
++        }
++
++        if (Command.MENU_GEM_WALLET.matches(input)) {
++            print(controller.showGemWallet());
++            return;
++        }
++
++        if (Command.MENU_CHEAT_ADD.matches(input)) {
++            Matcher matcher = Command.MENU_CHEAT_ADD.getMatcher(input);
++            matcher.matches();
++            print(controller.cheatAdd(Integer.parseInt(matcher.group(1)), matcher.group(2)));
++
++            return;
++        }
++
++        if (Command.MENU_LOGOUT.matches(input)) {
++            print(mainController.logout());
++            return;
++        }
++
++        if (handleCommonCommand(input)) {
++            return;
++        }
++
++        System.out.println("invalid command");
++    }
+ }
+diff --git a/src/view/MenuRouter.java b/src/view/MenuRouter.java
+index 355a444..520c759 100644
+--- a/src/view/MenuRouter.java
++++ b/src/view/MenuRouter.java
+@@ -9,6 +9,11 @@ public class MenuRouter {
+ 
+     private final RegisterMenuView registerMenuView;
+     private final LoginMenuView loginMenuView;
++    private final GameMenuView gameMenuView;
++    private final SettingsMenuView settingsMenuView;
++    private final NewsMenuView newsMenuView;
++    private final ProfileMenuView profileMenuView;
++    private final CollectionMenuView collectionMenuView;
+     private final CommonMenuView commonMenuView;
+ 
+     public MenuRouter(App app) {
+@@ -16,22 +21,46 @@ public class MenuRouter {
+                 app.getMenuController(), app.getRegisterController());
+         this.loginMenuView = new LoginMenuView(
+                 app.getMenuController(), app.getLoginController());
+-        this.commonMenuView = new CommonMenuView(app.getMenuController());
++        this.gameMenuView = new GameMenuView(
++                app.getMenuController(), app.getGameController(), app.getMainController());
++        this.settingsMenuView = new SettingsMenuView(
++                app.getMenuController(), app.getSettingsController(), app.getMainController());
++        this.newsMenuView = new NewsMenuView(
++                app.getMenuController(), app.getNewsController(), app.getMainController());
++        this.profileMenuView = new ProfileMenuView(
++                app.getMenuController(), app.getProfileController(), app.getMainController());
++        this.collectionMenuView = new CollectionMenuView(
++                app.getMenuController(), app.getCollectionController(), app.getMainController());
++        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
+     }
+ 
+     public void route(String input) {
+         MenuName current = Store.getCurrentMenu();
+ 
+-        if (current == MenuName.REGISTER) {
+-            registerMenuView.checkCommand(input);
+-            return;
++        switch (current) {
++            case REGISTER:
++                registerMenuView.checkCommand(input);
++                return;
++            case LOGIN:
++                loginMenuView.checkCommand(input);
++                return;
++            case GAME:
++                gameMenuView.checkCommand(input);
++                return;
++            case SETTINGS:
++                settingsMenuView.checkCommand(input);
++                return;
++            case NEWS:
++                newsMenuView.checkCommand(input);
++                return;
++            case PROFILE:
++                profileMenuView.checkCommand(input);
++                return;
++            case COLLECTION:
++                collectionMenuView.checkCommand(input);
++                return;
++            default:
++                commonMenuView.checkCommand(input);
+         }
+-
+-        if (current == MenuName.LOGIN) {
+-            loginMenuView.checkCommand(input);
+-            return;
+-        }
+-
+-        commonMenuView.checkCommand(input);
+     }
+ }
+diff --git a/src/view/NewsMenuView.java b/src/view/NewsMenuView.java
+index d527a92..298ca3b 100644
+--- a/src/view/NewsMenuView.java
++++ b/src/view/NewsMenuView.java
+@@ -1,4 +1,46 @@
+ package view;
+ 
+-public class NewsMenuView {
++import controller.MainMenuController;
++import controller.MenuController;
++import controller.NewsMenuController;
++import model.enums.Command;
++
++/** Reads news-menu commands. */
++public class NewsMenuView extends MenuView {
++
++    private final NewsMenuController controller;
++    private final MainMenuController mainController;
++
++    public NewsMenuView(
++            MenuController menuController,
++            NewsMenuController controller,
++            MainMenuController mainController
++    ) {
++        super(menuController);
++        this.controller = controller;
++        this.mainController = mainController;
++    }
++
++    public void checkCommand(String input) {
++        if (Command.MENU_NEWS_SHOW_UNREAD.matches(input)) {
++            print(controller.showUnreadNews());
++            return;
++        }
++
++        if (Command.MENU_NEWS_SHOW_ALL.matches(input)) {
++            print(controller.showAllNews());
++            return;
++        }
++
++        if (Command.MENU_LOGOUT.matches(input)) {
++            print(mainController.logout());
++            return;
++        }
++
++        if (handleCommonCommand(input)) {
++            return;
++        }
++
++        System.out.println("invalid command");
++    }
+ }
+diff --git a/src/view/ProfileMenuView.java b/src/view/ProfileMenuView.java
+index 3dc0739..2bcd9ba 100644
+--- a/src/view/ProfileMenuView.java
++++ b/src/view/ProfileMenuView.java
+@@ -1,4 +1,73 @@
+ package view;
+ 
+-public class ProfileMenuView {
++import controller.MainMenuController;
++import controller.MenuController;
++import controller.ProfileMenuController;
++import model.enums.Command;
++
++import java.util.regex.Matcher;
++
++/** Reads profile-menu commands. */
++public class ProfileMenuView extends MenuView {
++
++    private final ProfileMenuController controller;
++    private final MainMenuController mainController;
++
++    public ProfileMenuView(
++            MenuController menuController,
++            ProfileMenuController controller,
++            MainMenuController mainController
++    ) {
++        super(menuController);
++        this.controller = controller;
++        this.mainController = mainController;
++    }
++
++    public void checkCommand(String input) {
++        if (Command.MENU_PROFILE_CHANGE_USERNAME.matches(input)) {
++            print(controller.changeUsername(group(Command.MENU_PROFILE_CHANGE_USERNAME, input)));
++            return;
++        }
++
++        if (Command.MENU_PROFILE_CHANGE_NICKNAME.matches(input)) {
++            print(controller.changeNickname(group(Command.MENU_PROFILE_CHANGE_NICKNAME, input)));
++            return;
++        }
++
++        if (Command.MENU_PROFILE_CHANGE_EMAIL.matches(input)) {
++            print(controller.changeEmail(group(Command.MENU_PROFILE_CHANGE_EMAIL, input)));
++            return;
++        }
++
++        if (Command.MENU_PROFILE_CHANGE_PASSWORD.matches(input)) {
++            Matcher matcher = Command.MENU_PROFILE_CHANGE_PASSWORD.getMatcher(input);
++            matcher.matches();
++            print(controller.changePassword(matcher.group(1), matcher.group(2)));
++
++            return;
++        }
++
++        if (Command.MENU_PROFILE_SHOW_INFO.matches(input)) {
++            print(controller.showInfo());
++            return;
++        }
++
++        if (Command.MENU_LOGOUT.matches(input)) {
++            print(mainController.logout());
++            return;
++        }
++
++        if (handleCommonCommand(input)) {
++            return;
++        }
++
++        System.out.println("invalid command");
++    }
++
++    private String group(Command command, String input) {
++        Matcher matcher = command.getMatcher(input);
++        matcher.matches();
++
++        return matcher.group(1);
++    }
+ }
+diff --git a/src/view/SettingsMenuView.java b/src/view/SettingsMenuView.java
+index 14b7bcc..9e95a7d 100644
+--- a/src/view/SettingsMenuView.java
++++ b/src/view/SettingsMenuView.java
+@@ -1,4 +1,46 @@
+ package view;
+ 
+-public class SettingsMenuView {
++import controller.MainMenuController;
++import controller.MenuController;
++import controller.SettingsMenuController;
++import model.enums.Command;
++
++import java.util.regex.Matcher;
++
++/** Reads settings-menu commands. */
++public class SettingsMenuView extends MenuView {
++
++    private final SettingsMenuController controller;
++    private final MainMenuController mainController;
++
++    public SettingsMenuView(
++            MenuController menuController,
++            SettingsMenuController controller,
++            MainMenuController mainController
++    ) {
++        super(menuController);
++        this.controller = controller;
++        this.mainController = mainController;
++    }
++
++    public void checkCommand(String input) {
++        if (Command.MENU_SETTINGS_CHANGE_DIFFICULTY.matches(input)) {
++            Matcher matcher = Command.MENU_SETTINGS_CHANGE_DIFFICULTY.getMatcher(input);
++            matcher.matches();
++            print(controller.changeDifficulty(Integer.parseInt(matcher.group(1))));
++
++            return;
++        }
++
++        if (Command.MENU_LOGOUT.matches(input)) {
++            print(mainController.logout());
++            return;
++        }
++
++        if (handleCommonCommand(input)) {
++            return;
++        }
++
++        System.out.println("invalid command");
++    }
+ }
+diff --git a/test/controller/MenuCommandsTest.java b/test/controller/MenuCommandsTest.java
+new file mode 100644
+index 0000000..de88016
+--- /dev/null
++++ b/test/controller/MenuCommandsTest.java
+@@ -0,0 +1,348 @@
++package controller;
++
++import model.News;
++import model.Result;
++import model.Store;
++import model.config.ChapterCatalog;
++import model.config.DifficultyScaling;
++import model.config.GameWorld;
++import model.enums.MenuName;
++import model.enums.NewsType;
++import model.user.Settings;
++import model.user.User;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++import repository.JsonUserRepository;
++import service.NewsService;
++import service.PasswordService;
++import service.Sha256PasswordService;
++import service.UserService;
++
++import java.nio.file.Path;
++import java.time.Clock;
++import java.time.Instant;
++import java.time.ZoneOffset;
++import java.util.ArrayList;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNull;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++/** Main, Game, Settings, News and Profile menu commands. */
++class MenuCommandsTest {
++
++    private static final Clock CLOCK =
++            Clock.fixed(Instant.parse("2026-07-14T09:30:00Z"), ZoneOffset.UTC);
++
++    @TempDir
++    Path tempDir;
++
++    private Path savePath;
++    private UserService userService;
++    private PasswordService passwordService;
++    private User user;
++
++    @BeforeEach
++    void setUp() {
++        savePath = tempDir.resolve("users.json");
++        Store.setUsers(new ArrayList<>());
++        Store.setLoggedInUser(null);
++        Store.setCurrentMenu(MenuName.MAIN);
++        Store.setRunning(true);
++
++        passwordService = new Sha256PasswordService();
++        userService = newService();
++
++        user = new User();
++        user.setUsername("kasra");
++        user.setNickname("Kasra");
++        user.setEmail("kasra@example.com");
++        user.setHashOfPassword(passwordService.store("Abcdef1!"));
++        user.applyDefaults();
++        ChapterCatalog.applyDefaultUnlocks(user);
++        userService.addUser(user);
++        Store.setLoggedInUser(user);
++    }
++
++    private UserService newService() {
++        return new UserService(new JsonUserRepository(savePath), CLOCK);
++    }
++
++    private User reloadUser() {
++        UserService reloaded = newService();
++        reloaded.loadUsers();
++
++        return reloaded.findByUsername("kasra");
++    }
++
++    // ---------- logout ----------
++
++    @Test
++    void logoutClearsSessionPersistsAndReturnsToRegistration() {
++        user.setStayLoggedIn(true);
++        userService.updateUser(user);
++
++        Result<String> result = new MainMenuController(userService).logout();
++
++        assertTrue(result.getStatus());
++        assertNull(Store.getLoggedInUser());
++        assertEquals(MenuName.REGISTER, Store.getCurrentMenu());
++        assertFalse(reloadUser().isStayLoggedIn());
++    }
++
++    // ---------- game: chapters ----------
++
++    @Test
++    void anUnlockedChapterCanBeEnteredAndALockedOneCannot() {
++        GameMenuController game = new GameMenuController(userService);
++
++        Result<String> egypt = game.enterChapter("Ancient Egypt");
++        assertTrue(egypt.getStatus());
++        assertEquals("Ancient Egypt", egypt.getData());
++
++        Result<String> locked = game.enterChapter("Dark Ages");
++        assertFalse(locked.getStatus());
++        assertTrue(locked.getMessage().contains("locked"));
++
++        Result<String> unknown = game.enterChapter("Atlantis");
++        assertFalse(unknown.getStatus());
++    }
++
++    @Test
++    void completingAChapterUnlocksTheNextOne() {
++        assertFalse(ChapterCatalog.isUnlocked(user, GameWorld.FROSTBITE_CAVES));
++
++        GameWorld unlocked = ChapterCatalog.unlockNext(user, GameWorld.ANCIENT_EGYPT);
++
++        assertEquals(GameWorld.FROSTBITE_CAVES, unlocked);
++        assertTrue(ChapterCatalog.isUnlocked(user, GameWorld.FROSTBITE_CAVES));
++        assertTrue(new GameMenuController(userService).enterChapter("Frostbite Caves").getStatus());
++    }
++
++    // ---------- game: wallets and cheat ----------
++
++    @Test
++    void walletsReportCurrentBalances() {
++        user.setCoins(150);
++        user.setGems(7);
++        GameMenuController game = new GameMenuController(userService);
++
++        assertEquals(150, game.showCoinWallet().getData());
++        assertEquals(7, game.showGemWallet().getData());
++    }
++
++    @Test
++    void cheatAddsToTheChosenWalletAndPersists() {
++        GameMenuController game = new GameMenuController(userService);
++
++        assertTrue(game.cheatAdd(100, "coin").getStatus());
++        assertTrue(game.cheatAdd(5, "diamond").getStatus());
++
++        assertEquals(100, user.getCoins());
++        assertEquals(5, user.getGems());
++        assertEquals(100, reloadUser().getCoins());
++        assertEquals(5, reloadUser().getGems());
++    }
++
++    @Test
++    void cheatRejectsNonPositiveAmountsAndUnknownCurrencies() {
++        GameMenuController game = new GameMenuController(userService);
++
++        assertFalse(game.cheatAdd(0, "coin").getStatus());
++        assertFalse(game.cheatAdd(-5, "coin").getStatus());
++        assertFalse(game.cheatAdd(10, "rubies").getStatus());
++        assertEquals(0, user.getCoins());
++        assertEquals(0, user.getGems());
++    }
++
++    // ---------- settings ----------
++
++    @Test
++    void difficultyAcceptsOneThroughFiveAndPersists() {
++        SettingsMenuController settings = new SettingsMenuController(userService);
++
++        assertTrue(settings.changeDifficulty(1).getStatus());
++        assertTrue(settings.changeDifficulty(5).getStatus());
++        assertEquals(5, reloadUser().getSettings().getDifficultyLevel());
++    }
++
++    @Test
++    void difficultyRejectsOutOfRangeValues() {
++        SettingsMenuController settings = new SettingsMenuController(userService);
++
++        assertFalse(settings.changeDifficulty(0).getStatus());
++        assertFalse(settings.changeDifficulty(6).getStatus());
++        assertEquals(3, user.getSettings().getDifficultyLevel());
++    }
++
++    @Test
++    void newAccountsDefaultToDifficultyThree() {
++        assertEquals(3, new Settings().getDifficultyLevel());
++        assertEquals(3, reloadUser().getSettings().getDifficultyLevel());
++    }
++
++    @Test
++    void difficultyThreeIsTheNeutralScalingPoint() {
++        assertEquals(1.0, DifficultyScaling.zombieHealthMultiplier(3), 1e-9);
++        assertEquals(1.0, DifficultyScaling.zombieDamageMultiplier(3), 1e-9);
++        assertEquals(1.0, DifficultyScaling.gameSpeedMultiplier(3), 1e-9);
++        assertEquals(1.0, DifficultyScaling.waveCostMultiplier(3), 1e-9);
++        assertEquals(1.0, DifficultyScaling.skySunRateMultiplier(3), 1e-9);
++    }
++
++    @Test
++    void scalingMovesEachAxisInTheDirectionTheSpecRequires() {
++        assertTrue(DifficultyScaling.zombieHealthMultiplier(5)
++                > DifficultyScaling.zombieHealthMultiplier(3));
++        assertTrue(DifficultyScaling.zombieDamageMultiplier(5)
++                > DifficultyScaling.zombieDamageMultiplier(3));
++        assertTrue(DifficultyScaling.gameSpeedMultiplier(5)
++                > DifficultyScaling.gameSpeedMultiplier(3));
++        assertTrue(DifficultyScaling.waveCostMultiplier(5)
++                < DifficultyScaling.waveCostMultiplier(3));
++        assertTrue(DifficultyScaling.skySunRateMultiplier(5)
++                < DifficultyScaling.skySunRateMultiplier(3));
++
++        assertTrue(DifficultyScaling.zombieHealthMultiplier(1)
++                < DifficultyScaling.zombieHealthMultiplier(3));
++        assertTrue(DifficultyScaling.waveCostMultiplier(1)
++                > DifficultyScaling.waveCostMultiplier(3));
++    }
++
++    // ---------- news ----------
++
++    @Test
++    void showUnreadMarksEntriesReadAndPersistsSoTheyAreNotReturnedAgain() {
++        NewsService newsService = new NewsService(userService);
++        newsService.plantUnlocked(user, "Sunflower");
++        newsService.zombieEncountered(user, "Conehead");
++
++        NewsMenuController news = new NewsMenuController(userService);
++
++        Result<ArrayList<News>> first = news.showUnreadNews();
++        assertTrue(first.getStatus());
++        assertEquals(2, first.getData().size());
++
++        Result<ArrayList<News>> second = news.showUnreadNews();
++        assertTrue(second.getData().isEmpty());
++
++        for (News entry : reloadUser().getNewsList()) {
++            assertTrue(entry.isRead(), "read state persisted");
++        }
++    }
++
++    @Test
++    void showAllReturnsEveryEntryWithoutChangingReadState() {
++        user.getNewsList().add(new News("a", "b", NewsType.OTHER));
++        userService.updateUser(user);
++
++        Result<ArrayList<News>> all = new NewsMenuController(userService).showAllNews();
++
++        assertTrue(all.getStatus());
++        assertEquals(1, all.getData().size());
++        assertFalse(reloadUser().getNewsList().get(0).isRead());
++    }
++
++    @Test
++    void newsServiceCreatesAnEntryForEachKindOfUnlock() {
++        NewsService newsService = new NewsService(userService);
++
++        newsService.plantUnlocked(user, "Peashooter");
++        newsService.zombieEncountered(user, "Buckethead");
++        newsService.levelUnlocked(user, "Egypt 1-1");
++        newsService.miniGameUnlocked(user, "Vasebreaker");
++
++        assertEquals(4, user.getNewsList().size());
++        assertEquals(NewsType.PLANT_UNLOCKED, user.getNewsList().get(0).getType());
++        assertEquals(NewsType.ZOMBIE_UNLOCKED, user.getNewsList().get(1).getType());
++        assertEquals(NewsType.LEVEL_UNLOCKED, user.getNewsList().get(2).getType());
++        assertEquals(NewsType.MINIGAME_UNLOCKED, user.getNewsList().get(3).getType());
++        assertEquals(4, reloadUser().getNewsList().size());
++    }
++
++    // ---------- profile ----------
++
++    private ProfileMenuController profile() {
++        return new ProfileMenuController(userService, passwordService);
++    }
++
++    @Test
++    void changingAFieldToItsCurrentValueGivesADistinctError() {
++        assertEquals("this is already your username",
++                profile().changeUsername("kasra").getMessage());
++        assertEquals("this is already your nickname",
++                profile().changeNickname("Kasra").getMessage());
++        assertEquals("this is already your email",
++                profile().changeEmail("kasra@example.com").getMessage());
++    }
++
++    @Test
++    void changingFieldsReusesRegistrationValidatorsAndPersists() {
++        assertFalse(profile().changeUsername("bad name!").getStatus());
++        assertFalse(profile().changeNickname("ab").getStatus());
++        assertFalse(profile().changeEmail("nope").getStatus());
++
++        assertTrue(profile().changeUsername("kasra2").getStatus());
++        assertTrue(profile().changeNickname("Kasra The Second").getStatus());
++        assertTrue(profile().changeEmail("kasra2@example.com").getStatus());
++
++        assertEquals("kasra2", reloadByName("kasra2").getUsername());
++        assertEquals("Kasra The Second", reloadByName("kasra2").getNickname());
++        assertEquals("kasra2@example.com", reloadByName("kasra2").getEmail());
++    }
++
++    @Test
++    void changingUsernameToAnotherUsersNameIsRejected() {
++        User other = new User();
++        other.setUsername("taken");
++        other.applyDefaults();
++        userService.addUser(other);
++
++        assertEquals("username already taken", profile().changeUsername("taken").getMessage());
++    }
++
++    @Test
++    void passwordChangeDistinguishesWrongOldFromNewEqualsCurrent() {
++        Result<String> wrongOld = profile().changePassword("Newpass1!", "WrongOld1!");
++        assertFalse(wrongOld.getStatus());
++        assertEquals("the old password is incorrect", wrongOld.getMessage());
++
++        Result<String> sameAsCurrent = profile().changePassword("Abcdef1!", "Abcdef1!");
++        assertFalse(sameAsCurrent.getStatus());
++        assertEquals("the new password is the same as the current one", sameAsCurrent.getMessage());
++
++        Result<String> weak = profile().changePassword("abc", "Abcdef1!");
++        assertFalse(weak.getStatus());
++
++        assertTrue(profile().changePassword("Newpass1!", "Abcdef1!").getStatus());
++        assertTrue(passwordService.matches("Newpass1!", reloadUser().getHashOfPassword()));
++    }
++
++    @Test
++    void showInfoReportsTheRequiredFields() {
++        user.setGamesPlayed(9);
++        user.setCoins(320);
++        user.setGems(11);
++        user.setCompletedLevelCount(6);
++        user.setHighestMewPoint(4200);
++
++        String info = profile().showInfo().getData();
++
++        assertTrue(info.contains("username: kasra"));
++        assertTrue(info.contains("nickname: Kasra"));
++        assertTrue(info.contains("played games: 9"));
++        assertTrue(info.contains("coins: 320"));
++        assertTrue(info.contains("diamonds: 11"));
++        assertTrue(info.contains("completed levels: 6"));
++        assertTrue(info.contains("highest Mew Point: 4200"));
++    }
++
++    private User reloadByName(String username) {
++        UserService reloaded = newService();
++        reloaded.loadUsers();
++
++        return reloaded.findByUsername(username);
++    }
++}

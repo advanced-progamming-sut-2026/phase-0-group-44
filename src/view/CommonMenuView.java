@@ -1,19 +1,28 @@
 package view;
 
+import controller.MainMenuController;
 import controller.MenuController;
+import model.enums.Command;
 
 /**
- * Placeholder view used while the individual menu views are still empty: it
- * offers the shared menu commands and nothing else.
+ * The view for menus that have only the shared commands plus logout — currently
+ * the main menu. Sub-menu-specific views extend {@link MenuView} directly.
  */
 public class CommonMenuView extends MenuView {
 
-    public CommonMenuView(MenuController menuController) {
+    private final MainMenuController mainController;
+
+    public CommonMenuView(MenuController menuController, MainMenuController mainController) {
         super(menuController);
+        this.mainController = mainController;
     }
 
-    /** Reads one line of input and reports whether it was understood. */
     public void checkCommand(String input) {
+        if (Command.MENU_LOGOUT.matches(input)) {
+            print(mainController.logout());
+            return;
+        }
+
         if (!handleCommonCommand(input)) {
             System.out.println("invalid command");
         }

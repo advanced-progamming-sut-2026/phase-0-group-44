@@ -4,6 +4,7 @@ import model.Result;
 import model.Store;
 import model.enums.Gender;
 import model.enums.MenuName;
+import model.config.ChapterCatalog;
 import model.enums.PlantType;
 import model.miniGame.GreenHouse;
 import model.user.Collection;
@@ -98,6 +99,7 @@ public class RegisterMenuController {
 
         pending.setQuestion(questionCatalog.getQuestion(questionNumber));
         pending.setAnswerToQuestion(answer);
+        ChapterCatalog.applyDefaultUnlocks(pending);
 
         Result<String> stored = userService.addUser(pending);
 
