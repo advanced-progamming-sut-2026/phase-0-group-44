@@ -14,6 +14,7 @@ public class MenuRouter {
     private final NewsMenuView newsMenuView;
     private final ProfileMenuView profileMenuView;
     private final CollectionMenuView collectionMenuView;
+    private final PlantSelectionView plantSelectionView;
     private final CommonMenuView commonMenuView;
 
     public MenuRouter(App app) {
@@ -31,6 +32,8 @@ public class MenuRouter {
                 app.getMenuController(), app.getProfileController(), app.getMainController());
         this.collectionMenuView = new CollectionMenuView(
                 app.getMenuController(), app.getCollectionController(), app.getMainController());
+        this.plantSelectionView = new PlantSelectionView(
+                app.getMenuController(), app.getPlantSelectionController());
         this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
     }
 
@@ -58,6 +61,9 @@ public class MenuRouter {
                 return;
             case COLLECTION:
                 collectionMenuView.checkCommand(input);
+                return;
+            case PLANT_SELECTION:
+                plantSelectionView.checkCommand(input);
                 return;
             default:
                 commonMenuView.checkCommand(input);

@@ -10,6 +10,7 @@ import model.inGame.zombie.ZombieRepository;
 import repository.JsonUserRepository;
 import repository.UserRepository;
 import service.PasswordService;
+import service.GreenhouseBoostService;
 import service.NewsService;
 import service.SecurityQuestionCatalog;
 import service.Sha256PasswordService;
@@ -36,6 +37,8 @@ public class App {
     private final NewsMenuController newsController;
     private final ProfileMenuController profileController;
     private final NewsService newsService;
+    private final GreenhouseBoostService greenhouseBoostService;
+    private final PlantSelectionController plantSelectionController;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -63,6 +66,8 @@ public class App {
         newsController = new NewsMenuController(userService);
         profileController = new ProfileMenuController(userService, passwordService);
         newsService = new NewsService(userService);
+        greenhouseBoostService = new GreenhouseBoostService(userService);
+        plantSelectionController = new PlantSelectionController(plantRepository, userService);
     }
 
     /**
@@ -134,5 +139,13 @@ public class App {
 
     public NewsService getNewsService() {
         return newsService;
+    }
+
+    public GreenhouseBoostService getGreenhouseBoostService() {
+        return greenhouseBoostService;
+    }
+
+    public PlantSelectionController getPlantSelectionController() {
+        return plantSelectionController;
     }
 }

@@ -471,6 +471,87 @@ App --> NewsMenuController
 App --> ProfileMenuController
 App --> NewsService
 
+' PLANT SELECTION / START GAME '
+
+interface Level {
+  + getName(): String
+  + getSelectionRules(): LevelSelectionRules
+}
+
+class NormalLevel implements Level
+
+class LevelSelectionRules {
+  + {static} DEFAULT_CAPACITY: int = 8
+  - capacity: int
+  - allowedPlants: Set<PlantType>
+  - selectionBypassed: boolean
+  + {static} normal(): LevelSelectionRules
+  + {static} withCapacity(capacity: int): LevelSelectionRules
+  + {static} restrictedTo(capacity: int, allowed: Set<PlantType>): LevelSelectionRules
+  + {static} bypassed(): LevelSelectionRules
+  + allows(type: PlantType): boolean
+}
+
+class PlantSelection {
+  - chosen: Set<PlantType>
+  - diamondBoosted: Set<PlantType>
+  + add(type: PlantType): boolean
+  + remove(type: PlantType): boolean
+  + contains(type: PlantType): boolean
+  + isDiamondBoosted(type: PlantType): boolean
+  + copy(): PlantSelection
+}
+
+class GameSession {
+  - level: Level
+  - selection: PlantSelection
+  - difficulty: int
+  - pendingGreenhouseBoosts: Set<PlantType>
+  - usedPlants: Set<PlantType>
+  + hasImmediatePlantFood(type: PlantType): boolean
+  + hasPendingGreenhouseBoost(type: PlantType): boolean
+  + useAndConsumeGreenhouseBoost(type: PlantType): boolean
+}
+
+class PlantSelectionController {
+  + {static} DIAMOND_BOOST_COST: int = 2
+  - plantRepository: PlantRepository
+  - userService: UserService
+  - level: Level
+  - selection: PlantSelection
+  + begin(level: Level): Result<String>
+  + showAllPlants(): Result<List<PlantDefinition>>
+  + showAvailablePlants(): Result<List<PlantDefinition>>
+  + addPlant(typeToken: String): Result<String>
+  + removePlant(typeToken: String): Result<String>
+  + boostPlant(typeToken: String): Result<String>
+  + startGame(): Result<GameSession>
+}
+
+class GreenhouseBoostService {
+  - userService: UserService
+  + consumeOnFirstUse(session: GameSession, user: User, type: PlantType): boolean
+}
+
+class PlantSelectionView extends MenuView
+
+NormalLevel --> LevelSelectionRules
+LevelSelectionRules --> PlantType
+PlantSelection --> PlantType
+GameSession --> Level
+GameSession --> PlantSelection
+PlantSelectionController --> PlantRepository
+PlantSelectionController --> UserService
+PlantSelectionController --> PlantSelection
+PlantSelectionController --> GameSession
+PlantSelectionController --> LevelSelectionRules
+GreenhouseBoostService --> UserService
+GreenhouseBoostService ..> GameSession
+Store --> GameSession
+MenuRouter --> PlantSelectionView
+App --> PlantSelectionController
+App --> GreenhouseBoostService
+
 abstract class MenuView {
   - menuController: MenuController
   + handleCommonCommand(input: String): boolean

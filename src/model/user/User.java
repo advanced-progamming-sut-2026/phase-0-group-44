@@ -480,6 +480,39 @@ public class User {
         return plantBoosts;
     }
 
+    /**
+     * Grants a stored greenhouse boost for a plant, capped at one. Returns true
+     * if a boost was newly stored, false if the plant already had one.
+     */
+    public boolean addStoredPlantBoost(PlantType type) {
+        Integer current = getPlantBoosts().get(type);
+
+        if (current != null && current >= 1) {
+            return false;
+        }
+
+        getPlantBoosts().put(type, 1);
+
+        return true;
+    }
+
+    /** Removes one stored greenhouse boost for a plant, if present. */
+    public boolean consumeStoredPlantBoost(PlantType type) {
+        Integer current = getPlantBoosts().get(type);
+
+        if (current == null || current <= 0) {
+            return false;
+        }
+
+        if (current <= 1) {
+            getPlantBoosts().remove(type);
+        } else {
+            getPlantBoosts().put(type, current - 1);
+        }
+
+        return true;
+    }
+
     public Map<String, Integer> getInventory() {
         if (inventory == null) {
             inventory = new LinkedHashMap<>();

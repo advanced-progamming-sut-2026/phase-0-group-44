@@ -43,6 +43,14 @@ public enum Command {
             "^menu\\s+profile\\s+change-password\\s+-p\\s+(\\S+)\\s+-o\\s+(\\S+)$"),
     MENU_PROFILE_SHOW_INFO("^menu\\s+profile\\s+show-info$"),
 
+    // Plant Selection Menu
+    SHOW_ALL_PLANTS("^show\\s+all\\s+plants$"),
+    SHOW_AVAILABLE_PLANTS("^show\\s+available\\s+plants$"),
+    ADD_PLANT("^add\\s+plant\\s+-t\\s+(.+)$"),
+    REMOVE_PLANT("^remove\\s+plant\\s+-t\\s+(.+)$"),
+    BOOST_PLANT("^boost\\s+plant\\s+-t\\s+(.+)$"),
+    START_GAME("^start\\s+game$"),
+
     // News Menu
 
     MENU_NEWS_SHOW_UNREAD("^menu\\s+news\\s+show-unread$"),
