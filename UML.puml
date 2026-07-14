@@ -245,6 +245,145 @@ Collection *-- PlantCard
 Collection *-- ZombieCard
 
 
+' MENU FRAMEWORK '
+
+enum MenuName {
+  REGISTER
+  LOGIN
+  MAIN
+  GAME
+  SETTINGS
+  NETWORK
+  NEWS
+  PROFILE
+  COLLECTION
+  + getToken(): String
+  + getDisplayName(): String
+  + {static} fromToken(input: String): MenuName
+}
+
+class MenuGraph <<static>> {
+  - {static} ENTRIES: Map<MenuName, Set<MenuName>>
+  - {static} EXITS: Map<MenuName, MenuExit>
+  + {static} reachableFrom(source: MenuName): Set<MenuName>
+  + {static} canEnter(source: MenuName, destination: MenuName): boolean
+  + {static} requiresAuthentication(source: MenuName, destination: MenuName): boolean
+  + {static} exitOf(source: MenuName): MenuExit
+}
+
+class MenuExit {
+  - kind: Kind
+  - destination: MenuName
+  + {static} returnTo(destination: MenuName): MenuExit
+  + {static} terminate(): MenuExit
+  + {static} forbidden(): MenuExit
+}
+
+enum MenuExit.Kind {
+  RETURN_TO
+  TERMINATE
+  FORBIDDEN
+}
+
+class MenuController {
+  - userService: UserService
+  + enterMenu(menuName: String): Result<String>
+  + showCurrentMenu(): Result<String>
+  + exitMenu(): Result<String>
+}
+
+' AUTHENTICATION '
+
+enum Gender {
+  MALE
+  FEMALE
+  + getToken(): String
+  + {static} fromToken(input: String): Gender
+}
+
+class AuthFlowState {
+  - pendingRegistration: User
+  - recoveringUser: User
+  - recoveryAnswerAccepted: boolean
+  + startRecovery(user: User)
+  + acceptRecoveryAnswer()
+  + clearRecovery()
+}
+
+interface PasswordService {
+  + store(rawPassword: String): String
+  + matches(rawPassword: String, storedPassword: String): boolean
+}
+
+class Sha256PasswordService implements PasswordService
+
+class SecurityQuestionCatalog {
+  - questions: List<String>
+  + {static} fromFile(path: Path): SecurityQuestionCatalog
+  + isValidNumber(number: int): boolean
+  + getQuestion(number: int): String
+  + render(): String
+}
+
+class RegisterMenuController {
+  - userService: UserService
+  - passwordService: PasswordService
+  - questionCatalog: SecurityQuestionCatalog
+  + register(username, password, repeatPassword, nickname, email, gender): Result<String>
+  + pickQuestion(questionNumber: int, answer: String, answerConfirm: String): Result<String>
+}
+
+class LoginMenuController {
+  - userService: UserService
+  - passwordService: PasswordService
+  + login(username: String, password: String, stayLoggedIn: boolean): Result<String>
+  + forgetPassword(username: String, email: String): Result<String>
+  + answer(answer: String): Result<String>
+  + newPassword(password: String): Result<String>
+}
+
+class RegisterMenuView extends MenuView
+class LoginMenuView extends MenuView
+class MenuRouter
+
+Store *-- AuthFlowState
+AuthFlowState --> User
+RegisterMenuController --> UserService
+RegisterMenuController --> PasswordService
+RegisterMenuController --> SecurityQuestionCatalog
+RegisterMenuController --> Store
+LoginMenuController --> UserService
+LoginMenuController --> PasswordService
+LoginMenuController --> Store
+RegisterMenuView --> RegisterMenuController
+LoginMenuView --> LoginMenuController
+MenuRouter --> RegisterMenuView
+MenuRouter --> LoginMenuView
+MenuRouter --> CommonMenuView
+User --> Gender
+App --> RegisterMenuController
+App --> LoginMenuController
+
+abstract class MenuView {
+  - menuController: MenuController
+  + handleCommonCommand(input: String): boolean
+  # print(result: Result)
+}
+
+class CommonMenuView extends MenuView {
+  + checkCommand(input: String)
+}
+
+MenuGraph --> MenuName
+MenuGraph --> MenuExit
+MenuExit --> MenuName
+MenuController --> MenuGraph
+MenuController --> Store
+MenuController --> UserService
+MenuView --> MenuController
+MenuView --> Command
+App --> MenuController
+
 ' MENUS '
 
 abstract class Menu {

@@ -1,5 +1,6 @@
 package model;
 
+import model.user.AuthFlowState;
 import model.user.User;
 import model.enums.MenuName;
 
@@ -10,6 +11,7 @@ public class Store {
     private static ArrayList<User> beforeTheQuestionUser = new ArrayList<>();
     private static ArrayList<String> listOfQuestions = new ArrayList<>();
     private static User loggedInUser;
+    private static AuthFlowState authFlow = new AuthFlowState();
     private static MenuName currentMenu = MenuName.REGISTER;
     private static boolean running = true;
 
@@ -41,6 +43,14 @@ public class Store {
 
     public static ArrayList<String> getListOfQuestions() {
         return listOfQuestions;
+    }
+
+    public static AuthFlowState getAuthFlow() {
+        return authFlow;
+    }
+
+    public static void resetAuthFlow() {
+        authFlow = new AuthFlowState();
     }
 
     public static User getLoggedInUser() {
