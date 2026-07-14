@@ -2,11 +2,12 @@ package model.inGame.plant;
 
 import model.GameEngine;
 import model.Position;
+import model.enums.PlantType;
 
 import java.util.HashSet;
 import java.util.Set;
 
-class Plant {
+public class Plant {
     private PlantType type;
     private int hp;
     private int rechargeTime;

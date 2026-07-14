@@ -4,13 +4,11 @@ import model.News;
 import model.Result;
 import model.Store;
 import model.enums.PlantType;
-import model.inGame.plant.Plant;
 import model.miniGame.GreenHouse;
 import model.user.Collection;
 import model.user.Settings;
 import model.user.User;
 
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 
 public class RegisterMenuController {

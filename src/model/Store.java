@@ -6,15 +6,33 @@ import model.enums.MenuName;
 import java.util.ArrayList;
 
 public class Store {
-    private static ArrayList<User> users;
-    private static ArrayList<User> beforeTheQuestionUser;
-    private static ArrayList<String> listOfQuestions;
+    private static ArrayList<User> users = new ArrayList<>();
+    private static ArrayList<User> beforeTheQuestionUser = new ArrayList<>();
+    private static ArrayList<String> listOfQuestions = new ArrayList<>();
     private static User loggedInUser;
     private static MenuName currentMenu = MenuName.REGISTER;
     private static boolean running = true;
 
     public static ArrayList<User> getUsers() {
         return users;
+    }
+
+    public static void setUsers(ArrayList<User> users) {
+        Store.users = users == null ? new ArrayList<>() : users;
+    }
+
+    public static User findUser(String username) {
+        if (username == null) {
+            return null;
+        }
+
+        for (User user : users) {
+            if (username.equals(user.getUsername())) {
+                return user;
+            }
+        }
+
+        return null;
     }
 
     public static ArrayList<User> getBeforeTheQuestionUser() {

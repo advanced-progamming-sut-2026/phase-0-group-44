@@ -37,23 +37,65 @@ class Store {
   + resetGameData()
 }
 
-class UserRepository {
-  - usersFilePath: String
-  - store: Store
-  + loadUsers()
-  + saveAll()
-  + findByUsername(username: String): User
-  + addUser(user: User)
-  + usernameExists(username: String): boolean
+interface UserRepository {
+  + load(): SaveFile
+  + save(saveFile: SaveFile)
+  + quarantineCorruptSave(stamp: String): Path
+  + getSaveFilePath(): Path
 }
 
+class JsonUserRepository implements UserRepository {
+  - saveFilePath: Path
+  - serializer: SaveSerializer
+  - writer: AtomicFileWriter
+}
+
+' PERSISTENCE (serialization kept out of the domain) '
+
+class SaveFile {
+  + {static} CURRENT_VERSION: int
+  - version: int
+  - users: List<User>
+  - lastLoggedInUsername: String
+}
+
+interface SaveSerializer {
+  + serialize(saveFile: SaveFile): String
+  + deserialize(content: String): SaveFile
+}
+
+class GsonSaveSerializer implements SaveSerializer {
+  - gson: Gson
+  - migrator: SaveFileMigrator
+}
+
+class SaveFileMigrator {
+  + migrate(saveFile: SaveFile): SaveFile
+}
+
+class AtomicFileWriter {
+  + write(target: Path, content: String)
+}
+
+SaveFile o-- User
+JsonUserRepository --> SaveFile
+JsonUserRepository --> SaveSerializer
+JsonUserRepository --> AtomicFileWriter
+GsonSaveSerializer --> SaveFileMigrator
+SaveFileMigrator --> SaveFile
+
 class UserService {
-  - store: Store
-  - userRepository: UserRepository
-  + register(username: String, password: String, nickname: String, email: String, gender: Gender)
+  - repository: UserRepository
+  - clock: Clock
+  + loadUsers(): Result<Integer>
+  + saveUsers(): Result<String>
+  + addUser(user: User): Result<String>
+  + updateUser(user: User): Result<String>
+  + getAutoLoginUser(): User
+  + shutdown(): Result<String>
+  + today(): LocalDate
   + login(username: String, password: String): User
   + logout()
-  + hashPassword(password: String): String
   + changeUsername(user: User, username: String)
   + changeNickname(user: User, nickname: String)
   + changeEmail(user: User, email: String)
@@ -97,8 +139,8 @@ Store o-- Quest
 Store *-- Shop
 Store *-- Leaderboard
 
-UserRepository --> Store
 UserService --> Store
+UserService --> Clock
 UserService --> UserRepository
 GameService --> Store
 GameService --> UserRepository
@@ -107,22 +149,44 @@ GameService --> UserRepository
 
 class User {
   - username: String
-  - hashedPassword: String
+  - hashOfPassword: String
   - nickname: String
   - email: String
-  - gender: Gender
+  - gender: String
+  - question: String
+  - answerToQuestion: String
   - coins: int
   - gems: int
-  - miopoint: int
+  - mioPoint: int
   - gamesPlayed: int
-  - unlockedLevels: Set<LevelId>
+  - completedLevelCount: int
+  - latestCompletedChapter: int
+  - latestCompletedLevel: int
+  - completedDailyQuests: int
+  - completedNonDailyQuests: int
+  - completedMiniGames: int
+  - plantFood: int
+  - stayLoggedIn: boolean
+  - unlockedChapters: Set<Integer>
+  - unlockedLevels: Map<Integer, Set<Integer>>
+  - plantBoosts: Map<PlantType, Integer>
+  - inventory: Map<String, Integer>
+  - news: List<News>
+  - dailyShop: DailyShopState
   - settings: Settings
   - collection: Collection
-  - greenhouse: Greenhouse
-  + checkPassword(password: String): boolean
+  - greenHouse: GreenHouse
+  + applyDefaults()
   + addCoins(amount: int)
-  + addGems(amount: int)
-  + unlockLevel(levelId: LevelId)
+  + decreaseCoins(amount: int)
+}
+
+class DailyShopState {
+  - offerId: String
+  - offerDate: String
+  - purchasedItemIds: List<String>
+  + isPurchased(itemId: String): boolean
+  + markPurchased(itemId: String)
 }
 
 class Settings {
@@ -156,13 +220,27 @@ class ZombieCard {
   + showInfo()
 }
 
-class Greenhouse {
-  - pots: int
-  + addPot()
+class GreenHouse {
+  - slots: List<GreenhouseSlot>
+  + addSlot(): GreenhouseSlot
+  + getSlot(index: int): GreenhouseSlot
+  + applyDefaults()
+}
+
+class GreenhouseSlot {
+  - index: int
+  - plantType: PlantType
+  - plantedAtEpochSecond: long
+  + isOccupied(): boolean
+  + plant(type: PlantType, epochSecond: long)
+  + clear()
 }
 User *-- Settings
 User *-- Collection
-User *-- Greenhouse
+User *-- GreenHouse
+User *-- DailyShopState
+User o-- News
+GreenHouse *-- GreenhouseSlot
 Collection *-- PlantCard
 Collection *-- ZombieCard
 
