@@ -76,6 +76,8 @@ class MenuTransitionTest {
         entries.put(MenuName.NEWS, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.PROFILE, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.COLLECTION, EnumSet.noneOf(MenuName.class));
+        entries.put(MenuName.PLANT_SELECTION, EnumSet.noneOf(MenuName.class));
+        entries.put(MenuName.GAMEPLAY, EnumSet.noneOf(MenuName.class));
 
         return entries;
     }
@@ -90,6 +92,8 @@ class MenuTransitionTest {
         exits.put(MenuName.NEWS, MenuName.MAIN);
         exits.put(MenuName.PROFILE, MenuName.MAIN);
         exits.put(MenuName.COLLECTION, MenuName.GAME);
+        exits.put(MenuName.PLANT_SELECTION, MenuName.GAME);
+        exits.put(MenuName.GAMEPLAY, MenuName.GAME);
 
         return exits;
     }

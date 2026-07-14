@@ -9,7 +9,9 @@ public enum MenuName {
     NETWORK("network"),
     NEWS("news"),
     PROFILE("profile"),
-    COLLECTION("collection");
+    COLLECTION("collection"),
+    PLANT_SELECTION("plant-selection"),
+    GAMEPLAY("gameplay");
 
     private final String token;
 
