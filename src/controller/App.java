@@ -10,6 +10,7 @@ import model.inGame.zombie.ZombieRepository;
 import repository.JsonUserRepository;
 import repository.UserRepository;
 import service.PasswordService;
+import service.NewsService;
 import service.SecurityQuestionCatalog;
 import service.Sha256PasswordService;
 import service.UserService;
@@ -29,6 +30,12 @@ public class App {
     private final SecurityQuestionCatalog questionCatalog;
     private final RegisterMenuController registerController;
     private final LoginMenuController loginController;
+    private final MainMenuController mainController;
+    private final GameMenuController gameController;
+    private final SettingsMenuController settingsController;
+    private final NewsMenuController newsController;
+    private final ProfileMenuController profileController;
+    private final NewsService newsService;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -38,17 +45,38 @@ public class App {
         plantRepository = new JsonPlantRepository(PLANTS_PATH);
         zombieRepository = new JsonZombieRepository(ZOMBIES_PATH);
 
-        plantRepository.load();
-        zombieRepository.load();
+        loadQuietly(plantRepository::load, "plant");
+        loadQuietly(zombieRepository::load, "zombie");
 
-        collectionController = new CollectionMenuController(plantRepository, zombieRepository);
         userService = new UserService(userRepository, clock);
+        collectionController =
+                new CollectionMenuController(plantRepository, zombieRepository, userService);
         menuController = new MenuController(userService);
         passwordService = new Sha256PasswordService();
         questionCatalog = SecurityQuestionCatalog.fromFile(SecurityQuestionCatalog.DEFAULT_PATH);
         registerController =
                 new RegisterMenuController(userService, passwordService, questionCatalog);
         loginController = new LoginMenuController(userService, passwordService);
+        mainController = new MainMenuController(userService);
+        gameController = new GameMenuController(userService);
+        settingsController = new SettingsMenuController(userService);
+        newsController = new NewsMenuController(userService);
+        profileController = new ProfileMenuController(userService, passwordService);
+        newsService = new NewsService(userService);
+    }
+
+    /**
+     * Loads a data source without letting a malformed file abort start-up. A
+     * failure leaves the registry empty and the menus usable; the collection
+     * detail commands then report no data until the source is corrected.
+     */
+    private void loadQuietly(Runnable load, String label) {
+        try {
+            load.run();
+        } catch (RuntimeException exception) {
+            System.out.println("warning: could not load " + label
+                    + " data (" + exception.getMessage() + ")");
+        }
     }
 
     /** Restores saved accounts and arranges for progress to be flushed on exit. */
@@ -82,5 +110,29 @@ public class App {
 
     public CollectionMenuController getCollectionController() {
         return collectionController;
+    }
+
+    public MainMenuController getMainController() {
+        return mainController;
+    }
+
+    public GameMenuController getGameController() {
+        return gameController;
+    }
+
+    public SettingsMenuController getSettingsController() {
+        return settingsController;
+    }
+
+    public NewsMenuController getNewsController() {
+        return newsController;
+    }
+
+    public ProfileMenuController getProfileController() {
+        return profileController;
+    }
+
+    public NewsService getNewsService() {
+        return newsService;
     }
 }

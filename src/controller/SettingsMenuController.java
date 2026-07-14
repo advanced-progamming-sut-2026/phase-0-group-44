@@ -2,29 +2,32 @@ package controller;
 
 import model.Result;
 import model.Store;
+import model.config.DifficultyScaling;
 import model.user.Settings;
 import model.user.User;
+import service.UserService;
 
+/** The settings menu: changing and reporting difficulty. */
 public class SettingsMenuController {
-    private static final int MIN_DIFFICULTY = 1;
-    private static final int MAX_DIFFICULTY = 5;
 
+    private final UserService userService;
+
+    public SettingsMenuController(UserService userService) {
+        this.userService = userService;
+    }
+
+    /** Handles {@code menu settings change-difficulty -l <level>}. */
     public Result<Integer> changeDifficulty(int difficultyLevel) {
         Result<Integer> result = new Result<>();
-        User user = Store.getLoggedInUser();
+        User user = requireUser(result);
 
         if (user == null) {
-            result.setStatus(false);
-            result.appendToMessage("no user is logged in");
             return result;
         }
 
-        if (difficultyLevel < MIN_DIFFICULTY
-                || difficultyLevel > MAX_DIFFICULTY) {
-            result.setStatus(false);
-            result.appendToMessage(
-                    "difficulty must be between 1 and 5"
-            );
+        if (difficultyLevel < DifficultyScaling.MIN_DIFFICULTY
+                || difficultyLevel > DifficultyScaling.MAX_DIFFICULTY) {
+            result.appendToMessage("difficulty must be an integer from 1 through 5");
             return result;
         }
 
@@ -33,23 +36,20 @@ public class SettingsMenuController {
         }
 
         user.getSettings().setDifficultyLevel(difficultyLevel);
+        userService.updateUser(user);
 
         result.setStatus(true);
         result.setData(difficultyLevel);
-        result.appendToMessage(
-                "difficulty changed to " + difficultyLevel
-        );
+        result.appendToMessage("difficulty changed to " + difficultyLevel);
 
         return result;
     }
 
     public Result<Integer> showDifficulty() {
         Result<Integer> result = new Result<>();
-        User user = Store.getLoggedInUser();
+        User user = requireUser(result);
 
         if (user == null) {
-            result.setStatus(false);
-            result.appendToMessage("no user is logged in");
             return result;
         }
 
@@ -57,15 +57,22 @@ public class SettingsMenuController {
             user.setSettings(new Settings());
         }
 
-        int difficultyLevel =
-                user.getSettings().getDifficultyLevel();
+        int level = user.getSettings().getDifficultyLevel();
 
         result.setStatus(true);
-        result.setData(difficultyLevel);
-        result.appendToMessage(
-                "current difficulty: " + difficultyLevel
-        );
+        result.setData(level);
+        result.appendToMessage("current difficulty: " + level);
 
         return result;
+    }
+
+    private User requireUser(Result<Integer> result) {
+        User user = Store.getLoggedInUser();
+
+        if (user == null) {
+            result.appendToMessage("no user is logged in");
+        }
+
+        return user;
     }
 }

@@ -19,6 +19,30 @@ public enum Command {
     ANSWER("^answer\\s+-a\\s+(.+)$"),
     NEW_PASSWORD("^new\\s+password\\s+-p\\s+(\\S+)$"),
 
+    // Main Menu
+    MENU_LOGOUT("^menu\\s+logout$"),
+
+    // Game Menu
+    MENU_ENTER_CHAPTER("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)$"),
+    MENU_GREENHOUSE("^menu\\s+greenhouse$"),
+    MENU_TRAVEL_LOG("^menu\\s+travel-log$"),
+    MENU_LEADERBOARD("^menu\\s+leaderboard$"),
+    MENU_COIN_WALLET("^menu\\s+coin-wallet$"),
+    MENU_GEM_WALLET("^menu\\s+gem-wallet$"),
+    MENU_CHEAT_ADD("^menu\\s+cheat\\s+add\\s+(-?\\d+)\\s+(\\S+)$"),
+
+    // Settings Menu
+    MENU_SETTINGS_CHANGE_DIFFICULTY(
+            "^menu\\s+settings\\s+change-difficulty\\s+-l\\s+(-?\\d+)$"),
+
+    // Profile Menu
+    MENU_PROFILE_CHANGE_USERNAME("^menu\\s+profile\\s+change-username\\s+-u\\s+(\\S+)$"),
+    MENU_PROFILE_CHANGE_NICKNAME("^menu\\s+profile\\s+change-nickname\\s+-u\\s+(.+)$"),
+    MENU_PROFILE_CHANGE_EMAIL("^menu\\s+profile\\s+change-email\\s+-e\\s+(\\S+)$"),
+    MENU_PROFILE_CHANGE_PASSWORD(
+            "^menu\\s+profile\\s+change-password\\s+-p\\s+(\\S+)\\s+-o\\s+(\\S+)$"),
+    MENU_PROFILE_SHOW_INFO("^menu\\s+profile\\s+show-info$"),
+
     // News Menu
 
     MENU_NEWS_SHOW_UNREAD("^menu\\s+news\\s+show-unread$"),

@@ -364,6 +364,113 @@ User --> Gender
 App --> RegisterMenuController
 App --> LoginMenuController
 
+' MAIN / GAME / SETTINGS / NEWS / PROFILE / COLLECTION MENUS '
+
+class DifficultyScaling <<static>> {
+  + {static} NEUTRAL_DIFFICULTY: int = 3
+  + {static} STEP_PER_LEVEL: double
+  + {static} zombieHealthMultiplier(difficulty: int): double
+  + {static} zombieDamageMultiplier(difficulty: int): double
+  + {static} gameSpeedMultiplier(difficulty: int): double
+  + {static} waveCostMultiplier(difficulty: int): double
+  + {static} skySunRateMultiplier(difficulty: int): double
+}
+
+enum GameWorld {
+  ANCIENT_EGYPT
+  FROSTBITE_CAVES
+  BIG_WAVE_BEACH
+  DARK_AGES
+  + getChapterNumber(): int
+  + {static} fromName(input: String): GameWorld
+}
+
+class ChapterCatalog <<static>> {
+  + {static} first(): GameWorld
+  + {static} next(world: GameWorld): GameWorld
+  + {static} applyDefaultUnlocks(user: User)
+  + {static} isUnlocked(user: User, world: GameWorld): boolean
+  + {static} unlockNext(user: User, completed: GameWorld): GameWorld
+}
+
+class NewsService {
+  - userService: UserService
+  + plantUnlocked(user: User, plantName: String): News
+  + zombieEncountered(user: User, zombieName: String): News
+  + levelUnlocked(user: User, levelName: String): News
+  + miniGameUnlocked(user: User, miniGameName: String): News
+}
+
+class MainMenuController {
+  - userService: UserService
+  + logout(): Result<String>
+}
+
+class GameMenuController {
+  - userService: UserService
+  + enterChapter(chapterName: String): Result<String>
+  + greenhouse(): Result<String>
+  + travelLog(): Result<String>
+  + leaderboard(): Result<String>
+  + showCoinWallet(): Result<Integer>
+  + showGemWallet(): Result<Integer>
+  + cheatAdd(amount: int, currency: String): Result<Integer>
+}
+
+class SettingsMenuController {
+  - userService: UserService
+  + changeDifficulty(level: int): Result<Integer>
+  + showDifficulty(): Result<Integer>
+}
+
+class NewsMenuController {
+  - userService: UserService
+  + showAllNews(): Result<ArrayList<News>>
+  + showUnreadNews(): Result<ArrayList<News>>
+}
+
+class ProfileMenuController {
+  - userService: UserService
+  - passwordService: PasswordService
+  + changeUsername(username: String): Result<String>
+  + changeNickname(nickname: String): Result<String>
+  + changeEmail(email: String): Result<String>
+  + changePassword(newPassword: String, oldPassword: String): Result<String>
+  + showInfo(): Result<String>
+}
+
+class GameMenuView extends MenuView
+class SettingsMenuView extends MenuView
+class NewsMenuView extends MenuView
+class ProfileMenuView extends MenuView
+class CollectionMenuView extends MenuView
+
+GameMenuController --> ChapterCatalog
+ChapterCatalog --> GameWorld
+ChapterCatalog --> User
+DifficultyScaling ..> Settings
+NewsService --> UserService
+NewsService --> User
+MainMenuController --> UserService
+GameMenuController --> UserService
+SettingsMenuController --> UserService
+SettingsMenuController ..> DifficultyScaling
+NewsMenuController --> UserService
+ProfileMenuController --> UserService
+ProfileMenuController --> PasswordService
+CollectionMenuController --> UserService
+MenuRouter --> GameMenuView
+MenuRouter --> SettingsMenuView
+MenuRouter --> NewsMenuView
+MenuRouter --> ProfileMenuView
+MenuRouter --> CollectionMenuView
+App --> MainMenuController
+App --> GameMenuController
+App --> SettingsMenuController
+App --> NewsMenuController
+App --> ProfileMenuController
+App --> NewsService
+
 abstract class MenuView {
   - menuController: MenuController
   + handleCommonCommand(input: String): boolean

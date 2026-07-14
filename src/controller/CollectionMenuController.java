@@ -11,8 +11,7 @@ import model.inGame.zombie.ZombieRepository;
 import model.user.Collection;
 import model.user.PlantCard;
 import model.user.User;
-
-import java.util.ArrayList;
+import service.UserService;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -22,13 +21,16 @@ public class CollectionMenuController {
 
     private final PlantRepository plantRepository;
     private final ZombieRepository zombieRepository;
+    private final UserService userService;
 
     public CollectionMenuController(
             PlantRepository plantRepository,
-            ZombieRepository zombieRepository
+            ZombieRepository zombieRepository,
+            UserService userService
     ) {
         this.plantRepository = plantRepository;
         this.zombieRepository = zombieRepository;
+        this.userService = userService;
     }
 
     public Result<ArrayList<PlantCollectionView>> showPlants(
@@ -179,6 +181,7 @@ public class CollectionMenuController {
 
         user.decreaseCoins(PLANT_PURCHASE_COST);
         collection.purchasePlant(definition.getType());
+        userService.updateUser(user);
 
         PlantCard card = collection.getPlantCard(
                 definition.getType()
@@ -243,6 +246,7 @@ public class CollectionMenuController {
         user.getCollection().upgradePlant(
                 definition.getType()
         );
+        userService.updateUser(user);
 
         PlantCollectionView view =
                 new PlantCollectionView(definition, card);

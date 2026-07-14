@@ -9,6 +9,11 @@ public class MenuRouter {
 
     private final RegisterMenuView registerMenuView;
     private final LoginMenuView loginMenuView;
+    private final GameMenuView gameMenuView;
+    private final SettingsMenuView settingsMenuView;
+    private final NewsMenuView newsMenuView;
+    private final ProfileMenuView profileMenuView;
+    private final CollectionMenuView collectionMenuView;
     private final CommonMenuView commonMenuView;
 
     public MenuRouter(App app) {
@@ -16,22 +21,46 @@ public class MenuRouter {
                 app.getMenuController(), app.getRegisterController());
         this.loginMenuView = new LoginMenuView(
                 app.getMenuController(), app.getLoginController());
-        this.commonMenuView = new CommonMenuView(app.getMenuController());
+        this.gameMenuView = new GameMenuView(
+                app.getMenuController(), app.getGameController(), app.getMainController());
+        this.settingsMenuView = new SettingsMenuView(
+                app.getMenuController(), app.getSettingsController(), app.getMainController());
+        this.newsMenuView = new NewsMenuView(
+                app.getMenuController(), app.getNewsController(), app.getMainController());
+        this.profileMenuView = new ProfileMenuView(
+                app.getMenuController(), app.getProfileController(), app.getMainController());
+        this.collectionMenuView = new CollectionMenuView(
+                app.getMenuController(), app.getCollectionController(), app.getMainController());
+        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
     }
 
     public void route(String input) {
         MenuName current = Store.getCurrentMenu();
 
-        if (current == MenuName.REGISTER) {
-            registerMenuView.checkCommand(input);
-            return;
+        switch (current) {
+            case REGISTER:
+                registerMenuView.checkCommand(input);
+                return;
+            case LOGIN:
+                loginMenuView.checkCommand(input);
+                return;
+            case GAME:
+                gameMenuView.checkCommand(input);
+                return;
+            case SETTINGS:
+                settingsMenuView.checkCommand(input);
+                return;
+            case NEWS:
+                newsMenuView.checkCommand(input);
+                return;
+            case PROFILE:
+                profileMenuView.checkCommand(input);
+                return;
+            case COLLECTION:
+                collectionMenuView.checkCommand(input);
+                return;
+            default:
+                commonMenuView.checkCommand(input);
         }
-
-        if (current == MenuName.LOGIN) {
-            loginMenuView.checkCommand(input);
-            return;
-        }
-
-        commonMenuView.checkCommand(input);
     }
 }
