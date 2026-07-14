@@ -2,10 +2,6 @@ package model.user;
 
 import model.enums.PlantType;
 import model.enums.ZombieType;
-import model.inGame.plant.Plant;
-import model.inGame.zombie.Zombie;
-
-import java.util.ArrayList;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -94,6 +90,22 @@ public class Collection {
 
         return null;
     }
+
+    /**
+     * Recreates any container a save file did not contain, so a reloaded
+     * collection behaves exactly like a freshly created one.
+     */
+    public void applyDefaults() {
+        if (ownedPlants == null) {
+            ownedPlants = new EnumMap<>(PlantType.class);
+        }
+
+        if (seenZombies == null) {
+            seenZombies = EnumSet.noneOf(ZombieType.class);
+        }
+
+        if (zombieCards == null) {
+            zombieCards = new ArrayList<>();
+        }
+    }
 }
-
-

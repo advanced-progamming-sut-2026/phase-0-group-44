@@ -1,0 +1,2234 @@
+diff --git a/.gitignore b/.gitignore
+index 13275f1..c3c7a29 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -27,4 +27,11 @@ bin/
+ .vscode/
+ 
+ ### Mac OS ###
+-.DS_Store
+\ No newline at end of file
++.DS_Store
++# build output
++/build/
++/.gradle/
++/out/
++
++# local save data
++/data/
+diff --git a/UML.puml b/UML.puml
+index 794f641..8890fd7 100644
+--- a/UML.puml
++++ b/UML.puml
+@@ -37,23 +37,65 @@ class Store {
+   + resetGameData()
+ }
+ 
+-class UserRepository {
+-  - usersFilePath: String
+-  - store: Store
+-  + loadUsers()
+-  + saveAll()
+-  + findByUsername(username: String): User
+-  + addUser(user: User)
+-  + usernameExists(username: String): boolean
++interface UserRepository {
++  + load(): SaveFile
++  + save(saveFile: SaveFile)
++  + quarantineCorruptSave(stamp: String): Path
++  + getSaveFilePath(): Path
++}
++
++class JsonUserRepository implements UserRepository {
++  - saveFilePath: Path
++  - serializer: SaveSerializer
++  - writer: AtomicFileWriter
++}
++
++' PERSISTENCE (serialization kept out of the domain) '
++
++class SaveFile {
++  + {static} CURRENT_VERSION: int
++  - version: int
++  - users: List<User>
++  - lastLoggedInUsername: String
++}
++
++interface SaveSerializer {
++  + serialize(saveFile: SaveFile): String
++  + deserialize(content: String): SaveFile
+ }
+ 
++class GsonSaveSerializer implements SaveSerializer {
++  - gson: Gson
++  - migrator: SaveFileMigrator
++}
++
++class SaveFileMigrator {
++  + migrate(saveFile: SaveFile): SaveFile
++}
++
++class AtomicFileWriter {
++  + write(target: Path, content: String)
++}
++
++SaveFile o-- User
++JsonUserRepository --> SaveFile
++JsonUserRepository --> SaveSerializer
++JsonUserRepository --> AtomicFileWriter
++GsonSaveSerializer --> SaveFileMigrator
++SaveFileMigrator --> SaveFile
++
+ class UserService {
+-  - store: Store
+-  - userRepository: UserRepository
+-  + register(username: String, password: String, nickname: String, email: String, gender: Gender)
++  - repository: UserRepository
++  - clock: Clock
++  + loadUsers(): Result<Integer>
++  + saveUsers(): Result<String>
++  + addUser(user: User): Result<String>
++  + updateUser(user: User): Result<String>
++  + getAutoLoginUser(): User
++  + shutdown(): Result<String>
++  + today(): LocalDate
+   + login(username: String, password: String): User
+   + logout()
+-  + hashPassword(password: String): String
+   + changeUsername(user: User, username: String)
+   + changeNickname(user: User, nickname: String)
+   + changeEmail(user: User, email: String)
+@@ -97,8 +139,8 @@ Store o-- Quest
+ Store *-- Shop
+ Store *-- Leaderboard
+ 
+-UserRepository --> Store
+ UserService --> Store
++UserService --> Clock
+ UserService --> UserRepository
+ GameService --> Store
+ GameService --> UserRepository
+@@ -107,22 +149,44 @@ GameService --> UserRepository
+ 
+ class User {
+   - username: String
+-  - hashedPassword: String
++  - hashOfPassword: String
+   - nickname: String
+   - email: String
+-  - gender: Gender
++  - gender: String
++  - question: String
++  - answerToQuestion: String
+   - coins: int
+   - gems: int
+-  - miopoint: int
++  - mioPoint: int
+   - gamesPlayed: int
+-  - unlockedLevels: Set<LevelId>
++  - completedLevelCount: int
++  - latestCompletedChapter: int
++  - latestCompletedLevel: int
++  - completedDailyQuests: int
++  - completedNonDailyQuests: int
++  - completedMiniGames: int
++  - plantFood: int
++  - stayLoggedIn: boolean
++  - unlockedChapters: Set<Integer>
++  - unlockedLevels: Map<Integer, Set<Integer>>
++  - plantBoosts: Map<PlantType, Integer>
++  - inventory: Map<String, Integer>
++  - news: List<News>
++  - dailyShop: DailyShopState
+   - settings: Settings
+   - collection: Collection
+-  - greenhouse: Greenhouse
+-  + checkPassword(password: String): boolean
++  - greenHouse: GreenHouse
++  + applyDefaults()
+   + addCoins(amount: int)
+-  + addGems(amount: int)
+-  + unlockLevel(levelId: LevelId)
++  + decreaseCoins(amount: int)
++}
++
++class DailyShopState {
++  - offerId: String
++  - offerDate: String
++  - purchasedItemIds: List<String>
++  + isPurchased(itemId: String): boolean
++  + markPurchased(itemId: String)
+ }
+ 
+ class Settings {
+@@ -156,13 +220,27 @@ class ZombieCard {
+   + showInfo()
+ }
+ 
+-class Greenhouse {
+-  - pots: int
+-  + addPot()
++class GreenHouse {
++  - slots: List<GreenhouseSlot>
++  + addSlot(): GreenhouseSlot
++  + getSlot(index: int): GreenhouseSlot
++  + applyDefaults()
++}
++
++class GreenhouseSlot {
++  - index: int
++  - plantType: PlantType
++  - plantedAtEpochSecond: long
++  + isOccupied(): boolean
++  + plant(type: PlantType, epochSecond: long)
++  + clear()
+ }
+ User *-- Settings
+ User *-- Collection
+-User *-- Greenhouse
++User *-- GreenHouse
++User *-- DailyShopState
++User o-- News
++GreenHouse *-- GreenhouseSlot
+ Collection *-- PlantCard
+ Collection *-- ZombieCard
+ 
+diff --git a/build.gradle b/build.gradle
+new file mode 100644
+index 0000000..0a8756a
+--- /dev/null
++++ b/build.gradle
+@@ -0,0 +1,41 @@
++plugins {
++    id 'java'
++}
++
++repositories {
++    mavenCentral()
++}
++
++sourceSets {
++    main {
++        java {
++            srcDirs = ['src']
++        }
++    }
++    test {
++        java {
++            srcDirs = ['test']
++        }
++    }
++}
++
++dependencies {
++    implementation files('lib/gson-2.13.1.jar')
++
++    testImplementation platform('org.junit:junit-bom:5.10.2')
++    testImplementation 'org.junit.jupiter:junit-jupiter'
++    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
++}
++
++java {
++    toolchain {
++        languageVersion = JavaLanguageVersion.of(21)
++    }
++}
++
++test {
++    useJUnitPlatform()
++    testLogging {
++        events 'passed', 'failed', 'skipped'
++    }
++}
+diff --git a/docs/uml/main-class-diagram.puml b/docs/uml/main-class-diagram.puml
+index 794f641..8890fd7 100644
+--- a/docs/uml/main-class-diagram.puml
++++ b/docs/uml/main-class-diagram.puml
+@@ -37,23 +37,65 @@ class Store {
+   + resetGameData()
+ }
+ 
+-class UserRepository {
+-  - usersFilePath: String
+-  - store: Store
+-  + loadUsers()
+-  + saveAll()
+-  + findByUsername(username: String): User
+-  + addUser(user: User)
+-  + usernameExists(username: String): boolean
++interface UserRepository {
++  + load(): SaveFile
++  + save(saveFile: SaveFile)
++  + quarantineCorruptSave(stamp: String): Path
++  + getSaveFilePath(): Path
++}
++
++class JsonUserRepository implements UserRepository {
++  - saveFilePath: Path
++  - serializer: SaveSerializer
++  - writer: AtomicFileWriter
++}
++
++' PERSISTENCE (serialization kept out of the domain) '
++
++class SaveFile {
++  + {static} CURRENT_VERSION: int
++  - version: int
++  - users: List<User>
++  - lastLoggedInUsername: String
++}
++
++interface SaveSerializer {
++  + serialize(saveFile: SaveFile): String
++  + deserialize(content: String): SaveFile
+ }
+ 
++class GsonSaveSerializer implements SaveSerializer {
++  - gson: Gson
++  - migrator: SaveFileMigrator
++}
++
++class SaveFileMigrator {
++  + migrate(saveFile: SaveFile): SaveFile
++}
++
++class AtomicFileWriter {
++  + write(target: Path, content: String)
++}
++
++SaveFile o-- User
++JsonUserRepository --> SaveFile
++JsonUserRepository --> SaveSerializer
++JsonUserRepository --> AtomicFileWriter
++GsonSaveSerializer --> SaveFileMigrator
++SaveFileMigrator --> SaveFile
++
+ class UserService {
+-  - store: Store
+-  - userRepository: UserRepository
+-  + register(username: String, password: String, nickname: String, email: String, gender: Gender)
++  - repository: UserRepository
++  - clock: Clock
++  + loadUsers(): Result<Integer>
++  + saveUsers(): Result<String>
++  + addUser(user: User): Result<String>
++  + updateUser(user: User): Result<String>
++  + getAutoLoginUser(): User
++  + shutdown(): Result<String>
++  + today(): LocalDate
+   + login(username: String, password: String): User
+   + logout()
+-  + hashPassword(password: String): String
+   + changeUsername(user: User, username: String)
+   + changeNickname(user: User, nickname: String)
+   + changeEmail(user: User, email: String)
+@@ -97,8 +139,8 @@ Store o-- Quest
+ Store *-- Shop
+ Store *-- Leaderboard
+ 
+-UserRepository --> Store
+ UserService --> Store
++UserService --> Clock
+ UserService --> UserRepository
+ GameService --> Store
+ GameService --> UserRepository
+@@ -107,22 +149,44 @@ GameService --> UserRepository
+ 
+ class User {
+   - username: String
+-  - hashedPassword: String
++  - hashOfPassword: String
+   - nickname: String
+   - email: String
+-  - gender: Gender
++  - gender: String
++  - question: String
++  - answerToQuestion: String
+   - coins: int
+   - gems: int
+-  - miopoint: int
++  - mioPoint: int
+   - gamesPlayed: int
+-  - unlockedLevels: Set<LevelId>
++  - completedLevelCount: int
++  - latestCompletedChapter: int
++  - latestCompletedLevel: int
++  - completedDailyQuests: int
++  - completedNonDailyQuests: int
++  - completedMiniGames: int
++  - plantFood: int
++  - stayLoggedIn: boolean
++  - unlockedChapters: Set<Integer>
++  - unlockedLevels: Map<Integer, Set<Integer>>
++  - plantBoosts: Map<PlantType, Integer>
++  - inventory: Map<String, Integer>
++  - news: List<News>
++  - dailyShop: DailyShopState
+   - settings: Settings
+   - collection: Collection
+-  - greenhouse: Greenhouse
+-  + checkPassword(password: String): boolean
++  - greenHouse: GreenHouse
++  + applyDefaults()
+   + addCoins(amount: int)
+-  + addGems(amount: int)
+-  + unlockLevel(levelId: LevelId)
++  + decreaseCoins(amount: int)
++}
++
++class DailyShopState {
++  - offerId: String
++  - offerDate: String
++  - purchasedItemIds: List<String>
++  + isPurchased(itemId: String): boolean
++  + markPurchased(itemId: String)
+ }
+ 
+ class Settings {
+@@ -156,13 +220,27 @@ class ZombieCard {
+   + showInfo()
+ }
+ 
+-class Greenhouse {
+-  - pots: int
+-  + addPot()
++class GreenHouse {
++  - slots: List<GreenhouseSlot>
++  + addSlot(): GreenhouseSlot
++  + getSlot(index: int): GreenhouseSlot
++  + applyDefaults()
++}
++
++class GreenhouseSlot {
++  - index: int
++  - plantType: PlantType
++  - plantedAtEpochSecond: long
++  + isOccupied(): boolean
++  + plant(type: PlantType, epochSecond: long)
++  + clear()
+ }
+ User *-- Settings
+ User *-- Collection
+-User *-- Greenhouse
++User *-- GreenHouse
++User *-- DailyShopState
++User o-- News
++GreenHouse *-- GreenhouseSlot
+ Collection *-- PlantCard
+ Collection *-- ZombieCard
+ 
+diff --git a/settings.gradle b/settings.gradle
+new file mode 100644
+index 0000000..bba64fb
+--- /dev/null
++++ b/settings.gradle
+@@ -0,0 +1 @@
++rootProject.name = 'PVZ2'
+diff --git a/src/Main.java b/src/Main.java
+index 7046417..ebbb169 100644
+--- a/src/Main.java
++++ b/src/Main.java
+@@ -1,2 +1,11 @@
+-public class Main {
++import controller.App;
++
++public final class Main {
++    private Main() {
++    }
++
++    public static void main(String[] args) {
++        App app = new App();
++        System.out.println(app.start().getMessage());
++    }
+ }
+diff --git a/src/assets/plants .json b/src/assets/plants.json
+similarity index 100%
+rename from src/assets/plants .json
+rename to src/assets/plants.json
+diff --git a/src/controller/App.java b/src/controller/App.java
+index 9e46175..cb53d65 100644
+--- a/src/controller/App.java
++++ b/src/controller/App.java
+@@ -1,28 +1,54 @@
+ package controller;
+ 
++import model.Result;
+ import model.inGame.plant.JsonPlantRepository;
+ import model.inGame.plant.PlantRepository;
+ import model.inGame.zombie.JsonZombieRepository;
+ import model.inGame.zombie.ZombieRepository;
++import repository.JsonUserRepository;
++import repository.UserRepository;
++import service.UserService;
++
++import java.time.Clock;
+ 
+ public class App {
++    private static final String PLANTS_PATH = "src/assets/plants.json";
++    private static final String ZOMBIES_PATH = "src/assets/zombies.json";
++
+     private final PlantRepository plantRepository;
+     private final ZombieRepository zombieRepository;
+     private final CollectionMenuController collectionController;
++    private final UserService userService;
+ 
+     public App() {
+-        plantRepository = new JsonPlantRepository("data/plants.json");
++        this(new JsonUserRepository(), Clock.systemDefaultZone());
++    }
+ 
+-        zombieRepository = new JsonZombieRepository("data/zombies.json");
++    public App(UserRepository userRepository, Clock clock) {
++        plantRepository = new JsonPlantRepository(PLANTS_PATH);
++        zombieRepository = new JsonZombieRepository(ZOMBIES_PATH);
+ 
+         plantRepository.load();
+         zombieRepository.load();
+ 
+         collectionController = new CollectionMenuController(plantRepository, zombieRepository);
++        userService = new UserService(userRepository, clock);
+     }
+ 
+-        public void start() {
+-            // Start command loop
+-        }
+-}
++    /** Restores saved accounts and arranges for progress to be flushed on exit. */
++    public Result<Integer> start() {
++        Result<Integer> loaded = userService.loadUsers();
++
++        Runtime.getRuntime().addShutdownHook(new Thread(userService::shutdown));
+ 
++        return loaded;
++    }
++
++    public UserService getUserService() {
++        return userService;
++    }
++
++    public CollectionMenuController getCollectionController() {
++        return collectionController;
++    }
++}
+diff --git a/src/controller/RegisterMenuController.java b/src/controller/RegisterMenuController.java
+index 9dea121..8cede4f 100644
+--- a/src/controller/RegisterMenuController.java
++++ b/src/controller/RegisterMenuController.java
+@@ -4,13 +4,11 @@ import model.News;
+ import model.Result;
+ import model.Store;
+ import model.enums.PlantType;
+-import model.inGame.plant.Plant;
+ import model.miniGame.GreenHouse;
+ import model.user.Collection;
+ import model.user.Settings;
+ import model.user.User;
+ 
+-import java.security.NoSuchAlgorithmException;
+ import java.util.ArrayList;
+ 
+ public class RegisterMenuController {
+diff --git a/src/model/News.java b/src/model/News.java
+index 1a1f117..a551972 100644
+--- a/src/model/News.java
++++ b/src/model/News.java
+@@ -8,6 +8,10 @@ public class News {
+     private NewsType type;
+     private boolean read;
+ 
++    /** Required by the serializer. */
++    public News() {
++    }
++
+     public News(String title, String description, NewsType type) {
+         this.title = title;
+         this.description = description;
+@@ -15,6 +19,18 @@ public class News {
+         this.read = false;
+     }
+ 
++    public String getTitle() {
++        return title;
++    }
++
++    public String getDescription() {
++        return description;
++    }
++
++    public NewsType getType() {
++        return type;
++    }
++
+     public boolean isRead() {
+         return read;
+     }
+@@ -23,6 +39,10 @@ public class News {
+         this.read = true;
+     }
+ 
++    public void setRead(boolean read) {
++        this.read = read;
++    }
++
+     public String getDisplayText() {
+         return "[" + type + "] " + title + "\n" + description;
+     }
+diff --git a/src/model/Store.java b/src/model/Store.java
+index 50e021c..f57ea44 100644
+--- a/src/model/Store.java
++++ b/src/model/Store.java
+@@ -6,9 +6,9 @@ import model.enums.MenuName;
+ import java.util.ArrayList;
+ 
+ public class Store {
+-    private static ArrayList<User> users;
+-    private static ArrayList<User> beforeTheQuestionUser;
+-    private static ArrayList<String> listOfQuestions;
++    private static ArrayList<User> users = new ArrayList<>();
++    private static ArrayList<User> beforeTheQuestionUser = new ArrayList<>();
++    private static ArrayList<String> listOfQuestions = new ArrayList<>();
+     private static User loggedInUser;
+     private static MenuName currentMenu = MenuName.REGISTER;
+     private static boolean running = true;
+@@ -17,6 +17,24 @@ public class Store {
+         return users;
+     }
+ 
++    public static void setUsers(ArrayList<User> users) {
++        Store.users = users == null ? new ArrayList<>() : users;
++    }
++
++    public static User findUser(String username) {
++        if (username == null) {
++            return null;
++        }
++
++        for (User user : users) {
++            if (username.equals(user.getUsername())) {
++                return user;
++            }
++        }
++
++        return null;
++    }
++
+     public static ArrayList<User> getBeforeTheQuestionUser() {
+         return beforeTheQuestionUser;
+     }
+diff --git a/src/model/inGame/plant/Plant.java b/src/model/inGame/plant/Plant.java
+index 5f392c6..101bc0c 100644
+--- a/src/model/inGame/plant/Plant.java
++++ b/src/model/inGame/plant/Plant.java
+@@ -2,11 +2,12 @@ package model.inGame.plant;
+ 
+ import model.GameEngine;
+ import model.Position;
++import model.enums.PlantType;
+ 
+ import java.util.HashSet;
+ import java.util.Set;
+ 
+-class Plant {
++public class Plant {
+     private PlantType type;
+     private int hp;
+     private int rechargeTime;
+diff --git a/src/model/miniGame/GreenHouse.java b/src/model/miniGame/GreenHouse.java
+index b91f621..f2056af 100644
+--- a/src/model/miniGame/GreenHouse.java
++++ b/src/model/miniGame/GreenHouse.java
+@@ -1,4 +1,46 @@
+ package model.miniGame;
+ 
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * Persisted greenhouse state: the slots the player owns and what is planted in
++ * them. Growth and harvesting rules are not implemented here.
++ */
+ public class GreenHouse {
++    private List<GreenhouseSlot> slots = new ArrayList<>();
++
++    public List<GreenhouseSlot> getSlots() {
++        if (slots == null) {
++            slots = new ArrayList<>();
++        }
++
++        return slots;
++    }
++
++    public GreenhouseSlot getSlot(int index) {
++        for (GreenhouseSlot slot : getSlots()) {
++            if (slot.getIndex() == index) {
++                return slot;
++            }
++        }
++
++        return null;
++    }
++
++    public GreenhouseSlot addSlot() {
++        GreenhouseSlot slot = new GreenhouseSlot(getSlots().size());
++        getSlots().add(slot);
++
++        return slot;
++    }
++
++    public int getSlotCount() {
++        return getSlots().size();
++    }
++
++    /** Recreates the slot list when a save file did not contain one. */
++    public void applyDefaults() {
++        getSlots();
++    }
+ }
+diff --git a/src/model/miniGame/GreenhouseSlot.java b/src/model/miniGame/GreenhouseSlot.java
+new file mode 100644
+index 0000000..3cb9416
+--- /dev/null
++++ b/src/model/miniGame/GreenhouseSlot.java
+@@ -0,0 +1,55 @@
++package model.miniGame;
++
++import model.enums.PlantType;
++
++/**
++ * One greenhouse slot and its planted contents. The planting instant is stored
++ * as an epoch second so that readiness can later be decided against an injected
++ * clock rather than against {@code System.currentTimeMillis()}.
++ */
++public class GreenhouseSlot {
++    private int index;
++    private PlantType plantType;
++    private long plantedAtEpochSecond;
++
++    public GreenhouseSlot() {
++    }
++
++    public GreenhouseSlot(int index) {
++        this.index = index;
++    }
++
++    public int getIndex() {
++        return index;
++    }
++
++    public void setIndex(int index) {
++        this.index = index;
++    }
++
++    public PlantType getPlantType() {
++        return plantType;
++    }
++
++    public long getPlantedAtEpochSecond() {
++        return plantedAtEpochSecond;
++    }
++
++    public boolean isOccupied() {
++        return plantType != null;
++    }
++
++    public void plant(PlantType plantType, long plantedAtEpochSecond) {
++        if (plantType == null) {
++            throw new IllegalArgumentException("Plant type is null.");
++        }
++
++        this.plantType = plantType;
++        this.plantedAtEpochSecond = plantedAtEpochSecond;
++    }
++
++    public void clear() {
++        this.plantType = null;
++        this.plantedAtEpochSecond = 0L;
++    }
++}
+diff --git a/src/model/user/Collection.java b/src/model/user/Collection.java
+index c6db2f8..20657d4 100644
+--- a/src/model/user/Collection.java
++++ b/src/model/user/Collection.java
+@@ -2,10 +2,6 @@ package model.user;
+ 
+ import model.enums.PlantType;
+ import model.enums.ZombieType;
+-import model.inGame.plant.Plant;
+-import model.inGame.zombie.Zombie;
+-
+-import java.util.ArrayList;
+ 
+ import java.util.ArrayList;
+ import java.util.EnumMap;
+@@ -94,6 +90,22 @@ public class Collection {
+ 
+         return null;
+     }
+-}
+ 
++    /**
++     * Recreates any container a save file did not contain, so a reloaded
++     * collection behaves exactly like a freshly created one.
++     */
++    public void applyDefaults() {
++        if (ownedPlants == null) {
++            ownedPlants = new EnumMap<>(PlantType.class);
++        }
+ 
++        if (seenZombies == null) {
++            seenZombies = EnumSet.noneOf(ZombieType.class);
++        }
++
++        if (zombieCards == null) {
++            zombieCards = new ArrayList<>();
++        }
++    }
++}
+diff --git a/src/model/user/DailyShopState.java b/src/model/user/DailyShopState.java
+new file mode 100644
+index 0000000..20db8e4
+--- /dev/null
++++ b/src/model/user/DailyShopState.java
+@@ -0,0 +1,50 @@
++package model.user;
++
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * Persisted identity of the daily shop offer and what the player already bought
++ * from it. Holds state only; refreshing the offer belongs to the shop service,
++ * which decides "today" from an injected clock.
++ */
++public class DailyShopState {
++    private String offerId;
++    private String offerDate;
++    private List<String> purchasedItemIds = new ArrayList<>();
++
++    public String getOfferId() {
++        return offerId;
++    }
++
++    public void setOfferId(String offerId) {
++        this.offerId = offerId;
++    }
++
++    /** ISO-8601 local date (yyyy-MM-dd) the current offer was generated for. */
++    public String getOfferDate() {
++        return offerDate;
++    }
++
++    public void setOfferDate(String offerDate) {
++        this.offerDate = offerDate;
++    }
++
++    public List<String> getPurchasedItemIds() {
++        if (purchasedItemIds == null) {
++            purchasedItemIds = new ArrayList<>();
++        }
++
++        return purchasedItemIds;
++    }
++
++    public boolean isPurchased(String itemId) {
++        return getPurchasedItemIds().contains(itemId);
++    }
++
++    public void markPurchased(String itemId) {
++        if (itemId != null && !isPurchased(itemId)) {
++            getPurchasedItemIds().add(itemId);
++        }
++    }
++}
+diff --git a/src/model/user/PlayerPlant.java b/src/model/user/PlayerPlant.java
+deleted file mode 100644
+index a29a95c..0000000
+--- a/src/model/user/PlayerPlant.java
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package model.user;
+-
+-public class PlayerPlant {
+-    private int plantId;
+-    private int level;
+-    private int seedPackets;
+-}
+diff --git a/src/model/user/User.java b/src/model/user/User.java
+index d49c5b9..add624e 100644
+--- a/src/model/user/User.java
++++ b/src/model/user/User.java
+@@ -3,16 +3,16 @@ package model.user;
+ import model.News;
+ import model.Result;
+ import model.enums.PlantType;
+-import model.enums.ZombieType;
+-import model.inGame.plant.Plant;
+-import model.inGame.zombie.Zombie;
+ import model.miniGame.GreenHouse;
+ 
+ import java.nio.charset.StandardCharsets;
+ import java.security.MessageDigest;
+ import java.security.NoSuchAlgorithmException;
+ import java.util.ArrayList;
++import java.util.LinkedHashMap;
++import java.util.LinkedHashSet;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Set;
+ 
+ public class User {
+@@ -29,18 +29,42 @@ public class User {
+     private ArrayList<PlantType> upgradedPlants;
+     private Settings settings;
+     private int coins;
+-    private Set<ZombieType> seenZombies;
+-    private List<PlayerPlant> plants = new ArrayList<>();
+     private int gems;
++    /** Highest score reached in the scored ("Mew Point") game mode. */
+     private int mioPoint;
+     private GreenHouse greenHouse;
+     private String question;
+     private String answerToQuestion;
+     private boolean stayLoggedIn;
+ 
++    private int completedLevelCount;
++    private int latestCompletedChapter;
++    private int latestCompletedLevel;
++    private int completedDailyQuests;
++    private int completedNonDailyQuests;
++    private int completedMiniGames;
++    private int plantFood;
++
++    private Set<Integer> unlockedChapters = new LinkedHashSet<>();
++    private Map<Integer, Set<Integer>> unlockedLevels = new LinkedHashMap<>();
++    private Map<PlantType, Integer> plantBoosts = new LinkedHashMap<>();
++    private Map<String, Integer> inventory = new LinkedHashMap<>();
++    private ArrayList<News> news = new ArrayList<>();
++    private DailyShopState dailyShop = new DailyShopState();
++
+ 
+     //constructor
+ 
++    /**
++     * Required by the serializer. Fields that an older save file does not
++     * contain keep the defaults declared above instead of becoming null.
++     */
++    public User() {
++        this.collection = new Collection();
++        this.upgradedPlants = new ArrayList<>();
++        this.settings = new Settings();
++        this.greenHouse = new GreenHouse();
++    }
+ 
+     public User(String username, String hashOfPassword, String nickname,
+                 String email, String gender, int progress,
+@@ -367,6 +391,149 @@ public class User {
+         coins -= amount;
+     }
+ 
++    /** Alias of {@link #getMioPoint()} using the name the document uses. */
++    public int getHighestMewPoint() {
++        return mioPoint;
++    }
++
++    public void setHighestMewPoint(int highestMewPoint) {
++        this.mioPoint = highestMewPoint;
++    }
++
++    public int getCompletedLevelCount() {
++        return completedLevelCount;
++    }
++
++    public void setCompletedLevelCount(int completedLevelCount) {
++        this.completedLevelCount = completedLevelCount;
++    }
++
++    public int getLatestCompletedChapter() {
++        return latestCompletedChapter;
++    }
++
++    public void setLatestCompletedChapter(int latestCompletedChapter) {
++        this.latestCompletedChapter = latestCompletedChapter;
++    }
++
++    public int getLatestCompletedLevel() {
++        return latestCompletedLevel;
++    }
++
++    public void setLatestCompletedLevel(int latestCompletedLevel) {
++        this.latestCompletedLevel = latestCompletedLevel;
++    }
++
++    public int getCompletedDailyQuests() {
++        return completedDailyQuests;
++    }
++
++    public void setCompletedDailyQuests(int completedDailyQuests) {
++        this.completedDailyQuests = completedDailyQuests;
++    }
++
++    public int getCompletedNonDailyQuests() {
++        return completedNonDailyQuests;
++    }
++
++    public void setCompletedNonDailyQuests(int completedNonDailyQuests) {
++        this.completedNonDailyQuests = completedNonDailyQuests;
++    }
++
++    public int getCompletedMiniGames() {
++        return completedMiniGames;
++    }
++
++    public void setCompletedMiniGames(int completedMiniGames) {
++        this.completedMiniGames = completedMiniGames;
++    }
++
++    public int getPlantFood() {
++        return plantFood;
++    }
++
++    public void setPlantFood(int plantFood) {
++        this.plantFood = plantFood;
++    }
++
++    public Set<Integer> getUnlockedChapters() {
++        if (unlockedChapters == null) {
++            unlockedChapters = new LinkedHashSet<>();
++        }
++
++        return unlockedChapters;
++    }
++
++    public Map<Integer, Set<Integer>> getUnlockedLevels() {
++        if (unlockedLevels == null) {
++            unlockedLevels = new LinkedHashMap<>();
++        }
++
++        return unlockedLevels;
++    }
++
++    public Map<PlantType, Integer> getPlantBoosts() {
++        if (plantBoosts == null) {
++            plantBoosts = new LinkedHashMap<>();
++        }
++
++        return plantBoosts;
++    }
++
++    public Map<String, Integer> getInventory() {
++        if (inventory == null) {
++            inventory = new LinkedHashMap<>();
++        }
++
++        return inventory;
++    }
+ 
++    public ArrayList<News> getNewsList() {
++        if (news == null) {
++            news = new ArrayList<>();
++        }
++
++        return news;
++    }
++
++    public DailyShopState getDailyShop() {
++        if (dailyShop == null) {
++            dailyShop = new DailyShopState();
++        }
++
++        return dailyShop;
++    }
++
++    public void setDailyShop(DailyShopState dailyShop) {
++        this.dailyShop = dailyShop;
++    }
+ 
++    /**
++     * Materializes every default this user relies on. Called after loading, so
++     * that a save file written by an older version never yields null state.
++     */
++    public void applyDefaults() {
++        getCollection();
++        getUnlockedChapters();
++        getUnlockedLevels();
++        getPlantBoosts();
++        getInventory();
++        getNewsList();
++        getDailyShop();
++
++        if (upgradedPlants == null) {
++            upgradedPlants = new ArrayList<>();
++        }
++
++        if (settings == null) {
++            settings = new Settings();
++        }
++
++        if (greenHouse == null) {
++            greenHouse = new GreenHouse();
++        }
++
++        greenHouse.applyDefaults();
++        collection.applyDefaults();
++    }
+ }
+diff --git a/src/persistence/AtomicFileWriter.java b/src/persistence/AtomicFileWriter.java
+new file mode 100644
+index 0000000..d2aaeca
+--- /dev/null
++++ b/src/persistence/AtomicFileWriter.java
+@@ -0,0 +1,62 @@
++package persistence;
++
++import java.io.IOException;
++import java.io.RandomAccessFile;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.AtomicMoveNotSupportedException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardCopyOption;
++
++/**
++ * Writes a text file safely: the content goes to a temporary file in the same
++ * directory, is flushed to disk, and only then replaces the target.
++ *
++ * <p>A crash therefore leaves either the previous save or the new one intact,
++ * never a half-written file.</p>
++ */
++public class AtomicFileWriter {
++
++    private static final String TEMP_SUFFIX = ".tmp";
++
++    public void write(Path target, String content) throws IOException {
++        Path directory = target.toAbsolutePath().getParent();
++
++        if (directory != null) {
++            Files.createDirectories(directory);
++        }
++
++        Path temporary = resolveTemporary(target);
++
++        try {
++            Files.write(temporary, content.getBytes(StandardCharsets.UTF_8));
++            forceToDisk(temporary);
++            replace(temporary, target);
++        } finally {
++            Files.deleteIfExists(temporary);
++        }
++    }
++
++    private Path resolveTemporary(Path target) {
++        return target.resolveSibling(target.getFileName() + TEMP_SUFFIX);
++    }
++
++    private void forceToDisk(Path file) throws IOException {
++        try (RandomAccessFile handle = new RandomAccessFile(file.toFile(), "rw")) {
++            handle.getFD().sync();
++        }
++    }
++
++    private void replace(Path temporary, Path target) throws IOException {
++        try {
++            Files.move(
++                    temporary,
++                    target,
++                    StandardCopyOption.REPLACE_EXISTING,
++                    StandardCopyOption.ATOMIC_MOVE
++            );
++        } catch (AtomicMoveNotSupportedException exception) {
++            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
++        }
++    }
++}
+diff --git a/src/persistence/GsonSaveSerializer.java b/src/persistence/GsonSaveSerializer.java
+new file mode 100644
+index 0000000..20e7565
+--- /dev/null
++++ b/src/persistence/GsonSaveSerializer.java
+@@ -0,0 +1,96 @@
++package persistence;
++
++import com.google.gson.Gson;
++import com.google.gson.GsonBuilder;
++import com.google.gson.JsonElement;
++import com.google.gson.JsonParseException;
++import com.google.gson.JsonParser;
++import com.google.gson.reflect.TypeToken;
++import model.user.User;
++
++import java.lang.reflect.Type;
++import java.util.ArrayList;
++
++/**
++ * JSON implementation of {@link SaveSerializer}, built on the Gson library that
++ * the project already ships in {@code lib/}.
++ *
++ * <p>Reading accepts two shapes:</p>
++ * <ul>
++ *   <li>the current versioned envelope, a JSON object;</li>
++ *   <li>the legacy shape, a bare JSON array of users, which is migrated.</li>
++ * </ul>
++ */
++public class GsonSaveSerializer implements SaveSerializer {
++
++    private static final Type USER_LIST_TYPE =
++            new TypeToken<ArrayList<User>>() { }.getType();
++
++    private final Gson gson;
++    private final SaveFileMigrator migrator;
++
++    public GsonSaveSerializer() {
++        this(new SaveFileMigrator());
++    }
++
++    public GsonSaveSerializer(SaveFileMigrator migrator) {
++        this.migrator = migrator;
++        this.gson = new GsonBuilder()
++                .setPrettyPrinting()
++                .disableHtmlEscaping()
++                .create();
++    }
++
++    @Override
++    public String serialize(SaveFile saveFile) {
++        SaveFile target = saveFile == null ? new SaveFile() : saveFile;
++        target.setVersion(SaveFile.CURRENT_VERSION);
++
++        return gson.toJson(target);
++    }
++
++    @Override
++    public SaveFile deserialize(String content) {
++        if (content == null || content.trim().isEmpty()) {
++            return new SaveFile();
++        }
++
++        JsonElement root = parse(content);
++
++        if (root.isJsonArray()) {
++            return migrator.migrate(readLegacyArray(root));
++        }
++
++        if (!root.isJsonObject()) {
++            throw new SaveDataException("Save file must contain a JSON object or array.");
++        }
++
++        return migrator.migrate(readEnvelope(root));
++    }
++
++    private JsonElement parse(String content) {
++        try {
++            return JsonParser.parseString(content);
++        } catch (JsonParseException exception) {
++            throw new SaveDataException("Save file is not valid JSON.", exception);
++        }
++    }
++
++    private SaveFile readLegacyArray(JsonElement root) {
++        SaveFile saveFile = new SaveFile();
++        saveFile.setVersion(SaveFile.LEGACY_VERSION);
++        saveFile.setUsers(gson.fromJson(root, USER_LIST_TYPE));
++
++        return saveFile;
++    }
++
++    private SaveFile readEnvelope(JsonElement root) {
++        try {
++            SaveFile saveFile = gson.fromJson(root, SaveFile.class);
++
++            return saveFile == null ? new SaveFile() : saveFile;
++        } catch (JsonParseException exception) {
++            throw new SaveDataException("Save file does not match the expected layout.", exception);
++        }
++    }
++}
+diff --git a/src/persistence/SaveDataException.java b/src/persistence/SaveDataException.java
+new file mode 100644
+index 0000000..74ee841
+--- /dev/null
++++ b/src/persistence/SaveDataException.java
+@@ -0,0 +1,12 @@
++package persistence;
++
++/** Thrown when the save file exists but cannot be read as valid save data. */
++public class SaveDataException extends RuntimeException {
++    public SaveDataException(String message) {
++        super(message);
++    }
++
++    public SaveDataException(String message, Throwable cause) {
++        super(message, cause);
++    }
++}
+diff --git a/src/persistence/SaveFile.java b/src/persistence/SaveFile.java
+new file mode 100644
+index 0000000..f9a15c7
+--- /dev/null
++++ b/src/persistence/SaveFile.java
+@@ -0,0 +1,52 @@
++package persistence;
++
++import model.user.User;
++
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * Versioned envelope written to the save file.
++ *
++ * <p>This type carries no domain behaviour: it only groups the persisted
++ * state so that serialization stays isolated from the model.</p>
++ */
++public class SaveFile {
++    /** Version written by the current code. */
++    public static final int CURRENT_VERSION = 1;
++
++    /** Version used by the pre-envelope format (a bare JSON array of users). */
++    public static final int LEGACY_VERSION = 0;
++
++    private int version = CURRENT_VERSION;
++    private List<User> users = new ArrayList<>();
++    private String lastLoggedInUsername;
++
++    public int getVersion() {
++        return version;
++    }
++
++    public void setVersion(int version) {
++        this.version = version;
++    }
++
++    public List<User> getUsers() {
++        if (users == null) {
++            users = new ArrayList<>();
++        }
++
++        return users;
++    }
++
++    public void setUsers(List<User> users) {
++        this.users = users == null ? new ArrayList<>() : new ArrayList<>(users);
++    }
++
++    public String getLastLoggedInUsername() {
++        return lastLoggedInUsername;
++    }
++
++    public void setLastLoggedInUsername(String lastLoggedInUsername) {
++        this.lastLoggedInUsername = lastLoggedInUsername;
++    }
++}
+diff --git a/src/persistence/SaveFileMigrator.java b/src/persistence/SaveFileMigrator.java
+new file mode 100644
+index 0000000..49ea20e
+--- /dev/null
++++ b/src/persistence/SaveFileMigrator.java
+@@ -0,0 +1,123 @@
++package persistence;
++
++import model.user.User;
++
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++
++/**
++ * Upgrades save data produced by older versions of the program to the current
++ * version, and fills in defaults for fields that an older save did not contain.
++ *
++ * <p>Old, still-compatible save data is never discarded: it is migrated.</p>
++ */
++public class SaveFileMigrator {
++
++    /**
++     * Migrates the given save file in place and returns it.
++     *
++     * @param saveFile freshly deserialized data, possibly from an older version
++     * @return the same instance, upgraded to {@link SaveFile#CURRENT_VERSION}
++     */
++    public SaveFile migrate(SaveFile saveFile) {
++        if (saveFile == null) {
++            return new SaveFile();
++        }
++
++        if (saveFile.getVersion() > SaveFile.CURRENT_VERSION) {
++            throw new SaveDataException(
++                    "Save file version " + saveFile.getVersion()
++                            + " is newer than the supported version "
++                            + SaveFile.CURRENT_VERSION + "."
++            );
++        }
++
++        if (saveFile.getVersion() < SaveFile.CURRENT_VERSION) {
++            upgradeToCurrent(saveFile);
++        }
++
++        normalizeUsers(saveFile.getUsers());
++        clearUnknownSession(saveFile);
++
++        saveFile.setVersion(SaveFile.CURRENT_VERSION);
++
++        return saveFile;
++    }
++
++    /**
++     * Version 0 (a bare JSON array of users) carried no session state and no
++     * progress counters. Nothing has to be rewritten: the defaults declared by
++     * the model already describe the missing fields, so the upgrade is limited
++     * to stamping the new version.
++     */
++    private void upgradeToCurrent(SaveFile saveFile) {
++        if (saveFile.getLastLoggedInUsername() == null) {
++            saveFile.setLastLoggedInUsername(findStayLoggedInUsername(saveFile.getUsers()));
++        }
++    }
++
++    private String findStayLoggedInUsername(List<User> users) {
++        for (User user : users) {
++            if (user != null && user.isStayLoggedIn()) {
++                return user.getUsername();
++            }
++        }
++
++        return null;
++    }
++
++    /**
++     * Drops unusable rows and materializes the lazily-created defaults of every
++     * user, so callers never see a null collection coming out of the save file.
++     */
++    private void normalizeUsers(List<User> users) {
++        Iterator<User> iterator = users.iterator();
++
++        while (iterator.hasNext()) {
++            User user = iterator.next();
++
++            if (user == null || user.getUsername() == null) {
++                iterator.remove();
++                continue;
++            }
++
++            user.applyDefaults();
++        }
++
++        removeDuplicateUsernames(users);
++    }
++
++    private void removeDuplicateUsernames(List<User> users) {
++        List<String> seen = new ArrayList<>();
++        Iterator<User> iterator = users.iterator();
++
++        while (iterator.hasNext()) {
++            String username = iterator.next().getUsername();
++
++            if (seen.contains(username)) {
++                iterator.remove();
++                continue;
++            }
++
++            seen.add(username);
++        }
++    }
++
++    /** A remembered session is only valid while the referenced user still exists. */
++    private void clearUnknownSession(SaveFile saveFile) {
++        String username = saveFile.getLastLoggedInUsername();
++
++        if (username == null) {
++            return;
++        }
++
++        for (User user : saveFile.getUsers()) {
++            if (username.equals(user.getUsername())) {
++                return;
++            }
++        }
++
++        saveFile.setLastLoggedInUsername(null);
++    }
++}
+diff --git a/src/persistence/SaveSerializer.java b/src/persistence/SaveSerializer.java
+new file mode 100644
+index 0000000..30ba0be
+--- /dev/null
++++ b/src/persistence/SaveSerializer.java
+@@ -0,0 +1,13 @@
++package persistence;
++
++/**
++ * Converts a {@link SaveFile} to and from its textual representation.
++ *
++ * <p>Kept as an interface so the storage format can change without touching
++ * the repository, the services, or the domain model.</p>
++ */
++public interface SaveSerializer {
++    String serialize(SaveFile saveFile);
++
++    SaveFile deserialize(String content);
++}
+diff --git a/src/repository/JsonUserRepository.java b/src/repository/JsonUserRepository.java
+new file mode 100644
+index 0000000..8a2b041
+--- /dev/null
++++ b/src/repository/JsonUserRepository.java
+@@ -0,0 +1,111 @@
++package repository;
++
++import persistence.AtomicFileWriter;
++import persistence.GsonSaveSerializer;
++import persistence.SaveDataException;
++import persistence.SaveFile;
++import persistence.SaveSerializer;
++
++import java.io.IOException;
++import java.io.UncheckedIOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardCopyOption;
++
++/**
++ * Stores users in a single JSON file next to the program.
++ *
++ * <p>The path, the serializer and the writer are injected so tests can run
++ * against a temporary directory.</p>
++ */
++public class JsonUserRepository implements UserRepository {
++
++    /** Default location, used when the caller does not supply one. */
++    public static final Path DEFAULT_SAVE_PATH = Path.of("data", "users.json");
++
++    private final Path saveFilePath;
++    private final SaveSerializer serializer;
++    private final AtomicFileWriter writer;
++
++    public JsonUserRepository() {
++        this(DEFAULT_SAVE_PATH, new GsonSaveSerializer(), new AtomicFileWriter());
++    }
++
++    public JsonUserRepository(Path saveFilePath) {
++        this(saveFilePath, new GsonSaveSerializer(), new AtomicFileWriter());
++    }
++
++    public JsonUserRepository(
++            Path saveFilePath,
++            SaveSerializer serializer,
++            AtomicFileWriter writer
++    ) {
++        this.saveFilePath = saveFilePath;
++        this.serializer = serializer;
++        this.writer = writer;
++    }
++
++    @Override
++    public SaveFile load() {
++        if (!Files.exists(saveFilePath)) {
++            return new SaveFile();
++        }
++
++        String content = read();
++
++        return serializer.deserialize(content);
++    }
++
++    @Override
++    public void save(SaveFile saveFile) {
++        String content = serializer.serialize(saveFile);
++
++        try {
++            writer.write(saveFilePath, content);
++        } catch (IOException exception) {
++            throw new UncheckedIOException(
++                    "Could not write the save file: " + saveFilePath,
++                    exception
++            );
++        }
++    }
++
++    @Override
++    public Path quarantineCorruptSave(String stamp) {
++        if (!Files.exists(saveFilePath)) {
++            return null;
++        }
++
++        Path backup = saveFilePath.resolveSibling(
++                saveFilePath.getFileName() + ".corrupt." + stamp
++        );
++
++        try {
++            Files.move(saveFilePath, backup, StandardCopyOption.REPLACE_EXISTING);
++        } catch (IOException exception) {
++            throw new UncheckedIOException(
++                    "Could not move the unreadable save file aside: " + saveFilePath,
++                    exception
++            );
++        }
++
++        return backup;
++    }
++
++    @Override
++    public Path getSaveFilePath() {
++        return saveFilePath;
++    }
++
++    private String read() {
++        try {
++            return Files.readString(saveFilePath, StandardCharsets.UTF_8);
++        } catch (IOException exception) {
++            throw new SaveDataException(
++                    "Could not read the save file: " + saveFilePath,
++                    exception
++            );
++        }
++    }
++}
+diff --git a/src/repository/UserRepository.java b/src/repository/UserRepository.java
+index 334670c..cbb2a88 100644
+--- a/src/repository/UserRepository.java
++++ b/src/repository/UserRepository.java
+@@ -1,4 +1,25 @@
+ package repository;
+ 
+-public class UserRepository {
++import persistence.SaveFile;
++
++import java.nio.file.Path;
++
++/**
++ * Storage boundary for registered users and their progress.
++ *
++ * <p>Implementations own the storage medium only; they contain no game rules.</p>
++ */
++public interface UserRepository {
++
++    /** Reads the stored save data, or empty save data when nothing is stored yet. */
++    SaveFile load();
++
++    /** Writes the given save data, replacing whatever was stored before. */
++    void save(SaveFile saveFile);
++
++    /** Moves unreadable save data aside so a fresh save can be written safely. */
++    Path quarantineCorruptSave(String stamp);
++
++    /** Location of the save file this repository reads and writes. */
++    Path getSaveFilePath();
+ }
+diff --git a/src/service/UserService.java b/src/service/UserService.java
+index 467d401..05fc959 100644
+--- a/src/service/UserService.java
++++ b/src/service/UserService.java
+@@ -1,4 +1,195 @@
+ package service;
+ 
++import model.Result;
++import model.Store;
++import model.user.User;
++import persistence.SaveDataException;
++import persistence.SaveFile;
++import repository.UserRepository;
++
++import java.nio.file.Path;
++import java.time.Clock;
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.util.ArrayList;
++
++/**
++ * Owns the lifecycle of persisted accounts: loading them at start-up, keeping
++ * {@link Store} in sync, and writing progress back to disk.
++ *
++ * <p>The clock is injected rather than read from {@code System}, so the daily
++ * shop and the greenhouse can later depend on a deterministic "today".</p>
++ */
+ public class UserService {
++
++    private final UserRepository repository;
++    private final Clock clock;
++
++    public UserService(UserRepository repository, Clock clock) {
++        if (repository == null || clock == null) {
++            throw new IllegalArgumentException("Repository and clock are required.");
++        }
++
++        this.repository = repository;
++        this.clock = clock;
++    }
++
++    public Clock getClock() {
++        return clock;
++    }
++
++    public LocalDate today() {
++        return LocalDate.now(clock);
++    }
++
++    public LocalDateTime now() {
++        return LocalDateTime.now(clock);
++    }
++
++    /**
++     * Reads the save file into {@link Store} and restores the remembered
++     * session. Unreadable save data is moved aside instead of being overwritten.
++     */
++    public Result<Integer> loadUsers() {
++        Result<Integer> result = new Result<>();
++        SaveFile saveFile;
++
++        try {
++            saveFile = repository.load();
++        } catch (SaveDataException exception) {
++            return handleUnreadableSave(result, exception);
++        }
++
++        Store.setUsers(new ArrayList<>(saveFile.getUsers()));
++        Store.setLoggedInUser(resolveSession(saveFile.getLastLoggedInUsername()));
++
++        result.setStatus(true);
++        result.setData(Store.getUsers().size());
++        result.appendToMessage("loaded " + Store.getUsers().size() + " user(s)");
++
++        return result;
++    }
++
++    /** Writes every registered user and the current session to the save file. */
++    public Result<String> saveUsers() {
++        Result<String> result = new Result<>();
++
++        SaveFile saveFile = new SaveFile();
++        saveFile.setUsers(Store.getUsers());
++        saveFile.setLastLoggedInUsername(sessionUsername());
++
++        repository.save(saveFile);
++
++        result.setStatus(true);
++        result.setData(repository.getSaveFilePath().toString());
++        result.appendToMessage("progress saved");
++
++        return result;
++    }
++
++    /** Registers a new account and persists it immediately. */
++    public Result<String> addUser(User user) {
++        Result<String> result = new Result<>();
++
++        if (user == null || user.getUsername() == null) {
++            result.appendToMessage("user is missing a username");
++            return result;
++        }
++
++        if (Store.findUser(user.getUsername()) != null) {
++            result.appendToMessage("username already taken");
++            return result;
++        }
++
++        user.applyDefaults();
++        Store.getUsers().add(user);
++        saveUsers();
++
++        result.setStatus(true);
++        result.setData(user.getUsername());
++        result.appendToMessage("user saved");
++
++        return result;
++    }
++
++    /** Persists a change made to an already registered user. */
++    public Result<String> updateUser(User user) {
++        Result<String> result = new Result<>();
++
++        if (user == null || Store.findUser(user.getUsername()) == null) {
++            result.appendToMessage("user is not registered");
++            return result;
++        }
++
++        saveUsers();
++
++        result.setStatus(true);
++        result.setData(user.getUsername());
++        result.appendToMessage("progress saved");
++
++        return result;
++    }
++
++    public User findByUsername(String username) {
++        return Store.findUser(username);
++    }
++
++    /** The user whose session survives a restart, or {@code null}. */
++    public User getAutoLoginUser() {
++        for (User user : Store.getUsers()) {
++            if (user.isStayLoggedIn()) {
++                return user;
++            }
++        }
++
++        return null;
++    }
++
++    /** Controlled shutdown: flush progress. */
++    public Result<String> shutdown() {
++        return saveUsers();
++    }
++
++    private String sessionUsername() {
++        User loggedIn = Store.getLoggedInUser();
++
++        if (loggedIn == null || !loggedIn.isStayLoggedIn()) {
++            return null;
++        }
++
++        return loggedIn.getUsername();
++    }
++
++    private User resolveSession(String username) {
++        User user = Store.findUser(username);
++
++        if (user == null || !user.isStayLoggedIn()) {
++            return null;
++        }
++
++        return user;
++    }
++
++    private Result<Integer> handleUnreadableSave(
++            Result<Integer> result,
++            SaveDataException exception
++    ) {
++        String stamp = String.valueOf(clock.instant().getEpochSecond());
++        Path backup = repository.quarantineCorruptSave(stamp);
++
++        Store.setUsers(new ArrayList<>());
++        Store.setLoggedInUser(null);
++
++        result.setStatus(false);
++        result.setData(0);
++        result.appendToMessage(
++                "save file could not be read (" + exception.getMessage() + ")"
++        );
++
++        if (backup != null) {
++            result.appendToMessage("; kept a copy at " + backup);
++        }
++
++        return result;
++    }
+ }
+diff --git a/src/view/CollectionMenuView.java b/src/view/CollectionMenuView.java
+index f2e7edf..7786895 100644
+--- a/src/view/CollectionMenuView.java
++++ b/src/view/CollectionMenuView.java
+@@ -3,14 +3,17 @@ package view;
+ import controller.CollectionMenuController;
+ import model.Result;
+ import model.enums.Command;
+-import model.inGame.plant.Plant;
+ import model.user.User;
+ 
+ import java.util.List;
+ import java.util.regex.Matcher;
+ 
+ public class CollectionMenuView {
+-    private final CollectionMenuController controller = new CollectionMenuController();
++    private final CollectionMenuController controller;
++
++    public CollectionMenuView(CollectionMenuController controller) {
++        this.controller = controller;
++    }
+ 
+     public void checkCommand(String input, User currentUser) {
+         Matcher matcher;
+diff --git a/test/persistence/UserPersistenceTest.java b/test/persistence/UserPersistenceTest.java
+new file mode 100644
+index 0000000..d6cf373
+--- /dev/null
++++ b/test/persistence/UserPersistenceTest.java
+@@ -0,0 +1,388 @@
++package persistence;
++
++import model.News;
++import model.Result;
++import model.Store;
++import model.enums.NewsType;
++import model.enums.PlantType;
++import model.enums.ZombieType;
++import model.miniGame.GreenhouseSlot;
++import model.user.DailyShopState;
++import model.user.PlantCard;
++import model.user.Settings;
++import model.user.User;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++import repository.JsonUserRepository;
++import repository.UserRepository;
++import service.UserService;
++
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.time.Clock;
++import java.time.Instant;
++import java.time.LocalDate;
++import java.time.ZoneOffset;
++import java.util.ArrayList;
++import java.util.LinkedHashSet;
++import java.util.Set;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNotNull;
++import static org.junit.jupiter.api.Assertions.assertNull;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++/**
++ * Persistence tests. Time is supplied by a fixed clock, so nothing here depends
++ * on the real system time and no test waits.
++ */
++class UserPersistenceTest {
++
++    private static final Instant FIXED_INSTANT = Instant.parse("2026-07-14T09:30:00Z");
++    private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
++
++    @TempDir
++    Path tempDir;
++
++    private Path savePath;
++
++    @BeforeEach
++    void resetGlobalState() {
++        savePath = tempDir.resolve("users.json");
++        Store.setUsers(new ArrayList<>());
++        Store.setLoggedInUser(null);
++    }
++
++    private UserService newService() {
++        return new UserService(new JsonUserRepository(savePath), FIXED_CLOCK);
++    }
++
++    private User sampleUser(String username) {
++        User user = new User(
++                username,
++                User.hashPassword("Abcdef1!"),
++                username + "-nick",
++                username + "@example.com",
++                "male",
++                7,
++                12,
++                new model.user.Collection(),
++                new ArrayList<PlantType>(),
++                new Settings(),
++                500,
++                40,
++                9001,
++                new model.miniGame.GreenHouse(),
++                "first pet?",
++                "cactus"
++        );
++        user.applyDefaults();
++
++        return user;
++    }
++
++    // ---------- successful round trip ----------
++
++    @Test
++    void savedUserIsReloadedWithEveryPersistentField() {
++        UserService service = newService();
++
++        User user = sampleUser("kasra");
++        user.getSettings().setDifficultyLevel(5);
++        user.setCompletedLevelCount(11);
++        user.setLatestCompletedChapter(2);
++        user.setLatestCompletedLevel(4);
++        user.setCompletedDailyQuests(3);
++        user.setCompletedNonDailyQuests(6);
++        user.setCompletedMiniGames(2);
++        user.setPlantFood(5);
++        user.setStayLoggedIn(true);
++
++        user.getCollection().purchasePlant(PlantType.PEASHOOTER);
++        user.getCollection().upgradePlant(PlantType.PEASHOOTER);
++        user.getCollection().getPlantCard(PlantType.PEASHOOTER).addSeedPackets(17);
++        user.getCollection().markZombieAsSeen(ZombieType.CONEHEAD);
++
++        user.getUnlockedChapters().add(1);
++        user.getUnlockedLevels().put(1, new LinkedHashSet<>(Set.of(1, 2, 3)));
++        user.getPlantBoosts().put(PlantType.SUNFLOWER, 2);
++        user.getInventory().put("plant-food", 4);
++        user.getNewsList().add(new News("Sunflower", "unlocked", NewsType.PLANT_UNLOCKED));
++
++        GreenhouseSlot slot = user.getGreenHouse().addSlot();
++        slot.plant(PlantType.SUNFLOWER, FIXED_INSTANT.getEpochSecond());
++
++        DailyShopState shop = user.getDailyShop();
++        shop.setOfferId("offer-1");
++        shop.setOfferDate(LocalDate.now(FIXED_CLOCK).toString());
++        shop.markPurchased("item-a");
++
++        assertTrue(service.addUser(user).getStatus());
++
++        // A second service instance stands in for restarting the program.
++        UserService reloaded = newService();
++        Result<Integer> loadResult = reloaded.loadUsers();
++
++        assertTrue(loadResult.getStatus());
++        assertEquals(1, loadResult.getData().intValue());
++
++        User restored = reloaded.findByUsername("kasra");
++        assertNotNull(restored);
++        assertEquals(User.hashPassword("Abcdef1!"), restored.getHashOfPassword());
++        assertEquals("kasra-nick", restored.getNickname());
++        assertEquals("kasra@example.com", restored.getEmail());
++        assertEquals("male", restored.getGender());
++        assertEquals("first pet?", restored.getQuestion());
++        assertEquals("cactus", restored.getAnswerToQuestion());
++        assertEquals(5, restored.getSettings().getDifficultyLevel());
++        assertEquals(500, restored.getCoins());
++        assertEquals(40, restored.getGems());
++        assertEquals(12, restored.getGamesPlayed());
++        assertEquals(9001, restored.getHighestMewPoint());
++        assertEquals(11, restored.getCompletedLevelCount());
++        assertEquals(2, restored.getLatestCompletedChapter());
++        assertEquals(4, restored.getLatestCompletedLevel());
++        assertEquals(3, restored.getCompletedDailyQuests());
++        assertEquals(6, restored.getCompletedNonDailyQuests());
++        assertEquals(2, restored.getCompletedMiniGames());
++        assertEquals(5, restored.getPlantFood());
++
++        PlantCard card = restored.getCollection().getPlantCard(PlantType.PEASHOOTER);
++        assertNotNull(card);
++        assertTrue(card.isUnlocked());
++        assertEquals(2, card.getLevel());
++        assertEquals(17, card.getSeedPackets());
++        assertTrue(restored.getCollection().getSeenZombies().contains(ZombieType.CONEHEAD));
++
++        assertTrue(restored.getUnlockedChapters().contains(1));
++        assertEquals(Set.of(1, 2, 3), restored.getUnlockedLevels().get(1));
++        assertEquals(2, restored.getPlantBoosts().get(PlantType.SUNFLOWER).intValue());
++        assertEquals(4, restored.getInventory().get("plant-food").intValue());
++        assertEquals(1, restored.getNewsList().size());
++        assertFalse(restored.getNewsList().get(0).isRead());
++
++        GreenhouseSlot restoredSlot = restored.getGreenHouse().getSlot(0);
++        assertNotNull(restoredSlot);
++        assertTrue(restoredSlot.isOccupied());
++        assertEquals(PlantType.SUNFLOWER, restoredSlot.getPlantType());
++        assertEquals(FIXED_INSTANT.getEpochSecond(), restoredSlot.getPlantedAtEpochSecond());
++
++        assertEquals("offer-1", restored.getDailyShop().getOfferId());
++        assertEquals("2026-07-14", restored.getDailyShop().getOfferDate());
++        assertTrue(restored.getDailyShop().isPurchased("item-a"));
++    }
++
++    @Test
++    void readNewsStaysReadAfterReload() {
++        UserService service = newService();
++        User user = sampleUser("reader");
++        News news = new News("Chapter 2", "unlocked", NewsType.LEVEL_UNLOCKED);
++        news.markAsRead();
++        user.getNewsList().add(news);
++        user.getNewsList().add(new News("Chapter 3", "unlocked", NewsType.LEVEL_UNLOCKED));
++        service.addUser(user);
++
++        User restored = reloadedUser("reader");
++
++        assertTrue(restored.getNewsList().get(0).isRead());
++        assertFalse(restored.getNewsList().get(1).isRead());
++    }
++
++    // ---------- multiple users and session state ----------
++
++    @Test
++    void multipleUsersAndStayLoggedInSessionSurviveRestart() {
++        UserService service = newService();
++
++        User first = sampleUser("alice");
++        User second = sampleUser("bob");
++        second.setStayLoggedIn(true);
++        second.setCoins(1234);
++
++        service.addUser(first);
++        service.addUser(second);
++        Store.setLoggedInUser(second);
++        assertTrue(service.saveUsers().getStatus());
++
++        UserService reloaded = newService();
++        assertEquals(2, reloaded.loadUsers().getData().intValue());
++
++        assertNotNull(reloaded.findByUsername("alice"));
++        assertEquals(1234, reloaded.findByUsername("bob").getCoins());
++        assertNotNull(Store.getLoggedInUser());
++        assertEquals("bob", Store.getLoggedInUser().getUsername());
++        assertEquals("bob", reloaded.getAutoLoginUser().getUsername());
++    }
++
++    @Test
++    void sessionIsNotRestoredWhenStayLoggedInIsFalse() {
++        UserService service = newService();
++        User user = sampleUser("carol");
++        service.addUser(user);
++        Store.setLoggedInUser(user);
++        service.saveUsers();
++
++        UserService reloaded = newService();
++        reloaded.loadUsers();
++
++        assertNull(Store.getLoggedInUser());
++        assertNull(reloaded.getAutoLoginUser());
++    }
++
++    @Test
++    void duplicateUsernameIsRejected() {
++        UserService service = newService();
++        assertTrue(service.addUser(sampleUser("dave")).getStatus());
++
++        Result<String> second = service.addUser(sampleUser("dave"));
++
++        assertFalse(second.getStatus());
++        assertEquals("username already taken", second.getMessage());
++        assertEquals(1, Store.getUsers().size());
++    }
++
++    // ---------- boundaries, defaults, migration ----------
++
++    @Test
++    void missingSaveFileLoadsAnEmptyRoster() {
++        UserService service = newService();
++
++        Result<Integer> result = service.loadUsers();
++
++        assertTrue(result.getStatus());
++        assertEquals(0, result.getData().intValue());
++        assertTrue(Store.getUsers().isEmpty());
++        assertFalse(Files.exists(savePath));
++    }
++
++    @Test
++    void legacyBareArraySaveIsMigratedAndKeptCompatible() throws IOException {
++        String legacy = "[{\"username\":\"legacy\",\"hashOfPassword\":\"h\",\"coins\":77,"
++                + "\"stayLoggedIn\":true}]";
++        Files.writeString(savePath, legacy, StandardCharsets.UTF_8);
++
++        UserService service = newService();
++        Result<Integer> result = service.loadUsers();
++
++        assertTrue(result.getStatus());
++        assertEquals(1, result.getData().intValue());
++
++        User migrated = service.findByUsername("legacy");
++        assertEquals(77, migrated.getCoins());
++        assertNotNull(migrated.getCollection());
++        assertNotNull(migrated.getGreenHouse());
++        assertNotNull(migrated.getDailyShop());
++        assertEquals(3, migrated.getSettings().getDifficultyLevel());
++        assertEquals("legacy", Store.getLoggedInUser().getUsername());
++
++        service.saveUsers();
++        SaveFile rewritten = new JsonUserRepository(savePath).load();
++        assertEquals(SaveFile.CURRENT_VERSION, rewritten.getVersion());
++        assertEquals(1, rewritten.getUsers().size());
++    }
++
++    @Test
++    void difficultyDefaultsToThreeWhenTheSaveDoesNotContainSettings() throws IOException {
++        String save = "{\"version\":1,\"users\":[{\"username\":\"nodiff\"}]}";
++        Files.writeString(savePath, save, StandardCharsets.UTF_8);
++
++        UserService service = newService();
++        service.loadUsers();
++
++        assertEquals(3, service.findByUsername("nodiff").getSettings().getDifficultyLevel());
++    }
++
++    @Test
++    void saveFileFromANewerVersionIsRejectedRatherThanTruncated() throws IOException {
++        Files.writeString(savePath, "{\"version\":999,\"users\":[]}", StandardCharsets.UTF_8);
++
++        assertThrows(
++                SaveDataException.class,
++                () -> new JsonUserRepository(savePath).load()
++        );
++    }
++
++    @Test
++    void unreadableSaveIsQuarantinedAndNotOverwritten() throws IOException {
++        Files.writeString(savePath, "{ this is not json", StandardCharsets.UTF_8);
++
++        UserService service = newService();
++        Result<Integer> result = service.loadUsers();
++
++        assertFalse(result.getStatus());
++        assertEquals(0, result.getData().intValue());
++
++        Path backup = savePath.resolveSibling(
++                "users.json.corrupt." + FIXED_INSTANT.getEpochSecond()
++        );
++        assertTrue(Files.exists(backup));
++        assertEquals("{ this is not json", Files.readString(backup));
++        assertFalse(Files.exists(savePath));
++    }
++
++    // ---------- safe writes ----------
++
++    @Test
++    void writingLeavesNoTemporaryFileBehind() throws IOException {
++        UserService service = newService();
++        service.addUser(sampleUser("erin"));
++
++        assertTrue(Files.exists(savePath));
++        assertFalse(Files.exists(savePath.resolveSibling("users.json.tmp")));
++
++        try (java.util.stream.Stream<Path> entries = Files.list(tempDir)) {
++            assertEquals(1, entries.count());
++        }
++    }
++
++    @Test
++    void failedSerializationLeavesThePreviousSaveIntact() {
++        UserRepository healthy = new JsonUserRepository(savePath);
++        SaveFile good = new SaveFile();
++        good.setUsers(new ArrayList<>(java.util.List.of(sampleUser("frank"))));
++        healthy.save(good);
++
++        SaveSerializer exploding = new SaveSerializer() {
++            @Override
++            public String serialize(SaveFile saveFile) {
++                throw new IllegalStateException("boom");
++            }
++
++            @Override
++            public SaveFile deserialize(String content) {
++                return new SaveFile();
++            }
++        };
++
++        UserRepository broken =
++                new JsonUserRepository(savePath, exploding, new AtomicFileWriter());
++
++        assertThrows(IllegalStateException.class, () -> broken.save(new SaveFile()));
++
++        SaveFile stillThere = healthy.load();
++        assertEquals(1, stillThere.getUsers().size());
++        assertEquals("frank", stillThere.getUsers().get(0).getUsername());
++    }
++
++    // ---------- injected clock ----------
++
++    @Test
++    void serviceReadsTimeFromTheInjectedClock() {
++        UserService service = newService();
++
++        assertEquals(LocalDate.of(2026, 7, 14), service.today());
++        assertEquals(FIXED_INSTANT, service.getClock().instant());
++    }
++
++    private User reloadedUser(String username) {
++        UserService reloaded = newService();
++        reloaded.loadUsers();
++
++        return reloaded.findByUsername(username);
++    }
++}

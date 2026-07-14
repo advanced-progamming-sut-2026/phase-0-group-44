@@ -3,16 +3,16 @@ package model.user;
 import model.News;
 import model.Result;
 import model.enums.PlantType;
-import model.enums.ZombieType;
-import model.inGame.plant.Plant;
-import model.inGame.zombie.Zombie;
 import model.miniGame.GreenHouse;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class User {
@@ -29,18 +29,42 @@ public class User {
     private ArrayList<PlantType> upgradedPlants;
     private Settings settings;
     private int coins;
-    private Set<ZombieType> seenZombies;
-    private List<PlayerPlant> plants = new ArrayList<>();
     private int gems;
+    /** Highest score reached in the scored ("Mew Point") game mode. */
     private int mioPoint;
     private GreenHouse greenHouse;
     private String question;
     private String answerToQuestion;
     private boolean stayLoggedIn;
 
+    private int completedLevelCount;
+    private int latestCompletedChapter;
+    private int latestCompletedLevel;
+    private int completedDailyQuests;
+    private int completedNonDailyQuests;
+    private int completedMiniGames;
+    private int plantFood;
+
+    private Set<Integer> unlockedChapters = new LinkedHashSet<>();
+    private Map<Integer, Set<Integer>> unlockedLevels = new LinkedHashMap<>();
+    private Map<PlantType, Integer> plantBoosts = new LinkedHashMap<>();
+    private Map<String, Integer> inventory = new LinkedHashMap<>();
+    private ArrayList<News> news = new ArrayList<>();
+    private DailyShopState dailyShop = new DailyShopState();
+
 
     //constructor
 
+    /**
+     * Required by the serializer. Fields that an older save file does not
+     * contain keep the defaults declared above instead of becoming null.
+     */
+    public User() {
+        this.collection = new Collection();
+        this.upgradedPlants = new ArrayList<>();
+        this.settings = new Settings();
+        this.greenHouse = new GreenHouse();
+    }
 
     public User(String username, String hashOfPassword, String nickname,
                 String email, String gender, int progress,
@@ -367,6 +391,149 @@ public class User {
         coins -= amount;
     }
 
+    /** Alias of {@link #getMioPoint()} using the name the document uses. */
+    public int getHighestMewPoint() {
+        return mioPoint;
+    }
 
+    public void setHighestMewPoint(int highestMewPoint) {
+        this.mioPoint = highestMewPoint;
+    }
 
+    public int getCompletedLevelCount() {
+        return completedLevelCount;
+    }
+
+    public void setCompletedLevelCount(int completedLevelCount) {
+        this.completedLevelCount = completedLevelCount;
+    }
+
+    public int getLatestCompletedChapter() {
+        return latestCompletedChapter;
+    }
+
+    public void setLatestCompletedChapter(int latestCompletedChapter) {
+        this.latestCompletedChapter = latestCompletedChapter;
+    }
+
+    public int getLatestCompletedLevel() {
+        return latestCompletedLevel;
+    }
+
+    public void setLatestCompletedLevel(int latestCompletedLevel) {
+        this.latestCompletedLevel = latestCompletedLevel;
+    }
+
+    public int getCompletedDailyQuests() {
+        return completedDailyQuests;
+    }
+
+    public void setCompletedDailyQuests(int completedDailyQuests) {
+        this.completedDailyQuests = completedDailyQuests;
+    }
+
+    public int getCompletedNonDailyQuests() {
+        return completedNonDailyQuests;
+    }
+
+    public void setCompletedNonDailyQuests(int completedNonDailyQuests) {
+        this.completedNonDailyQuests = completedNonDailyQuests;
+    }
+
+    public int getCompletedMiniGames() {
+        return completedMiniGames;
+    }
+
+    public void setCompletedMiniGames(int completedMiniGames) {
+        this.completedMiniGames = completedMiniGames;
+    }
+
+    public int getPlantFood() {
+        return plantFood;
+    }
+
+    public void setPlantFood(int plantFood) {
+        this.plantFood = plantFood;
+    }
+
+    public Set<Integer> getUnlockedChapters() {
+        if (unlockedChapters == null) {
+            unlockedChapters = new LinkedHashSet<>();
+        }
+
+        return unlockedChapters;
+    }
+
+    public Map<Integer, Set<Integer>> getUnlockedLevels() {
+        if (unlockedLevels == null) {
+            unlockedLevels = new LinkedHashMap<>();
+        }
+
+        return unlockedLevels;
+    }
+
+    public Map<PlantType, Integer> getPlantBoosts() {
+        if (plantBoosts == null) {
+            plantBoosts = new LinkedHashMap<>();
+        }
+
+        return plantBoosts;
+    }
+
+    public Map<String, Integer> getInventory() {
+        if (inventory == null) {
+            inventory = new LinkedHashMap<>();
+        }
+
+        return inventory;
+    }
+
+    public ArrayList<News> getNewsList() {
+        if (news == null) {
+            news = new ArrayList<>();
+        }
+
+        return news;
+    }
+
+    public DailyShopState getDailyShop() {
+        if (dailyShop == null) {
+            dailyShop = new DailyShopState();
+        }
+
+        return dailyShop;
+    }
+
+    public void setDailyShop(DailyShopState dailyShop) {
+        this.dailyShop = dailyShop;
+    }
+
+    /**
+     * Materializes every default this user relies on. Called after loading, so
+     * that a save file written by an older version never yields null state.
+     */
+    public void applyDefaults() {
+        getCollection();
+        getUnlockedChapters();
+        getUnlockedLevels();
+        getPlantBoosts();
+        getInventory();
+        getNewsList();
+        getDailyShop();
+
+        if (upgradedPlants == null) {
+            upgradedPlants = new ArrayList<>();
+        }
+
+        if (settings == null) {
+            settings = new Settings();
+        }
+
+        if (greenHouse == null) {
+            greenHouse = new GreenHouse();
+        }
+
+        greenHouse.applyDefaults();
+        collection.applyDefaults();
+    }
 }

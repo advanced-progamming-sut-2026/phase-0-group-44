@@ -3,14 +3,17 @@ package view;
 import controller.CollectionMenuController;
 import model.Result;
 import model.enums.Command;
-import model.inGame.plant.Plant;
 import model.user.User;
 
 import java.util.List;
 import java.util.regex.Matcher;
 
 public class CollectionMenuView {
-    private final CollectionMenuController controller = new CollectionMenuController();
+    private final CollectionMenuController controller;
+
+    public CollectionMenuView(CollectionMenuController controller) {
+        this.controller = controller;
+    }
 
     public void checkCommand(String input, User currentUser) {
         Matcher matcher;
