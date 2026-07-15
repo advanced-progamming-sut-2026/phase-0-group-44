@@ -2,7 +2,10 @@ package view;
 
 import controller.App;
 import model.Store;
+import controller.BoardController;
 import controller.GameplayController;
+import model.sim.SimulationWorld;
+import model.sim.board.PlantSpecSource;
 import model.Store;
 import model.enums.MenuName;
 
@@ -19,6 +22,7 @@ public class MenuRouter {
     private final CollectionMenuView collectionMenuView;
     private final PlantSelectionView plantSelectionView;
     private final CommonMenuView commonMenuView;
+    private final PlantSpecSource plantSpecSource;
 
     public MenuRouter(App app) {
         this.menuController = app.getMenuController();
@@ -39,12 +43,21 @@ public class MenuRouter {
         this.plantSelectionView = new PlantSelectionView(
                 app.getMenuController(), app.getPlantSelectionController());
         this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
+        this.plantSpecSource = app.getPlantSpecSource();
     }
 
     private GameplayView gameplayView() {
-        GameplayController controller = Store.getActiveSimulation() == null
-                ? null
-                : new GameplayController(Store.getActiveSimulation());
+        if (Store.getActiveSimulation() == null) {
+            return new GameplayView(menuController, null);
+        }
+
+        SimulationWorld world = Store.getActiveSimulation().getWorld();
+        BoardController board = new BoardController(
+                world,
+                Store.getActiveSession() == null ? null : Store.getActiveSession().getSelection(),
+                plantSpecSource);
+        GameplayController controller =
+                new GameplayController(Store.getActiveSimulation(), board);
 
         return new GameplayView(menuController, controller);
     }

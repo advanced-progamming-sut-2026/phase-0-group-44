@@ -2,6 +2,7 @@ package model.sim;
 
 import model.sim.sun.FallingSunSystem;
 import model.sim.sun.SunCollector;
+import model.sim.board.CooldownSystem;
 import model.sim.sun.SunProducer;
 import util.RandomSource;
 
@@ -32,6 +33,7 @@ public class Simulation {
 
         // Fixed pipeline order. Later systems (zombies, projectiles, waves, …)
         // are added to this same list so they share this clock.
+        systems.add(new CooldownSystem());
         systems.add(new SunProducer.System());
         systems.add(new FallingSunSystem(skySunEnabled));
     }

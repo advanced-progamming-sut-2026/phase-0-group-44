@@ -686,6 +686,115 @@ Store --> Simulation
 PlantSelectionController ..> Simulation
 PlantSelectionController --> RandomSource
 
+' BOARD / TERRAIN / PLANTING / PLANT FOOD / DROPS '
+
+enum TerrainType {
+  NORMAL_EGYPT
+  GRAVESTONE
+  NORMAL_FROSTBITE
+  SLIPPERY_UP
+  SLIPPERY_DOWN
+  FROZEN
+  NORMAL_BEACH
+  WATER
+  LOW_TIDE
+  NORMAL_DARK_AGES
+  DARK_AGES_GRAVESTONE
+  NECROMANCY
+  + isPlantableByDefault(): boolean
+  + blocksHorizontalProjectiles(): boolean
+  + requiresWaterCapablePlant(): boolean
+  + slipperyRowDelta(): int
+}
+
+class Board {
+  + {static} DEFAULT_ROWS: int = 5
+  + {static} DEFAULT_COLUMNS: int = 9
+  - tiles: Tile[][]
+  + isValidTile(x: int, y: int): boolean
+  + isValidZombitePosition(x: double, row: int): boolean
+  + tileAt(x: int, y: int): Tile
+  + neighboursOf(x: int, y: int): List<Tile>
+}
+
+class Tile {
+  + {static} ICE_HEALTH: int = 600
+  + {static} GRAVESTONE_HEALTH: int = 700
+  - terrain: TerrainType
+  - terrainHealth: int
+  - frozen: boolean
+  - supportPlant: PlantInstance
+  - stackedPlant: PlantInstance
+  + setTerrain(terrain: TerrainType)
+  + damageTerrain(amount: int, groundWhenDestroyed: TerrainType)
+  + freeze()
+  + meltIce(amount: int)
+}
+
+class PlantSpec {
+  - sunCost: int
+  - rechargeTicks: int
+  - hp: int
+  - waterCapable: boolean
+  - providesSupport: boolean
+  - stacksOnSupport: boolean
+  - fire: boolean
+  - hasPlantFoodEffect: boolean
+}
+
+interface PlantSpecSource {
+  + specOf(type: PlantType): PlantSpec
+}
+
+class DefaultPlantSpecSource implements PlantSpecSource
+
+class PlantInstance implements Damageable {
+  - spec: PlantSpec
+  - hp: int
+  - stackedOnSupport: boolean
+}
+
+class CooldownSystem implements SimulationSystem
+
+class BoardController {
+  - world: SimulationWorld
+  - selection: PlantSelection
+  - specSource: PlantSpecSource
+  + plantPlant(type: PlantType, x: int, y: int): Result<String>
+  + pluckPlant(x: int, y: int): Result<String>
+  + cheatRemoveCooldown(): Result<String>
+  + feedPlant(x: int, y: int): Result<String>
+  + cheatAddPlantFood(): Result<String>
+  + showMap(): Result<String>
+  + showPlantsStatus(): Result<String>
+  + showTileStatus(x: int, y: int): Result<String>
+}
+
+class RewardService {
+  + {static} GLOW_CHANCE: double = 0.05
+  + {static} DROP_CHANCE: double = 0.10
+  - userService: UserService
+  - random: RandomSource
+  + rollGlowing(): boolean
+  + onZombieDeath(glowing: boolean, user: User, world: SimulationWorld): List<String>
+}
+
+Board o-- Tile
+Tile --> TerrainType
+Tile o-- PlantInstance
+PlantInstance --> PlantSpec
+DefaultPlantSpecSource --> PlantRepository
+SimulationWorld o-- Board
+BoardController --> SimulationWorld
+BoardController --> PlantSelection
+BoardController --> PlantSpecSource
+BoardController ..> PlantInstance
+Simulation o-- CooldownSystem
+RewardService --> UserService
+RewardService --> RandomSource
+GameplayController --> BoardController
+App --> PlantSpecSource
+
 abstract class MenuView {
   - menuController: MenuController
   + handleCommonCommand(input: String): boolean

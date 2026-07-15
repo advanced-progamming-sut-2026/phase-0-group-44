@@ -13,9 +13,19 @@ import java.util.List;
 public class GameplayController {
 
     private final Simulation simulation;
+    private final BoardController board;
 
     public GameplayController(Simulation simulation) {
+        this(simulation, null);
+    }
+
+    public GameplayController(Simulation simulation, BoardController board) {
         this.simulation = simulation;
+        this.board = board;
+    }
+
+    public BoardController getBoard() {
+        return board;
     }
 
     public Simulation getSimulation() {

@@ -57,6 +57,16 @@ public enum Command {
     SHOW_SUN_AMOUNT("^show\\s+sun\\s+amount$"),
     CHEAT_ADD_SUNS("^cheat\\s+add\\s+-n\\s+(\\d+)\\s+suns$"),
 
+    // Board / planting / plant food (gameplay context)
+    PLANT_PLANT("^plant\\s+plant\\s+-t\\s+(\\S+)\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    PLUCK_PLANT("^pluck\\s+plant\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    CHEAT_REMOVE_COOLDOWN("^cheat\\s+remove-cooldown$"),
+    FEED_PLANT("^feed\\s+plant\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    CHEAT_ADD_PLANT_FOOD("^cheat\\s+add-plant-food$"),
+    SHOW_MAP("^show\\s+map$"),
+    SHOW_PLANTS_STATUS("^show\\s+plants\\s+status$"),
+    SHOW_TILE_STATUS("^show\\s+tile\\s+status\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+
     // News Menu
 
     MENU_NEWS_SHOW_UNREAD("^menu\\s+news\\s+show-unread$"),
