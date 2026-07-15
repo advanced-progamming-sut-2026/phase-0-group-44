@@ -72,6 +72,9 @@ public class Projectile {
         Integer blocker = engine.getGameMap().firstBlockingColumn(row, oldX, newX);
         double effectiveNewX = blocker == null ? newX : blocker;
         engine.transformProjectileAlongPath(this, oldX, effectiveNewX);
+        if (blocker != null) {
+            engine.damageObstacleAt(row, blocker, damage, effect.damageType());
+        }
 
         List<Zombie> crossed = engine.getZombiesCrossed(row, oldX, effectiveNewX, direction, hitZombieIds);
         for (Zombie zombie : crossed) {
@@ -134,6 +137,11 @@ public class Projectile {
             return;
         }
         hitZombieIds.add(zombie.getId());
+        if (zombie.projectileDisposition(this, engine)
+                == model.inGame.zombie.ZombieProjectileDisposition.BLOCK) {
+            engine.recordEvent(zombie.getName() + " blocked a " + type + " projectile.");
+            return;
+        }
         effect.apply(this, zombie, engine);
         engine.recordEvent(sourceType + " projectile hit " + zombie.getName() + " for " + damage + ".");
     }

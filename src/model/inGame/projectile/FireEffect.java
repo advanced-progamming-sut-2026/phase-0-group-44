@@ -7,7 +7,14 @@ import model.inGame.zombie.Zombie;
 public class FireEffect implements ProjectileEffect {
     @Override
     public void apply(Projectile projectile, Zombie zombie, GameEngine engine) {
-        zombie.takeDamage(projectile.getDamage(), DamageType.FIRE);
+        zombie.onFireHit(engine);
+        zombie.receiveDamage(projectile.getDamage(), DamageType.FIRE, engine);
         zombie.thaw();
     }
+
+    @Override
+    public DamageType damageType() {
+        return DamageType.FIRE;
+    }
+
 }
