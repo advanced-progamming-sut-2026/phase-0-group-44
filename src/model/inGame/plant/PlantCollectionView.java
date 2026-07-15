@@ -23,13 +23,17 @@ public class PlantCollectionView {
     }
 
     public String getDisplayText() {
+        PlantStats stats = definition.statsAtLevel(card.getLevel());
         return definition.getDisplayText() + "\n"
                 + "Level: " + card.getLevel() + "\n"
+                + "Resolved HP: " + stats.getHp() + "\n"
+                + "Resolved Damage: " + stats.getDamage() + "\n"
+                + "Resolved Sun Cost: " + stats.getCost() + "\n"
+                + "Resolved Action Interval: " + stats.getActionInterval() + "\n"
+                + "Resolved Recharge: " + stats.getRecharge() + "\n"
                 + "Seed Packets: " + card.getSeedPackets() + "\n"
-                + "Upgrade Coin Cost: "
-                + card.getUpgradeCoinCost() + "\n"
-                + "Upgrade Seed Packet Cost: "
-                + card.getUpgradeSeedPacketCost();
+                + "Upgrade Coin Cost: " + card.getUpgradeCoinCost() + "\n"
+                + "Upgrade Seed Packet Cost: " + card.getUpgradeSeedPacketCost();
     }
 }
 

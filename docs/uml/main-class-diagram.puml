@@ -37,23 +37,65 @@ class Store {
   + resetGameData()
 }
 
-class UserRepository {
-  - usersFilePath: String
-  - store: Store
-  + loadUsers()
-  + saveAll()
-  + findByUsername(username: String): User
-  + addUser(user: User)
-  + usernameExists(username: String): boolean
+interface UserRepository {
+  + load(): SaveFile
+  + save(saveFile: SaveFile)
+  + quarantineCorruptSave(stamp: String): Path
+  + getSaveFilePath(): Path
 }
 
+class JsonUserRepository implements UserRepository {
+  - saveFilePath: Path
+  - serializer: SaveSerializer
+  - writer: AtomicFileWriter
+}
+
+' PERSISTENCE (serialization kept out of the domain) '
+
+class SaveFile {
+  + {static} CURRENT_VERSION: int
+  - version: int
+  - users: List<User>
+  - lastLoggedInUsername: String
+}
+
+interface SaveSerializer {
+  + serialize(saveFile: SaveFile): String
+  + deserialize(content: String): SaveFile
+}
+
+class GsonSaveSerializer implements SaveSerializer {
+  - gson: Gson
+  - migrator: SaveFileMigrator
+}
+
+class SaveFileMigrator {
+  + migrate(saveFile: SaveFile): SaveFile
+}
+
+class AtomicFileWriter {
+  + write(target: Path, content: String)
+}
+
+SaveFile o-- User
+JsonUserRepository --> SaveFile
+JsonUserRepository --> SaveSerializer
+JsonUserRepository --> AtomicFileWriter
+GsonSaveSerializer --> SaveFileMigrator
+SaveFileMigrator --> SaveFile
+
 class UserService {
-  - store: Store
-  - userRepository: UserRepository
-  + register(username: String, password: String, nickname: String, email: String, gender: Gender)
+  - repository: UserRepository
+  - clock: Clock
+  + loadUsers(): Result<Integer>
+  + saveUsers(): Result<String>
+  + addUser(user: User): Result<String>
+  + updateUser(user: User): Result<String>
+  + getAutoLoginUser(): User
+  + shutdown(): Result<String>
+  + today(): LocalDate
   + login(username: String, password: String): User
   + logout()
-  + hashPassword(password: String): String
   + changeUsername(user: User, username: String)
   + changeNickname(user: User, nickname: String)
   + changeEmail(user: User, email: String)
@@ -97,8 +139,8 @@ Store o-- Quest
 Store *-- Shop
 Store *-- Leaderboard
 
-UserRepository --> Store
 UserService --> Store
+UserService --> Clock
 UserService --> UserRepository
 GameService --> Store
 GameService --> UserRepository
@@ -107,22 +149,44 @@ GameService --> UserRepository
 
 class User {
   - username: String
-  - hashedPassword: String
+  - hashOfPassword: String
   - nickname: String
   - email: String
-  - gender: Gender
+  - gender: String
+  - question: String
+  - answerToQuestion: String
   - coins: int
   - gems: int
-  - miopoint: int
+  - mioPoint: int
   - gamesPlayed: int
-  - unlockedLevels: Set<LevelId>
+  - completedLevelCount: int
+  - latestCompletedChapter: int
+  - latestCompletedLevel: int
+  - completedDailyQuests: int
+  - completedNonDailyQuests: int
+  - completedMiniGames: int
+  - plantFood: int
+  - stayLoggedIn: boolean
+  - unlockedChapters: Set<Integer>
+  - unlockedLevels: Map<Integer, Set<Integer>>
+  - plantBoosts: Map<PlantType, Integer>
+  - inventory: Map<String, Integer>
+  - news: List<News>
+  - dailyShop: DailyShopState
   - settings: Settings
   - collection: Collection
-  - greenhouse: Greenhouse
-  + checkPassword(password: String): boolean
+  - greenHouse: GreenHouse
+  + applyDefaults()
   + addCoins(amount: int)
-  + addGems(amount: int)
-  + unlockLevel(levelId: LevelId)
+  + decreaseCoins(amount: int)
+}
+
+class DailyShopState {
+  - offerId: String
+  - offerDate: String
+  - purchasedItemIds: List<String>
+  + isPurchased(itemId: String): boolean
+  + markPurchased(itemId: String)
 }
 
 class Settings {
@@ -156,16 +220,694 @@ class ZombieCard {
   + showInfo()
 }
 
-class Greenhouse {
-  - pots: int
-  + addPot()
+class GreenHouse {
+  - slots: List<GreenhouseSlot>
+  + addSlot(): GreenhouseSlot
+  + getSlot(index: int): GreenhouseSlot
+  + applyDefaults()
+}
+
+class GreenhouseSlot {
+  - index: int
+  - plantType: PlantType
+  - plantedAtEpochSecond: long
+  + isOccupied(): boolean
+  + plant(type: PlantType, epochSecond: long)
+  + clear()
 }
 User *-- Settings
 User *-- Collection
-User *-- Greenhouse
+User *-- GreenHouse
+User *-- DailyShopState
+User o-- News
+GreenHouse *-- GreenhouseSlot
 Collection *-- PlantCard
 Collection *-- ZombieCard
 
+
+' MENU FRAMEWORK '
+
+enum MenuName {
+  REGISTER
+  LOGIN
+  MAIN
+  GAME
+  SETTINGS
+  NETWORK
+  NEWS
+  PROFILE
+  COLLECTION
+  + getToken(): String
+  + getDisplayName(): String
+  + {static} fromToken(input: String): MenuName
+}
+
+class MenuGraph <<static>> {
+  - {static} ENTRIES: Map<MenuName, Set<MenuName>>
+  - {static} EXITS: Map<MenuName, MenuExit>
+  + {static} reachableFrom(source: MenuName): Set<MenuName>
+  + {static} canEnter(source: MenuName, destination: MenuName): boolean
+  + {static} requiresAuthentication(source: MenuName, destination: MenuName): boolean
+  + {static} exitOf(source: MenuName): MenuExit
+}
+
+class MenuExit {
+  - kind: Kind
+  - destination: MenuName
+  + {static} returnTo(destination: MenuName): MenuExit
+  + {static} terminate(): MenuExit
+  + {static} forbidden(): MenuExit
+}
+
+enum MenuExit.Kind {
+  RETURN_TO
+  TERMINATE
+  FORBIDDEN
+}
+
+class MenuController {
+  - userService: UserService
+  + enterMenu(menuName: String): Result<String>
+  + showCurrentMenu(): Result<String>
+  + exitMenu(): Result<String>
+}
+
+' AUTHENTICATION '
+
+enum Gender {
+  MALE
+  FEMALE
+  + getToken(): String
+  + {static} fromToken(input: String): Gender
+}
+
+class AuthFlowState {
+  - pendingRegistration: User
+  - recoveringUser: User
+  - recoveryAnswerAccepted: boolean
+  + startRecovery(user: User)
+  + acceptRecoveryAnswer()
+  + clearRecovery()
+}
+
+interface PasswordService {
+  + store(rawPassword: String): String
+  + matches(rawPassword: String, storedPassword: String): boolean
+}
+
+class Sha256PasswordService implements PasswordService
+
+class SecurityQuestionCatalog {
+  - questions: List<String>
+  + {static} fromFile(path: Path): SecurityQuestionCatalog
+  + isValidNumber(number: int): boolean
+  + getQuestion(number: int): String
+  + render(): String
+}
+
+class RegisterMenuController {
+  - userService: UserService
+  - passwordService: PasswordService
+  - questionCatalog: SecurityQuestionCatalog
+  + register(username, password, repeatPassword, nickname, email, gender): Result<String>
+  + pickQuestion(questionNumber: int, answer: String, answerConfirm: String): Result<String>
+}
+
+class LoginMenuController {
+  - userService: UserService
+  - passwordService: PasswordService
+  + login(username: String, password: String, stayLoggedIn: boolean): Result<String>
+  + forgetPassword(username: String, email: String): Result<String>
+  + answer(answer: String): Result<String>
+  + newPassword(password: String): Result<String>
+}
+
+class RegisterMenuView extends MenuView
+class LoginMenuView extends MenuView
+class MenuRouter
+
+Store *-- AuthFlowState
+AuthFlowState --> User
+RegisterMenuController --> UserService
+RegisterMenuController --> PasswordService
+RegisterMenuController --> SecurityQuestionCatalog
+RegisterMenuController --> Store
+LoginMenuController --> UserService
+LoginMenuController --> PasswordService
+LoginMenuController --> Store
+RegisterMenuView --> RegisterMenuController
+LoginMenuView --> LoginMenuController
+MenuRouter --> RegisterMenuView
+MenuRouter --> LoginMenuView
+MenuRouter --> CommonMenuView
+User --> Gender
+App --> RegisterMenuController
+App --> LoginMenuController
+
+' MAIN / GAME / SETTINGS / NEWS / PROFILE / COLLECTION MENUS '
+
+class DifficultyScaling <<static>> {
+  + {static} NEUTRAL_DIFFICULTY: int = 3
+  + {static} STEP_PER_LEVEL: double
+  + {static} zombieHealthMultiplier(difficulty: int): double
+  + {static} zombieDamageMultiplier(difficulty: int): double
+  + {static} gameSpeedMultiplier(difficulty: int): double
+  + {static} waveCostMultiplier(difficulty: int): double
+  + {static} skySunRateMultiplier(difficulty: int): double
+}
+
+enum GameWorld {
+  ANCIENT_EGYPT
+  FROSTBITE_CAVES
+  BIG_WAVE_BEACH
+  DARK_AGES
+  + getChapterNumber(): int
+  + {static} fromName(input: String): GameWorld
+}
+
+class ChapterCatalog <<static>> {
+  + {static} first(): GameWorld
+  + {static} next(world: GameWorld): GameWorld
+  + {static} applyDefaultUnlocks(user: User)
+  + {static} isUnlocked(user: User, world: GameWorld): boolean
+  + {static} unlockNext(user: User, completed: GameWorld): GameWorld
+}
+
+class NewsService {
+  - userService: UserService
+  + plantUnlocked(user: User, plantName: String): News
+  + zombieEncountered(user: User, zombieName: String): News
+  + levelUnlocked(user: User, levelName: String): News
+  + miniGameUnlocked(user: User, miniGameName: String): News
+}
+
+class MainMenuController {
+  - userService: UserService
+  + logout(): Result<String>
+}
+
+class GameMenuController {
+  - userService: UserService
+  + enterChapter(chapterName: String): Result<String>
+  + greenhouse(): Result<String>
+  + travelLog(): Result<String>
+  + leaderboard(): Result<String>
+  + showCoinWallet(): Result<Integer>
+  + showGemWallet(): Result<Integer>
+  + cheatAdd(amount: int, currency: String): Result<Integer>
+}
+
+class SettingsMenuController {
+  - userService: UserService
+  + changeDifficulty(level: int): Result<Integer>
+  + showDifficulty(): Result<Integer>
+}
+
+class NewsMenuController {
+  - userService: UserService
+  + showAllNews(): Result<ArrayList<News>>
+  + showUnreadNews(): Result<ArrayList<News>>
+}
+
+class ProfileMenuController {
+  - userService: UserService
+  - passwordService: PasswordService
+  + changeUsername(username: String): Result<String>
+  + changeNickname(nickname: String): Result<String>
+  + changeEmail(email: String): Result<String>
+  + changePassword(newPassword: String, oldPassword: String): Result<String>
+  + showInfo(): Result<String>
+}
+
+class GameMenuView extends MenuView
+class SettingsMenuView extends MenuView
+class NewsMenuView extends MenuView
+class ProfileMenuView extends MenuView
+class CollectionMenuView extends MenuView
+
+GameMenuController --> ChapterCatalog
+ChapterCatalog --> GameWorld
+ChapterCatalog --> User
+DifficultyScaling ..> Settings
+NewsService --> UserService
+NewsService --> User
+MainMenuController --> UserService
+GameMenuController --> UserService
+SettingsMenuController --> UserService
+SettingsMenuController ..> DifficultyScaling
+NewsMenuController --> UserService
+ProfileMenuController --> UserService
+ProfileMenuController --> PasswordService
+CollectionMenuController --> UserService
+MenuRouter --> GameMenuView
+MenuRouter --> SettingsMenuView
+MenuRouter --> NewsMenuView
+MenuRouter --> ProfileMenuView
+MenuRouter --> CollectionMenuView
+App --> MainMenuController
+App --> GameMenuController
+App --> SettingsMenuController
+App --> NewsMenuController
+App --> ProfileMenuController
+App --> NewsService
+
+' PLANT SELECTION / START GAME '
+
+interface Level {
+  + getName(): String
+  + getSelectionRules(): LevelSelectionRules
+}
+
+class NormalLevel implements Level
+
+class LevelSelectionRules {
+  + {static} DEFAULT_CAPACITY: int = 8
+  - capacity: int
+  - allowedPlants: Set<PlantType>
+  - selectionBypassed: boolean
+  + {static} normal(): LevelSelectionRules
+  + {static} withCapacity(capacity: int): LevelSelectionRules
+  + {static} restrictedTo(capacity: int, allowed: Set<PlantType>): LevelSelectionRules
+  + {static} bypassed(): LevelSelectionRules
+  + allows(type: PlantType): boolean
+}
+
+class PlantSelection {
+  - chosen: Set<PlantType>
+  - diamondBoosted: Set<PlantType>
+  + add(type: PlantType): boolean
+  + remove(type: PlantType): boolean
+  + contains(type: PlantType): boolean
+  + isDiamondBoosted(type: PlantType): boolean
+  + copy(): PlantSelection
+}
+
+class GameSession {
+  - level: Level
+  - selection: PlantSelection
+  - difficulty: int
+  - pendingGreenhouseBoosts: Set<PlantType>
+  - usedPlants: Set<PlantType>
+  + hasImmediatePlantFood(type: PlantType): boolean
+  + hasPendingGreenhouseBoost(type: PlantType): boolean
+  + useAndConsumeGreenhouseBoost(type: PlantType): boolean
+}
+
+class PlantSelectionController {
+  + {static} DIAMOND_BOOST_COST: int = 2
+  - plantRepository: PlantRepository
+  - userService: UserService
+  - level: Level
+  - selection: PlantSelection
+  + begin(level: Level): Result<String>
+  + showAllPlants(): Result<List<PlantDefinition>>
+  + showAvailablePlants(): Result<List<PlantDefinition>>
+  + addPlant(typeToken: String): Result<String>
+  + removePlant(typeToken: String): Result<String>
+  + boostPlant(typeToken: String): Result<String>
+  + startGame(): Result<GameSession>
+}
+
+class GreenhouseBoostService {
+  - userService: UserService
+  + consumeOnFirstUse(session: GameSession, user: User, type: PlantType): boolean
+}
+
+class PlantSelectionView extends MenuView
+
+NormalLevel --> LevelSelectionRules
+LevelSelectionRules --> PlantType
+PlantSelection --> PlantType
+GameSession --> Level
+GameSession --> PlantSelection
+PlantSelectionController --> PlantRepository
+PlantSelectionController --> UserService
+PlantSelectionController --> PlantSelection
+PlantSelectionController --> GameSession
+PlantSelectionController --> LevelSelectionRules
+GreenhouseBoostService --> UserService
+GreenhouseBoostService ..> GameSession
+Store --> GameSession
+MenuRouter --> PlantSelectionView
+App --> PlantSelectionController
+App --> GreenhouseBoostService
+
+' SIMULATION CLOCK / SUN MECHANICS '
+
+interface RandomSource {
+  + nextInt(bound: int): int
+  + nextDouble(): double
+}
+
+class SeededRandomSource implements RandomSource
+
+interface SimulationSystem {
+  + tick(context: TickContext)
+}
+
+interface Damageable {
+  + getTileX(): int
+  + getTileY(): int
+  + takeDamage(amount: int)
+  + isDead(): boolean
+}
+
+class TickContext {
+  + {static} TICKS_PER_SECOND: int = 10
+  - currentTick: long
+  - random: RandomSource
+  - world: SimulationWorld
+  + getElapsedSeconds(): double
+  + emit(message: String)
+}
+
+class SimulationWorld {
+  + {static} DEFAULT_ROWS: int = 5
+  + {static} DEFAULT_COLUMNS: int = 9
+  - sunBalance: int
+  - suns: List<Sun>
+  - producers: List<SunProducer>
+  - zombies: List<Damageable>
+  - plants: List<Damageable>
+  + isInsideBoard(x: int, y: int): boolean
+  + addSun(amount: int)
+}
+
+class Simulation {
+  - random: RandomSource
+  - world: SimulationWorld
+  - systems: List<SimulationSystem>
+  - currentTick: long
+  + advance(ticks: int): List<String>
+  + collectSun(x: int, y: int): SunCollector.Outcome
+  + getSunAmount(): int
+  + addSun(amount: int)
+  + register(system: SimulationSystem)
+}
+
+enum SunType {
+  NORMAL
+  SPECIAL
+  RADIOACTIVE
+  + getLabel(): String
+  + getValue(): int
+  + {static} roll(random: RandomSource): SunType
+}
+
+class Sun {
+  - type: SunType
+  - tileX: int
+  - tileY: int
+  - state: State
+  - remainingFallTicks: int
+  + {static} onPlant(type: SunType, x: int, y: int): Sun
+  + {static} falling(type: SunType, x: int, y: int, fallTicks: int): Sun
+  + tickFall(): boolean
+}
+
+class SunProducer implements SimulationSystem {
+  - plantTypeLabel: String
+  - tileX: int
+  - tileY: int
+  - productionIntervalTicks: int
+  - uncollectedSun: Sun
+  + tick(context: TickContext)
+  + hasUncollectedSun(): boolean
+  + onSunCollected(sun: Sun)
+}
+
+class FallingSunSystem implements SimulationSystem {
+  + {static} FALL_TICKS: int = 50
+  - enabled: boolean
+  - ticksSinceSpawn: long
+  + tick(context: TickContext)
+}
+
+class SunDropSchedule {
+  + {static} intervalSeconds(elapsedSeconds: double): double
+  + {static} intervalTicks(elapsedSeconds: double, ticksPerSecond: int): long
+}
+
+class SunCollector {
+  + {static} RADIOACTIVE_ZOMBIE_DAMAGE: int = 150
+  + {static} RADIOACTIVE_PLANT_DAMAGE: int = 80
+  - world: SimulationWorld
+  + collectAt(x: int, y: int): Outcome
+}
+
+class GameplayController {
+  - simulation: Simulation
+  + advanceTime(ticks: int): Result<List<String>>
+  + collectSun(x: int, y: int): Result<Integer>
+  + showSunAmount(): Result<Integer>
+  + cheatAddSuns(count: int): Result<Integer>
+}
+
+class GameplayView extends MenuView
+
+Simulation --> RandomSource
+Simulation --> SimulationWorld
+Simulation o-- SimulationSystem
+SimulationWorld o-- Sun
+SimulationWorld o-- SunProducer
+SimulationWorld o-- Damageable
+TickContext --> RandomSource
+TickContext --> SimulationWorld
+SunProducer ..> Sun
+FallingSunSystem ..> SunDropSchedule
+FallingSunSystem ..> Sun
+SunCollector --> SimulationWorld
+Sun --> SunType
+GameplayController --> Simulation
+GameplayController ..> SunCollector
+GameplayView --> GameplayController
+MenuRouter --> GameplayView
+Store --> Simulation
+PlantSelectionController ..> Simulation
+PlantSelectionController --> RandomSource
+
+' BOARD / TERRAIN / PLANTING / PLANT FOOD / DROPS '
+
+enum TerrainType {
+  NORMAL_EGYPT
+  GRAVESTONE
+  NORMAL_FROSTBITE
+  SLIPPERY_UP
+  SLIPPERY_DOWN
+  FROZEN
+  NORMAL_BEACH
+  WATER
+  LOW_TIDE
+  NORMAL_DARK_AGES
+  DARK_AGES_GRAVESTONE
+  NECROMANCY
+  + isPlantableByDefault(): boolean
+  + blocksHorizontalProjectiles(): boolean
+  + requiresWaterCapablePlant(): boolean
+  + slipperyRowDelta(): int
+}
+
+class Board {
+  + {static} DEFAULT_ROWS: int = 5
+  + {static} DEFAULT_COLUMNS: int = 9
+  - tiles: Tile[][]
+  + isValidTile(x: int, y: int): boolean
+  + isValidZombitePosition(x: double, row: int): boolean
+  + tileAt(x: int, y: int): Tile
+  + neighboursOf(x: int, y: int): List<Tile>
+}
+
+class Tile {
+  + {static} ICE_HEALTH: int = 600
+  + {static} GRAVESTONE_HEALTH: int = 700
+  - terrain: TerrainType
+  - terrainHealth: int
+  - frozen: boolean
+  - supportPlant: PlantInstance
+  - stackedPlant: PlantInstance
+  + setTerrain(terrain: TerrainType)
+  + damageTerrain(amount: int, groundWhenDestroyed: TerrainType)
+  + freeze()
+  + meltIce(amount: int)
+}
+
+class PlantSpec {
+  - sunCost: int
+  - rechargeTicks: int
+  - hp: int
+  - waterCapable: boolean
+  - providesSupport: boolean
+  - stacksOnSupport: boolean
+  - fire: boolean
+  - hasPlantFoodEffect: boolean
+}
+
+interface PlantSpecSource {
+  + specOf(type: PlantType): PlantSpec
+}
+
+class DefaultPlantSpecSource implements PlantSpecSource
+
+class PlantInstance implements Damageable {
+  - spec: PlantSpec
+  - hp: int
+  - stackedOnSupport: boolean
+}
+
+class CooldownSystem implements SimulationSystem
+
+class BoardController {
+  - world: SimulationWorld
+  - selection: PlantSelection
+  - specSource: PlantSpecSource
+  + plantPlant(type: PlantType, x: int, y: int): Result<String>
+  + pluckPlant(x: int, y: int): Result<String>
+  + cheatRemoveCooldown(): Result<String>
+  + feedPlant(x: int, y: int): Result<String>
+  + cheatAddPlantFood(): Result<String>
+  + showMap(): Result<String>
+  + showPlantsStatus(): Result<String>
+  + showTileStatus(x: int, y: int): Result<String>
+}
+
+class RewardService {
+  + {static} GLOW_CHANCE: double = 0.05
+  + {static} DROP_CHANCE: double = 0.10
+  - userService: UserService
+  - random: RandomSource
+  + rollGlowing(): boolean
+  + onZombieDeath(glowing: boolean, user: User, world: SimulationWorld): List<String>
+}
+
+Board o-- Tile
+Tile --> TerrainType
+Tile o-- PlantInstance
+PlantInstance --> PlantSpec
+DefaultPlantSpecSource --> PlantRepository
+SimulationWorld o-- Board
+BoardController --> SimulationWorld
+BoardController --> PlantSelection
+BoardController --> PlantSpecSource
+BoardController ..> PlantInstance
+Simulation o-- CooldownSystem
+RewardService --> UserService
+RewardService --> RandomSource
+GameplayController --> BoardController
+App --> PlantSpecSource
+
+' ZOMBIE COMBAT / WAVES / WIN / LOSS '
+
+enum GameOutcome {
+  RUNNING
+  WON
+  LOST
+}
+
+class ZombieSpec {
+  - name: String
+  - waveCost: int
+  - health: int
+  - speedTilesPerSecond: double
+  - eatDamagePerSecond: int
+  - boss: boolean
+}
+
+interface ZombieSpecSource {
+  + availableSpecs(): List<ZombieSpec>
+}
+
+class DefaultZombieSpecSource implements ZombieSpecSource
+
+class ZombieInstance implements Damageable {
+  - spec: ZombieSpec
+  - x: double
+  - row: int
+  - hp: int
+  - state: State
+  - glowing: boolean
+  + getTileX(): int
+  + kill()
+}
+
+class ZombieDeath {
+  - spec: ZombieSpec
+  - glowing: boolean
+  - cheatKill: boolean
+}
+
+class ZombieCombatSystem implements SimulationSystem {
+  + tick(context: TickContext)
+}
+
+class WaveConfig {
+  - waveCount: int
+  - firstWaveCost: int
+  - costOverride: int[]
+  + costOfWave(waveNumber: int): int
+  + isFinalWave(waveNumber: int): boolean
+  + {static} ofExplicitCosts(costs: int[]): WaveConfig
+}
+
+class WaveComposer <<static>> {
+  + {static} compose(targetCost: int, specs: List<ZombieSpec>, random: RandomSource): List<ZombieSpec>
+}
+
+class WaveSystem implements SimulationSystem {
+  + {static} NEXT_WAVE_THRESHOLD: double = 0.75
+  - config: WaveConfig
+  - specSource: ZombieSpecSource
+  + tick(context: TickContext)
+}
+
+class GameConclusionService {
+  - userService: UserService
+  - newsService: NewsService
+  + onWin(user: User, session: GameSession): List<String>
+  + onLoss(user: User, session: GameSession)
+}
+
+ZombieInstance --> ZombieSpec
+DefaultZombieSpecSource --> ZombieRepository
+ZombieCombatSystem ..> ZombieInstance
+ZombieCombatSystem ..> ZombieDeath
+WaveSystem --> WaveConfig
+WaveSystem --> ZombieSpecSource
+WaveSystem ..> WaveComposer
+WaveSystem ..> ZombieInstance
+Level --> WaveConfig
+SimulationWorld --> GameOutcome
+SimulationWorld o-- ZombieDeath
+Simulation o-- WaveSystem
+Simulation o-- ZombieCombatSystem
+GameplayController ..> ZombieInstance
+GameplayController --> RewardService
+GameplayController --> GameConclusionService
+GameConclusionService --> UserService
+GameConclusionService --> NewsService
+PlantSelectionController --> ZombieSpecSource
+App --> ZombieSpecSource
+App --> RewardService
+App --> GameConclusionService
+
+abstract class MenuView {
+  - menuController: MenuController
+  + handleCommonCommand(input: String): boolean
+  # print(result: Result)
+}
+
+class CommonMenuView extends MenuView {
+  + checkCommand(input: String)
+}
+
+MenuGraph --> MenuName
+MenuGraph --> MenuExit
+MenuExit --> MenuName
+MenuController --> MenuGraph
+MenuController --> Store
+MenuController --> UserService
+MenuView --> MenuController
+MenuView --> Command
+App --> MenuController
 
 ' MENUS '
 

@@ -28,3 +28,11 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+# build output
+/build/
+/.gradle/
+/out/
+
+# local save data
+/data/
+*.patch
