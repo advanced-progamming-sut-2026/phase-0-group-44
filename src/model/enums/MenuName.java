@@ -11,6 +11,7 @@ public enum MenuName {
     PROFILE("profile"),
     COLLECTION("collection"),
     GREENHOUSE("greenhouse"),
+    SHOP("shop"),
     PLANT_SELECTION("plant-selection"),
     GAMEPLAY("gameplay");
 
