@@ -11,6 +11,7 @@ import java.util.List;
 public class DailyShopState {
     private String offerId;
     private String offerDate;
+    private String offerPlant;
     private List<String> purchasedItemIds = new ArrayList<>();
 
     public String getOfferId() {
@@ -28,6 +29,15 @@ public class DailyShopState {
 
     public void setOfferDate(String offerDate) {
         this.offerDate = offerDate;
+    }
+
+    /** Canonical {@code PlantType} name of the plant the offer grants packets for. */
+    public String getOfferPlant() {
+        return offerPlant;
+    }
+
+    public void setOfferPlant(String offerPlant) {
+        this.offerPlant = offerPlant;
     }
 
     public List<String> getPurchasedItemIds() {

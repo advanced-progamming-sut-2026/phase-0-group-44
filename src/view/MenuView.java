@@ -18,6 +18,10 @@ public abstract class MenuView {
         this.menuController = menuController;
     }
 
+    protected MenuController getMenuController() {
+        return menuController;
+    }
+
     /**
      * Handles {@code menu enter}, {@code menu show current} and {@code menu exit}.
      *

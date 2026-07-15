@@ -18,6 +18,7 @@ public class MenuRouter {
     private final LoginMenuView loginMenuView;
     private final GameMenuView gameMenuView;
     private final GreenhouseView greenhouseView;
+    private final ShopView shopView;
     private final SettingsMenuView settingsMenuView;
     private final NewsMenuView newsMenuView;
     private final ProfileMenuView profileMenuView;
@@ -37,6 +38,8 @@ public class MenuRouter {
                 app.getMenuController(), app.getGameController(), app.getMainController());
         this.greenhouseView = new GreenhouseView(
                 app.getMenuController(), app.getGreenhouseController());
+        this.shopView = new ShopView(
+                app.getMenuController(), app.getShopController());
         this.settingsMenuView = new SettingsMenuView(
                 app.getMenuController(), app.getSettingsController(), app.getMainController());
         this.newsMenuView = new NewsMenuView(
@@ -89,6 +92,9 @@ public class MenuRouter {
                 return;
             case GREENHOUSE:
                 greenhouseView.checkCommand(input);
+                return;
+            case SHOP:
+                shopView.checkCommand(input);
                 return;
             case SETTINGS:
                 settingsMenuView.checkCommand(input);
