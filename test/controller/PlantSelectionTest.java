@@ -69,8 +69,10 @@ class PlantSelectionTest {
     }
 
     private void ownAllSixPlants() {
-        for (PlantType type : PlantType.values()) {
-            user.getCollection().purchasePlant(type);
+        for (PlantDefinition definition : plantRepository.findAll()) {
+            if (!definition.isBonus()) {
+                user.getCollection().purchasePlant(definition.getType());
+            }
         }
     }
 

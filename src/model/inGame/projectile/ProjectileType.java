@@ -1,4 +1,9 @@
 package model.inGame.projectile;
 
-public class ProjectileType {
+public enum ProjectileType {
+    DIRECT,
+    LOBBED,
+    PIERCING,
+    HOMING,
+    BOUNCING
 }
