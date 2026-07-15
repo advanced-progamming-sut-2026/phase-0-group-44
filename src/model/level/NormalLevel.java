@@ -1,18 +1,15 @@
 package model.level;
 
-/**
- * A standard adventure level. Its selection rules default to a normal level's
- * (8 slots, all owned plants) unless a specific configuration is supplied.
- */
+/** A standard level, either legacy/test-only or backed by Adventure config. */
 public class NormalLevel implements Level {
 
-    /** A placeholder default until level configs exist: 3 waves, first costs 100. */
     private static final model.sim.wave.WaveConfig DEFAULT_WAVES =
             model.sim.wave.WaveConfig.of(3, 100);
 
     private final String name;
     private final LevelSelectionRules selectionRules;
     private final model.sim.wave.WaveConfig waveConfig;
+    private final AdventureLevelConfig adventureConfig;
 
     public NormalLevel(String name) {
         this(name, LevelSelectionRules.normal(), DEFAULT_WAVES);
@@ -30,6 +27,17 @@ public class NormalLevel implements Level {
         this.name = name;
         this.selectionRules = selectionRules;
         this.waveConfig = waveConfig;
+        this.adventureConfig = null;
+    }
+
+    public NormalLevel(AdventureLevelConfig config) {
+        if (config == null || config.isSpecial() || config.isBossDeferred()) {
+            throw new IllegalArgumentException("NormalLevel requires a normal Adventure config.");
+        }
+        this.name = config.getName();
+        this.selectionRules = config.getSelectionRules();
+        this.waveConfig = config.getWaveConfig();
+        this.adventureConfig = config;
     }
 
     @Override
@@ -45,5 +53,10 @@ public class NormalLevel implements Level {
     @Override
     public LevelSelectionRules getSelectionRules() {
         return selectionRules;
+    }
+
+    @Override
+    public AdventureLevelConfig getAdventureConfig() {
+        return adventureConfig;
     }
 }

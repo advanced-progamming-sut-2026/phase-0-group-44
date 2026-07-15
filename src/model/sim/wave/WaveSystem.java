@@ -7,6 +7,7 @@ import model.sim.TickContext;
 import model.sim.zombie.ZombieInstance;
 import model.sim.zombie.ZombieSpec;
 import model.sim.zombie.ZombieSpecSource;
+import model.level.SpecialLevelType;
 import util.RandomSource;
 
 import java.util.List;
@@ -39,7 +40,7 @@ public class WaveSystem implements SimulationSystem {
     public void tick(TickContext context) {
         SimulationWorld world = context.getWorld();
 
-        if (!world.isRunning()) {
+        if (!world.isRunning() || !world.areWavesStarted()) {
             return;
         }
 
@@ -102,10 +103,21 @@ public class WaveSystem implements SimulationSystem {
 
         int rows = world.getBoard().getRows();
         int spawnColumn = world.getBoard().getColumns();
+        boolean tornadoes = config.isFinalWave(waveNumber)
+                && world.getAdventureState() != null
+                && world.getAdventureState().getConfig().getChapterRules()
+                .hasFinalWaveTornadoes();
 
         for (ZombieSpec spec : composition) {
             int lane = random.nextInt(rows);
-            ZombieInstance zombie = new ZombieInstance(spec, spawnColumn, lane);
+            double spawnX = spawnColumn;
+            if (tornadoes && random.nextInt(2) == 0) {
+                int advance = 1 + random.nextInt(4);
+                spawnX = Math.max(0.5, spawnColumn - advance);
+                context.emit("A tornado carried " + spec.getName() + " "
+                        + advance + " columns into lane " + lane + ".");
+            }
+            ZombieInstance zombie = new ZombieInstance(spec, spawnX, lane);
             world.addZombie(zombie);
 
             context.emit("Zombie " + spec.getName() + " spawned at wave " + waveNumber
@@ -124,6 +136,11 @@ public class WaveSystem implements SimulationSystem {
     }
 
     private void declareWin(TickContext context, SimulationWorld world) {
+        if (world.getAdventureState() != null
+                && world.getAdventureState().getConfig().getSpecialType()
+                == SpecialLevelType.TIMED_WAR) {
+            return;
+        }
         world.setOutcome(GameOutcome.WON);
         context.emit("Dear humanz, zis is not done yet; "
                 + "we will come back to eat your brainz, humanz.");

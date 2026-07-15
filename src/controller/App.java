@@ -36,6 +36,7 @@ public class App {
     private final LoginMenuController loginController;
     private final MainMenuController mainController;
     private final GameMenuController gameController;
+    private final GreenhouseController greenhouseController;
     private final SettingsMenuController settingsController;
     private final NewsMenuController newsController;
     private final ProfileMenuController profileController;
@@ -69,6 +70,9 @@ public class App {
         loginController = new LoginMenuController(userService, passwordService);
         mainController = new MainMenuController(userService);
         gameController = new GameMenuController(userService);
+        greenhouseController = new GreenhouseController(
+                plantRepository, userService, new SeededRandomSource()
+        );
         settingsController = new SettingsMenuController(userService);
         newsController = new NewsMenuController(userService);
         profileController = new ProfileMenuController(userService, passwordService);
@@ -135,6 +139,10 @@ public class App {
 
     public GameMenuController getGameController() {
         return gameController;
+    }
+
+    public GreenhouseController getGreenhouseController() {
+        return greenhouseController;
     }
 
     public SettingsMenuController getSettingsController() {

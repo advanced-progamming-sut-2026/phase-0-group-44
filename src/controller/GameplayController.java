@@ -12,6 +12,7 @@ import model.sim.sun.SunCollector;
 import model.sim.zombie.ZombieDeath;
 import model.sim.zombie.ZombieInstance;
 import model.sim.zombie.ZombieSpec;
+import model.level.SpecialLevelType;
 import model.inGame.zombie.ZombieDefinition;
 import model.inGame.zombie.ZombieRegistry;
 import model.user.User;
@@ -101,6 +102,28 @@ public class GameplayController {
             }
         }
 
+        return result;
+    }
+
+
+    /** Handles {@code start zombie waves} for Plant What You Get levels. */
+    public Result<String> startZombieWaves() {
+        Result<String> result = new Result<>();
+        SimulationWorld world = simulation.getWorld();
+        if (world.getAdventureState() == null
+                || world.getAdventureState().getConfig().getSpecialType()
+                != SpecialLevelType.PLANT_WHAT_YOU_GET) {
+            result.appendToMessage("this level does not use delayed zombie waves");
+            return result;
+        }
+        if (world.areWavesStarted()) {
+            result.appendToMessage("zombie waves have already started");
+            return result;
+        }
+        world.setWavesStarted(true);
+        result.setStatus(true);
+        result.setData("started");
+        result.appendToMessage("zombie waves started");
         return result;
     }
 
