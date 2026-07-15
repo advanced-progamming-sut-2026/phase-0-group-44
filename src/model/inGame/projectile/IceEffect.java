@@ -17,7 +17,14 @@ public class IceEffect implements ProjectileEffect {
 
     @Override
     public void apply(Projectile projectile, Zombie zombie, GameEngine engine) {
-        zombie.takeDamage(projectile.getDamage(), DamageType.ICE);
+        zombie.onIceHit(engine);
+        zombie.receiveDamage(projectile.getDamage(), DamageType.ICE, engine);
         zombie.applySlow(slowDuration);
     }
+
+    @Override
+    public DamageType damageType() {
+        return DamageType.ICE;
+    }
+
 }

@@ -12,6 +12,8 @@ public class Tile {
     private final Position position;
     private TerrainType terrain;
     private ObstacleType obstacle = ObstacleType.NONE;
+    private int obstacleHealth;
+    private String obstaclePayload = "";
     private Plant supportPlant;
     private Plant primaryPlant;
     private Plant armorPlant;
@@ -38,16 +40,56 @@ public class Tile {
     }
 
     public void setObstacle(ObstacleType obstacle) {
+        setObstacle(obstacle, defaultObstacleHealth(obstacle), "");
+    }
+
+    public void setObstacle(ObstacleType obstacle, int health, String payload) {
         this.obstacle = obstacle == null ? ObstacleType.NONE : obstacle;
+        this.obstacleHealth = this.obstacle == ObstacleType.NONE ? 0 : Math.max(0, health);
+        this.obstaclePayload = payload == null ? "" : payload;
+    }
+
+    private int defaultObstacleHealth(ObstacleType obstacle) {
+        if (obstacle == ObstacleType.GRAVE) {
+            return 700;
+        }
+        if (obstacle == ObstacleType.ICE || obstacle == ObstacleType.OCTOPUS) {
+            return 600;
+        }
+        return obstacle == ObstacleType.NONE ? 0 : 1100;
+    }
+
+    public int getObstacleHealth() {
+        return obstacleHealth;
+    }
+
+    public String getObstaclePayload() {
+        return obstaclePayload;
+    }
+
+    public int damageObstacle(int amount) {
+        if (amount <= 0 || obstacle == ObstacleType.NONE) {
+            return 0;
+        }
+        int dealt = Math.min(obstacleHealth, amount);
+        obstacleHealth -= dealt;
+        return dealt;
+    }
+
+    public boolean isObstacleDestroyed() {
+        return obstacle != ObstacleType.NONE && obstacleHealth <= 0;
     }
 
     public boolean blocksPlanting() {
         return obstacle == ObstacleType.GRAVE || obstacle == ObstacleType.CRATER
-                || obstacle == ObstacleType.PROJECTILE_BLOCKER;
+                || obstacle == ObstacleType.PROJECTILE_BLOCKER
+                || obstacle == ObstacleType.BARREL;
     }
 
     public boolean blocksDirectProjectiles() {
-        return obstacle == ObstacleType.GRAVE || obstacle == ObstacleType.PROJECTILE_BLOCKER;
+        return obstacle == ObstacleType.GRAVE || obstacle == ObstacleType.PROJECTILE_BLOCKER
+                || obstacle == ObstacleType.ICE || obstacle == ObstacleType.BARREL
+                || obstacle == ObstacleType.OCTOPUS;
     }
 
     public Plant getSupportPlant() {

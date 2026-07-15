@@ -5,5 +5,7 @@ public enum ObstacleType {
     GRAVE,
     ICE,
     CRATER,
-    PROJECTILE_BLOCKER
+    PROJECTILE_BLOCKER,
+    BARREL,
+    OCTOPUS
 }

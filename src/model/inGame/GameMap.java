@@ -70,6 +70,10 @@ public class GameMap {
         getTile(position).setObstacle(obstacle);
     }
 
+    public void setObstacle(Position position, ObstacleType obstacle, int health, String payload) {
+        getTile(position).setObstacle(obstacle, health, payload);
+    }
+
     public void clearObstacle(Position position) {
         getTile(position).setObstacle(ObstacleType.NONE);
     }

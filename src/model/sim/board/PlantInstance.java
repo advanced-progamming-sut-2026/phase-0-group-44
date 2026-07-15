@@ -14,6 +14,9 @@ public class PlantInstance implements Damageable {
     private final int tileY;
     private int hp;
     private boolean stackedOnSupport;
+    private int iceHitCount;
+    private boolean frozen;
+    private boolean octopused;
 
     public PlantInstance(PlantSpec spec, int tileX, int tileY) {
         this.spec = spec;
@@ -50,6 +53,40 @@ public class PlantInstance implements Damageable {
 
     public void setStackedOnSupport(boolean stackedOnSupport) {
         this.stackedOnSupport = stackedOnSupport;
+    }
+
+
+    public int getIceHitCount() {
+        return iceHitCount;
+    }
+
+    public boolean addIceHit() {
+        iceHitCount++;
+        if (iceHitCount >= 3) {
+            frozen = true;
+        }
+        return frozen;
+    }
+
+    public boolean isFrozen() {
+        return frozen;
+    }
+
+    public void clearFrozen() {
+        frozen = false;
+        iceHitCount = 0;
+    }
+
+    public boolean isOctopused() {
+        return octopused;
+    }
+
+    public void setOctopused(boolean octopused) {
+        this.octopused = octopused;
+    }
+
+    public boolean isActive() {
+        return !frozen && !octopused && !isDead();
     }
 
     @Override

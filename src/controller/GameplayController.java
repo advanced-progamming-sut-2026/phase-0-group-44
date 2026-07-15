@@ -3,6 +3,7 @@ package controller;
 import model.Result;
 import model.Store;
 import model.enums.MenuName;
+import model.enums.ZombieType;
 import model.inGame.GameSession;
 import model.sim.GameOutcome;
 import model.sim.Simulation;
@@ -10,6 +11,9 @@ import model.sim.SimulationWorld;
 import model.sim.sun.SunCollector;
 import model.sim.zombie.ZombieDeath;
 import model.sim.zombie.ZombieInstance;
+import model.sim.zombie.ZombieSpec;
+import model.inGame.zombie.ZombieDefinition;
+import model.inGame.zombie.ZombieRegistry;
 import model.user.User;
 import service.GameConclusionService;
 import service.RewardService;
@@ -100,6 +104,59 @@ public class GameplayController {
         return result;
     }
 
+    /** Handles {@code zombies info}. */
+    public Result<List<String>> zombiesInfo() {
+        Result<List<String>> result = new Result<>();
+        List<String> lines = new ArrayList<>();
+        for (ZombieInstance zombie : simulation.getWorld().getZombieInstances()) {
+            if (!zombie.isDead()) {
+                lines.add(zombie.infoText());
+            }
+        }
+        result.setStatus(true);
+        result.setData(lines);
+        result.appendToMessage(lines.isEmpty() ? "no zombies on the map" : String.join("\n\n", lines));
+        return result;
+    }
+
+    /** Handles {@code cheat spawn-zombie -t <type> -l <x, y>}. */
+    public Result<ZombieInstance> spawnZombie(String typeToken, int x, int y) {
+        Result<ZombieInstance> result = new Result<>();
+        ZombieType type = ZombieType.fromToken(typeToken);
+        ZombieRegistry registry = ZombieRegistry.getDefault();
+        ZombieDefinition definition = type == null ? registry.findByName(typeToken)
+                : registry.findByType(type);
+        if (definition == null) {
+            result.appendToMessage("unknown zombie type");
+            return result;
+        }
+        if (definition.isBonus()) {
+            result.appendToMessage("blue/bonus zombies are not available in the mandatory phase");
+            return result;
+        }
+        SimulationWorld world = simulation.getWorld();
+        if (!world.getBoard().isValidZombitePosition(x, y)) {
+            result.appendToMessage("invalid zombie spawn tile");
+            return result;
+        }
+        String levelName = session == null || session.getLevel() == null
+                ? null : session.getLevel().getName();
+        if (definition.getChapter() != model.inGame.zombie.ZombieChapter.COMMON
+                && (levelName == null || !definition.getChapter().isAllowedIn(levelName))) {
+            result.appendToMessage("this zombie is restricted to " + definition.getChapter());
+            return result;
+        }
+        ZombieInstance zombie = new ZombieInstance(ZombieSpec.fromDefinition(definition), x, y);
+        world.addZombie(zombie);
+        if (user != null) {
+            user.getCollection().markZombieAsSeen(definition.getType());
+        }
+        result.setStatus(true);
+        result.setData(zombie);
+        result.appendToMessage("spawned " + definition.getName() + " at (" + x + ", " + y + ")");
+        return result;
+    }
+
     /** Handles {@code release the nuke}: kill every zombie, with normal cleanup. */
     public Result<List<String>> releaseNuke() {
         Result<List<String>> result = new Result<>();
@@ -112,6 +169,7 @@ public class GameplayController {
             }
 
             zombie.kill();
+            model.sim.zombie.ZombieSpecialSystem.onDeath(zombie, world, messages::add);
             messages.add("Zombie of type " + zombie.getSpec().getName()
                     + " is dead at (" + zombie.getTileX() + ", " + zombie.getRow() + ")");
             world.recordDeath(new ZombieDeath(
