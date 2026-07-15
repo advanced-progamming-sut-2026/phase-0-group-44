@@ -6,6 +6,7 @@ import model.config.ChapterCatalog;
 import model.config.AdventureCatalog;
 import model.level.Level;
 import model.config.GameWorld;
+import model.enums.MenuName;
 import model.user.User;
 import service.UserService;
 
@@ -83,7 +84,17 @@ public class GameMenuController {
     }
 
     public Result<String> greenhouse() {
-        return placeholder("greenhouse");
+        Result<String> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+
+        Store.setCurrentMenu(MenuName.GREENHOUSE);
+        result.setStatus(true);
+        result.setData("greenhouse");
+        result.appendToMessage("entered greenhouse menu");
+        return result;
     }
 
     public Result<String> travelLog() {
