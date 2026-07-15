@@ -7,6 +7,12 @@ import model.inGame.zombie.Zombie;
 public class NormalEffect implements ProjectileEffect {
     @Override
     public void apply(Projectile projectile, Zombie zombie, GameEngine engine) {
-        zombie.takeDamage(projectile.getDamage(), DamageType.NORMAL);
+        zombie.receiveDamage(projectile.getDamage(), DamageType.NORMAL, engine);
     }
+
+    @Override
+    public DamageType damageType() {
+        return DamageType.NORMAL;
+    }
+
 }

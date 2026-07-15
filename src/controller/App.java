@@ -4,8 +4,8 @@ import model.Result;
 import model.Store;
 import model.enums.MenuName;
 import model.inGame.plant.PlantRepository;
-import model.inGame.zombie.JsonZombieRepository;
 import model.inGame.zombie.ZombieRepository;
+import model.inGame.zombie.ZombieRegistry;
 import repository.JsonUserRepository;
 import repository.UserRepository;
 import service.PasswordService;
@@ -25,8 +25,6 @@ import model.inGame.plant.PlantRegistry;
 import java.time.Clock;
 
 public class App {
-    private static final String ZOMBIES_PATH = "src/assets/zombies.json";
-
     private final PlantRepository plantRepository;
     private final ZombieRepository zombieRepository;
     private final CollectionMenuController collectionController;
@@ -55,7 +53,7 @@ public class App {
 
     public App(UserRepository userRepository, Clock clock) {
         plantRepository = PlantRegistry.getDefault();
-        zombieRepository = new JsonZombieRepository(ZOMBIES_PATH);
+        zombieRepository = ZombieRegistry.getDefault();
 
         loadQuietly(plantRepository::load, "plant");
         loadQuietly(zombieRepository::load, "zombie");
@@ -165,6 +163,10 @@ public class App {
 
     public PlantSpecSource getPlantSpecSource() {
         return plantSpecSource;
+    }
+
+    public ZombieSpecSource getZombieSpecSource() {
+        return zombieSpecSource;
     }
 
     public RewardService getRewardService() {

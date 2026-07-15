@@ -292,6 +292,7 @@ public class PlantSelectionController {
         if (zombieSpecSource != null) {
             simulation.register(new model.sim.wave.WaveSystem(
                     level.getWaveConfig(), zombieSpecSource));
+            simulation.register(new model.sim.zombie.ZombieSpecialSystem());
             simulation.register(new model.sim.zombie.ZombieCombatSystem());
         }
 

@@ -78,6 +78,10 @@ public class Plant {
             return;
         }
         ageSeconds += deltaSeconds;
+        if (getBooleanState("FROZEN") || getBooleanState("OCTOPUSED")
+                || getBooleanState("TRANSFORMED")) {
+            return;
+        }
         behavior.tick(this, engine, deltaSeconds);
         if (isDead() && !deathHandled) {
             handleDeath(engine);
