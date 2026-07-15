@@ -5,6 +5,8 @@ import model.Store;
 import model.enums.PlantType;
 import model.inGame.GameSession;
 import model.inGame.PlantSelection;
+import model.sim.Simulation;
+import model.sim.SimulationWorld;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRepository;
 import model.level.Level;
@@ -12,6 +14,8 @@ import model.level.LevelSelectionRules;
 import model.user.Settings;
 import model.user.User;
 import service.UserService;
+import util.RandomSource;
+import util.SeededRandomSource;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -32,13 +36,23 @@ public class PlantSelectionController {
 
     private final PlantRepository plantRepository;
     private final UserService userService;
+    private final RandomSource randomSource;
 
     private Level level;
     private PlantSelection selection;
 
     public PlantSelectionController(PlantRepository plantRepository, UserService userService) {
+        this(plantRepository, userService, new SeededRandomSource());
+    }
+
+    public PlantSelectionController(
+            PlantRepository plantRepository,
+            UserService userService,
+            RandomSource randomSource
+    ) {
         this.plantRepository = plantRepository;
         this.userService = userService;
+        this.randomSource = randomSource;
     }
 
     /** Opens the selection screen for a level; called when a level is entered. */
@@ -270,6 +284,11 @@ public class PlantSelectionController {
         );
 
         Store.setActiveSession(session);
+
+        Simulation simulation = new Simulation(
+                randomSource, new SimulationWorld(), skySunEnabled());
+        Store.setActiveSimulation(simulation);
+
         Store.setCurrentMenu(model.enums.MenuName.GAMEPLAY);
 
         result.setStatus(true);
@@ -281,6 +300,14 @@ public class PlantSelectionController {
 
     public PlantSelection getSelection() {
         return selection;
+    }
+
+    /**
+     * Whether the sky drops suns for this level. Level configs that disable sky
+     * suns are not available yet, so this defaults to enabled.
+     */
+    private boolean skySunEnabled() {
+        return true;
     }
 
     private Set<PlantType> pendingGreenhouseBoosts(User user) {

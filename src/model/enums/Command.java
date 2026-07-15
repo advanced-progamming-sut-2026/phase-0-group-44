@@ -51,6 +51,12 @@ public enum Command {
     BOOST_PLANT("^boost\\s+plant\\s+-t\\s+(.+)$"),
     START_GAME("^start\\s+game$"),
 
+    // Gameplay
+    ADVANCE_TIME("^advance\\s+time\\s+-t\\s+(\\d+)\\s+ticks$"),
+    COLLECT_SUN("^collect\\s+sun\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    SHOW_SUN_AMOUNT("^show\\s+sun\\s+amount$"),
+    CHEAT_ADD_SUNS("^cheat\\s+add\\s+-n\\s+(\\d+)\\s+suns$"),
+
     // News Menu
 
     MENU_NEWS_SHOW_UNREAD("^menu\\s+news\\s+show-unread$"),

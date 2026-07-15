@@ -2,11 +2,14 @@ package view;
 
 import controller.App;
 import model.Store;
+import controller.GameplayController;
+import model.Store;
 import model.enums.MenuName;
 
 /** Sends one line of input to the view of the menu the player is currently in. */
 public class MenuRouter {
 
+    private final controller.MenuController menuController;
     private final RegisterMenuView registerMenuView;
     private final LoginMenuView loginMenuView;
     private final GameMenuView gameMenuView;
@@ -18,6 +21,7 @@ public class MenuRouter {
     private final CommonMenuView commonMenuView;
 
     public MenuRouter(App app) {
+        this.menuController = app.getMenuController();
         this.registerMenuView = new RegisterMenuView(
                 app.getMenuController(), app.getRegisterController());
         this.loginMenuView = new LoginMenuView(
@@ -35,6 +39,14 @@ public class MenuRouter {
         this.plantSelectionView = new PlantSelectionView(
                 app.getMenuController(), app.getPlantSelectionController());
         this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
+    }
+
+    private GameplayView gameplayView() {
+        GameplayController controller = Store.getActiveSimulation() == null
+                ? null
+                : new GameplayController(Store.getActiveSimulation());
+
+        return new GameplayView(menuController, controller);
     }
 
     public void route(String input) {
@@ -64,6 +76,9 @@ public class MenuRouter {
                 return;
             case PLANT_SELECTION:
                 plantSelectionView.checkCommand(input);
+                return;
+            case GAMEPLAY:
+                gameplayView().checkCommand(input);
                 return;
             default:
                 commonMenuView.checkCommand(input);

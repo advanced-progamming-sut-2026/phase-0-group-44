@@ -35,3 +35,4 @@ bin/
 
 # local save data
 /data/
+*.patch
