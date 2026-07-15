@@ -2,14 +2,29 @@ package controller;
 
 import model.News;
 import model.Result;
+import model.Store;
 import model.user.User;
+import service.UserService;
 
 import java.util.ArrayList;
 
+/** The news menu: listing all news, and listing unread news (which marks them read). */
 public class NewsMenuController {
 
-    public Result<ArrayList<News>> showAllNews(User user) {
+    private final UserService userService;
+
+    public NewsMenuController(UserService userService) {
+        this.userService = userService;
+    }
+
+    /** Handles {@code menu news show-all}. */
+    public Result<ArrayList<News>> showAllNews() {
         Result<ArrayList<News>> result = new Result<>();
+        User user = requireUser(result);
+
+        if (user == null) {
+            return result;
+        }
 
         ArrayList<News> newsList = user.getNewsList();
 
@@ -17,43 +32,71 @@ public class NewsMenuController {
         result.setData(newsList);
 
         if (newsList.isEmpty()) {
-            result.appendToMessage("No news found.");
+            result.appendToMessage("no news");
             return result;
         }
 
-        for (News news : newsList) {
-            result.appendToMessage(news.getDisplayText());
-             result.appendToMessage("\n\n");
-        }
+        appendAll(result, newsList);
 
         return result;
     }
 
-    public Result<ArrayList<News>> showUnreadNews(User user) {
+    /**
+     * Handles {@code menu news show-unread}. Every entry returned is marked read
+     * and the change is persisted, so the next call will not return it again.
+     */
+    public Result<ArrayList<News>> showUnreadNews() {
         Result<ArrayList<News>> result = new Result<>();
+        User user = requireUser(result);
 
-        ArrayList<News> unreadNews = new ArrayList<>();
+        if (user == null) {
+            return result;
+        }
+
+        ArrayList<News> unread = new ArrayList<>();
 
         for (News news : user.getNewsList()) {
             if (!news.isRead()) {
-                unreadNews.add(news);
-                result.appendToMessage(news.getDisplayText());
-                result.appendToMessage("\n\n");
+                unread.add(news);
             }
         }
 
-        for (News news : unreadNews) {
+        result.setStatus(true);
+        result.setData(unread);
+
+        if (unread.isEmpty()) {
+            result.appendToMessage("no unread news");
+            return result;
+        }
+
+        appendAll(result, unread);
+
+        for (News news : unread) {
             news.markAsRead();
         }
 
-        result.setStatus(true);
-        result.setData(unreadNews);
-
-        if (unreadNews.isEmpty()) {
-            result.appendToMessage("No unread news.");
-        }
+        userService.updateUser(user);
 
         return result;
     }
 
+    private void appendAll(Result<ArrayList<News>> result, ArrayList<News> list) {
+        for (int i = 0; i < list.size(); i++) {
+            result.appendToMessage(list.get(i).getDisplayText());
+
+            if (i < list.size() - 1) {
+                result.appendToMessage("\n\n");
+            }
+        }
+    }
+
+    private User requireUser(Result<ArrayList<News>> result) {
+        User user = Store.getLoggedInUser();
+
+        if (user == null) {
+            result.appendToMessage("no user is logged in");
+        }
+
+        return user;
+    }
 }

@@ -14,6 +14,18 @@ public class ZombieDefinition {
         return type;
     }
 
+    public int getHealth() {
+        return health;
+    }
+
+    public int getArmor() {
+        return armor;
+    }
+
+    public int getWaveCost() {
+        return waveCost;
+    }
+
     public String getName() {
         return name;
     }

@@ -8,11 +8,27 @@ public class News {
     private NewsType type;
     private boolean read;
 
+    /** Required by the serializer. */
+    public News() {
+    }
+
     public News(String title, String description, NewsType type) {
         this.title = title;
         this.description = description;
         this.type = type;
         this.read = false;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public NewsType getType() {
+        return type;
     }
 
     public boolean isRead() {
@@ -21,6 +37,10 @@ public class News {
 
     public void markAsRead() {
         this.read = true;
+    }
+
+    public void setRead(boolean read) {
+        this.read = read;
     }
 
     public String getDisplayText() {

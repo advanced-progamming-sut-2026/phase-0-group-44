@@ -1,4 +1,10 @@
 package model.inGame.projectile;
 
-public class PiercingCollision {
+import model.GameEngine;
+
+public class PiercingCollision implements CollisionLogic {
+    @Override
+    public void advance(Projectile projectile, GameEngine engine, double deltaSeconds) {
+        projectile.advanceLinear(engine, deltaSeconds, true, false);
+    }
 }

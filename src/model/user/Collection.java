@@ -2,10 +2,7 @@ package model.user;
 
 import model.enums.PlantType;
 import model.enums.ZombieType;
-import model.inGame.plant.Plant;
-import model.inGame.zombie.Zombie;
-
-import java.util.ArrayList;
+import model.inGame.plant.PlantDefinition;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -19,11 +16,9 @@ public class Collection {
     private ArrayList<ZombieCard> zombieCards;
 
     public Collection() {
-        ownedPlants =
-                new EnumMap<PlantType, PlantCard>(PlantType.class);
+        ownedPlants = new EnumMap<PlantType, PlantCard>(PlantType.class);
 
-        seenZombies =
-                EnumSet.noneOf(ZombieType.class);
+        seenZombies = EnumSet.noneOf(ZombieType.class);
 
         zombieCards = new ArrayList<ZombieCard>();
     }
@@ -64,6 +59,22 @@ public class Collection {
         ownedPlants.put(type, new PlantCard(type));
     }
 
+    public void purchasePlant(PlantDefinition definition) {
+        if (definition == null) {
+            throw new IllegalArgumentException(
+                    "Plant definition is null."
+            );
+        }
+
+        if (definition.isBonus()) {
+            throw new UnsupportedOperationException(
+                    definition.getName() + " is a blue/bonus plant."
+            );
+        }
+
+        purchasePlant(definition.getType());
+    }
+
     public void upgradePlant(PlantType type) {
         PlantCard card = ownedPlants.get(type);
 
@@ -94,6 +105,28 @@ public class Collection {
 
         return null;
     }
+
+    /**
+     * Recreates any container a save file did not contain, so a reloaded
+     * collection behaves exactly like a freshly created one.
+     */
+    public void applyDefaults() {
+        if (ownedPlants == null) {
+            ownedPlants = new EnumMap<>(PlantType.class);
+        }
+
+        if (seenZombies == null) {
+            seenZombies = EnumSet.noneOf(ZombieType.class);
+        }
+
+        if (zombieCards == null) {
+            zombieCards = new ArrayList<>();
+        }
+
+        for (PlantCard card : ownedPlants.values()) {
+            if (card != null) {
+                card.applyDefaults();
+            }
+        }
+    }
 }
-
-

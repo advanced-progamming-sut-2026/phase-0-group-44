@@ -3,173 +3,125 @@ package controller;
 import model.Result;
 import model.Store;
 import model.enums.MenuName;
+import model.menu.MenuExit;
+import model.menu.MenuGraph;
+import service.UserService;
 
+/**
+ * Handles the three commands that every menu shares: entering a menu, showing
+ * the current one, and leaving one.
+ *
+ * <p>All routing decisions are read from {@link MenuGraph}; this controller only
+ * applies them. A rejected command never changes the current menu.</p>
+ */
 public class MenuController {
 
+    private final UserService userService;
+
+    public MenuController(UserService userService) {
+        if (userService == null) {
+            throw new IllegalArgumentException("User service is required.");
+        }
+
+        this.userService = userService;
+    }
+
+    /** Handles {@code menu enter <menu_name>}. */
     public Result<String> enterMenu(String menuName) {
         Result<String> result = new Result<>();
-        MenuName destination = parseMenu(menuName);
+        MenuName destination = MenuName.fromToken(menuName);
 
         if (destination == null) {
-            result.setStatus(false);
             result.appendToMessage("menu not found");
             return result;
         }
 
-        MenuName currentMenu = Store.getCurrentMenu();
+        MenuName current = Store.getCurrentMenu();
 
-        if (!canEnter(currentMenu, destination)) {
-            result.setStatus(false);
+        if (!MenuGraph.canEnter(current, destination)) {
             result.appendToMessage(
-                    "you cannot enter " + formatMenuName(destination)
-                            + " from " + formatMenuName(currentMenu)
+                    "you cannot enter " + destination.getDisplayName()
+                            + " from " + current.getDisplayName()
             );
+            return result;
+        }
+
+        if (MenuGraph.requiresAuthentication(current, destination)
+                && Store.getLoggedInUser() == null) {
+            result.appendToMessage("you must log in first");
             return result;
         }
 
         Store.setCurrentMenu(destination);
 
         result.setStatus(true);
-        result.setData(formatMenuName(destination));
-        result.appendToMessage(
-                "entered " + formatMenuName(destination)
-        );
+        result.setData(destination.getDisplayName());
+        result.appendToMessage("entered " + destination.getDisplayName());
+
         return result;
     }
 
+    /** Handles {@code menu show current}. */
     public Result<String> showCurrentMenu() {
         Result<String> result = new Result<>();
-        MenuName currentMenu = Store.getCurrentMenu();
-        String currentMenuName = formatMenuName(currentMenu);
+        MenuName current = Store.getCurrentMenu();
 
         result.setStatus(true);
-        result.setData(currentMenuName);
-        result.appendToMessage(
-                "current menu: " + currentMenuName
-        );
+        result.setData(current.getDisplayName());
+        result.appendToMessage("current menu: " + current.getDisplayName());
+
         return result;
     }
 
+    /** Handles {@code menu exit}. */
     public Result<String> exitMenu() {
         Result<String> result = new Result<>();
-        MenuName currentMenu = Store.getCurrentMenu();
+        MenuName current = Store.getCurrentMenu();
+        MenuExit exit = MenuGraph.exitOf(current);
 
-        if (currentMenu == MenuName.REGISTER) {
-            Store.setRunning(false);
+        switch (exit.getKind()) {
+            case TERMINATE:
+                return terminate(result);
 
-            result.setStatus(true);
-            result.setData("exit");
-            result.appendToMessage("program finished");
-            return result;
+            case RETURN_TO:
+                return returnTo(result, exit.getDestination());
+
+            default:
+                return rejectExit(result, current);
         }
+    }
 
-        if (currentMenu == MenuName.MAIN) {
-            result.setStatus(false);
-            result.appendToMessage(
-                    "use menu logout to exit the main menu"
-            );
-            return result;
-        }
+    /** Leaving the registration menu ends the program, after progress is saved. */
+    private Result<String> terminate(Result<String> result) {
+        Result<String> saved = userService.shutdown();
 
-        MenuName destination = getExitDestination(currentMenu);
+        Store.setRunning(false);
 
-        if (destination == null) {
-            result.setStatus(false);
-            result.appendToMessage(
-                    "this menu cannot be exited"
-            );
-            return result;
-        }
+        result.setStatus(true);
+        result.setData("exit");
+        result.appendToMessage(saved.getMessage() + "; program finished");
 
+        return result;
+    }
+
+    private Result<String> returnTo(Result<String> result, MenuName destination) {
         Store.setCurrentMenu(destination);
 
         result.setStatus(true);
-        result.setData(formatMenuName(destination));
-        result.appendToMessage(
-                "returned to " + formatMenuName(destination)
-        );
+        result.setData(destination.getDisplayName());
+        result.appendToMessage("returned to " + destination.getDisplayName());
+
         return result;
     }
 
-    private boolean canEnter(
-            MenuName source,
-            MenuName destination
-    ) {
-        switch (source) {
-            case REGISTER:
-                return destination == MenuName.LOGIN;
-
-            case LOGIN:
-                return destination == MenuName.MAIN
-                        && Store.getLoggedInUser() != null;
-
-            case MAIN:
-                return destination == MenuName.GAME
-                        || destination == MenuName.SETTINGS
-                        || destination == MenuName.NEWS
-                        || destination == MenuName.PROFILE;
-
-            case GAME:
-                return destination == MenuName.COLLECTION;
-
-            default:
-                return false;
-        }
-    }
-
-    private MenuName getExitDestination(MenuName source) {
-        switch (source) {
-            case LOGIN:
-                return MenuName.REGISTER;
-
-            case GAME:
-            case SETTINGS:
-            case NEWS:
-            case PROFILE:
-                return MenuName.MAIN;
-
-            case COLLECTION:
-                return MenuName.GAME;
-
-            default:
-                return null;
-        }
-    }
-
-    private MenuName parseMenu(String menuName) {
-        if (menuName == null) {
-            return null;
+    private Result<String> rejectExit(Result<String> result, MenuName current) {
+        if (current == MenuName.MAIN) {
+            result.appendToMessage("use logout to leave the main menu");
+            return result;
         }
 
-        String normalized = menuName.trim()
-                .toUpperCase()
-                .replace("-", "")
-                .replace("_", "")
-                .replace(" ", "");
+        result.appendToMessage("this menu cannot be exited");
 
-        if (normalized.endsWith("MENU")) {
-            normalized = normalized.substring(
-                    0,
-                    normalized.length() - 4
-            );
-        }
-
-        for (MenuName menu : MenuName.values()) {
-            String enumName = menu.name()
-                    .replace("_", "");
-
-            if (enumName.equals(normalized)) {
-                return menu;
-            }
-        }
-
-        return null;
-    }
-
-    private String formatMenuName(MenuName menu) {
-        return menu.name()
-                .toLowerCase()
-                .replace("_", " ")
-                + " menu";
+        return result;
     }
 }

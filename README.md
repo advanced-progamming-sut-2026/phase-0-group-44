@@ -3,9 +3,9 @@
 ## Name of the creators
 Amirreza SeyedHossaini 404105948
 
-Setareh frozan  404171166
+Setareh Frozan  404171166
 
-kiana amani 404170997
+kiana Amani 404170997
 
 
 

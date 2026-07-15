@@ -1,6 +1,8 @@
 package model.enums;
 
-enum PlantCategory {
+import java.util.Locale;
+
+public enum PlantCategory {
     SUN_PRODUCER,
     SHOOTER,
     LOBBER,
@@ -8,6 +10,17 @@ enum PlantCategory {
     MELEE,
     WALL_NUT,
     MODIFIER,
+    STRIKE_THROUGH,
     HOMING,
-    MINT
+    MINT;
+
+    public static PlantCategory fromCsv(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Plant category is missing.");
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_');
+        return PlantCategory.valueOf(normalized);
+    }
 }
