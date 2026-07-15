@@ -552,6 +552,140 @@ MenuRouter --> PlantSelectionView
 App --> PlantSelectionController
 App --> GreenhouseBoostService
 
+' SIMULATION CLOCK / SUN MECHANICS '
+
+interface RandomSource {
+  + nextInt(bound: int): int
+  + nextDouble(): double
+}
+
+class SeededRandomSource implements RandomSource
+
+interface SimulationSystem {
+  + tick(context: TickContext)
+}
+
+interface Damageable {
+  + getTileX(): int
+  + getTileY(): int
+  + takeDamage(amount: int)
+  + isDead(): boolean
+}
+
+class TickContext {
+  + {static} TICKS_PER_SECOND: int = 10
+  - currentTick: long
+  - random: RandomSource
+  - world: SimulationWorld
+  + getElapsedSeconds(): double
+  + emit(message: String)
+}
+
+class SimulationWorld {
+  + {static} DEFAULT_ROWS: int = 5
+  + {static} DEFAULT_COLUMNS: int = 9
+  - sunBalance: int
+  - suns: List<Sun>
+  - producers: List<SunProducer>
+  - zombies: List<Damageable>
+  - plants: List<Damageable>
+  + isInsideBoard(x: int, y: int): boolean
+  + addSun(amount: int)
+}
+
+class Simulation {
+  - random: RandomSource
+  - world: SimulationWorld
+  - systems: List<SimulationSystem>
+  - currentTick: long
+  + advance(ticks: int): List<String>
+  + collectSun(x: int, y: int): SunCollector.Outcome
+  + getSunAmount(): int
+  + addSun(amount: int)
+  + register(system: SimulationSystem)
+}
+
+enum SunType {
+  NORMAL
+  SPECIAL
+  RADIOACTIVE
+  + getLabel(): String
+  + getValue(): int
+  + {static} roll(random: RandomSource): SunType
+}
+
+class Sun {
+  - type: SunType
+  - tileX: int
+  - tileY: int
+  - state: State
+  - remainingFallTicks: int
+  + {static} onPlant(type: SunType, x: int, y: int): Sun
+  + {static} falling(type: SunType, x: int, y: int, fallTicks: int): Sun
+  + tickFall(): boolean
+}
+
+class SunProducer implements SimulationSystem {
+  - plantTypeLabel: String
+  - tileX: int
+  - tileY: int
+  - productionIntervalTicks: int
+  - uncollectedSun: Sun
+  + tick(context: TickContext)
+  + hasUncollectedSun(): boolean
+  + onSunCollected(sun: Sun)
+}
+
+class FallingSunSystem implements SimulationSystem {
+  + {static} FALL_TICKS: int = 50
+  - enabled: boolean
+  - ticksSinceSpawn: long
+  + tick(context: TickContext)
+}
+
+class SunDropSchedule {
+  + {static} intervalSeconds(elapsedSeconds: double): double
+  + {static} intervalTicks(elapsedSeconds: double, ticksPerSecond: int): long
+}
+
+class SunCollector {
+  + {static} RADIOACTIVE_ZOMBIE_DAMAGE: int = 150
+  + {static} RADIOACTIVE_PLANT_DAMAGE: int = 80
+  - world: SimulationWorld
+  + collectAt(x: int, y: int): Outcome
+}
+
+class GameplayController {
+  - simulation: Simulation
+  + advanceTime(ticks: int): Result<List<String>>
+  + collectSun(x: int, y: int): Result<Integer>
+  + showSunAmount(): Result<Integer>
+  + cheatAddSuns(count: int): Result<Integer>
+}
+
+class GameplayView extends MenuView
+
+Simulation --> RandomSource
+Simulation --> SimulationWorld
+Simulation o-- SimulationSystem
+SimulationWorld o-- Sun
+SimulationWorld o-- SunProducer
+SimulationWorld o-- Damageable
+TickContext --> RandomSource
+TickContext --> SimulationWorld
+SunProducer ..> Sun
+FallingSunSystem ..> SunDropSchedule
+FallingSunSystem ..> Sun
+SunCollector --> SimulationWorld
+Sun --> SunType
+GameplayController --> Simulation
+GameplayController ..> SunCollector
+GameplayView --> GameplayController
+MenuRouter --> GameplayView
+Store --> Simulation
+PlantSelectionController ..> Simulation
+PlantSelectionController --> RandomSource
+
 abstract class MenuView {
   - menuController: MenuController
   + handleCommonCommand(input: String): boolean

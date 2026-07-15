@@ -1,6 +1,7 @@
 package model;
 
 import model.inGame.GameSession;
+import model.sim.Simulation;
 import model.user.AuthFlowState;
 import model.user.User;
 import model.enums.MenuName;
@@ -14,6 +15,7 @@ public class Store {
     private static User loggedInUser;
     private static AuthFlowState authFlow = new AuthFlowState();
     private static GameSession activeSession;
+    private static Simulation activeSimulation;
     private static MenuName currentMenu = MenuName.REGISTER;
     private static boolean running = true;
 
@@ -53,6 +55,14 @@ public class Store {
 
     public static void setActiveSession(GameSession activeSession) {
         Store.activeSession = activeSession;
+    }
+
+    public static Simulation getActiveSimulation() {
+        return activeSimulation;
+    }
+
+    public static void setActiveSimulation(Simulation activeSimulation) {
+        Store.activeSimulation = activeSimulation;
     }
 
     public static AuthFlowState getAuthFlow() {
