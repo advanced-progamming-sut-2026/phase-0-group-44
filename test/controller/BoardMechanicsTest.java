@@ -319,7 +319,7 @@ class BoardMechanicsTest {
 
         ScriptedRandom pot = new ScriptedRandom().queueDouble(0.05).queueInt(2);
         List<String> p = new RewardService(userService, pot).onZombieDeath(false, user, world);
-        assertEquals("A zombie dropeed a pot; you have 1 pots now.", p.get(0));
+        assertEquals("A zombie dropeed a pot; you have 6 pots now.", p.get(0));
 
         ScriptedRandom none = new ScriptedRandom().queueDouble(0.5);
         assertTrue(new RewardService(userService, none).onZombieDeath(false, user, world).isEmpty());

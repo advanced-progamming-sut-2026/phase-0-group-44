@@ -31,6 +31,12 @@ public enum Command {
     MENU_GEM_WALLET("^menu\\s+gem-wallet$"),
     MENU_CHEAT_ADD("^menu\\s+cheat\\s+add\\s+(-?\\d+)\\s+(\\S+)$"),
 
+    // Greenhouse
+    SHOW_GREENHOUSE("^show\\s+greenhouse$"),
+    PLANT_POT("^plant\\s+pot\\s+at\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    COLLECT_GREENHOUSE("^collect\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    GROW_GREENHOUSE("^grow\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+
     // Settings Menu
     MENU_SETTINGS_CHANGE_DIFFICULTY(
             "^menu\\s+settings\\s+change-difficulty\\s+-l\\s+(-?\\d+)$"),

@@ -114,7 +114,7 @@ class UserPersistenceTest {
         user.getInventory().put("plant-food", 4);
         user.getNewsList().add(new News("Sunflower", "unlocked", NewsType.PLANT_UNLOCKED));
 
-        GreenhouseSlot slot = user.getGreenHouse().addSlot();
+        GreenhouseSlot slot = user.getGreenHouse().getSlot(0);
         slot.plant(PlantType.SUNFLOWER, FIXED_INSTANT.getEpochSecond());
 
         DailyShopState shop = user.getDailyShop();
