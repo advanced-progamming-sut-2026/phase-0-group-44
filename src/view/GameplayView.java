@@ -54,6 +54,11 @@ public class GameplayView extends MenuView {
             return;
         }
 
+        if (Command.RELEASE_NUKE.matches(input)) {
+            print(controller.releaseNuke());
+            return;
+        }
+
         if (handleBoardCommand(input)) {
             return;
         }

@@ -795,6 +795,100 @@ RewardService --> RandomSource
 GameplayController --> BoardController
 App --> PlantSpecSource
 
+' ZOMBIE COMBAT / WAVES / WIN / LOSS '
+
+enum GameOutcome {
+  RUNNING
+  WON
+  LOST
+}
+
+class ZombieSpec {
+  - name: String
+  - waveCost: int
+  - health: int
+  - speedTilesPerSecond: double
+  - eatDamagePerSecond: int
+  - boss: boolean
+}
+
+interface ZombieSpecSource {
+  + availableSpecs(): List<ZombieSpec>
+}
+
+class DefaultZombieSpecSource implements ZombieSpecSource
+
+class ZombieInstance implements Damageable {
+  - spec: ZombieSpec
+  - x: double
+  - row: int
+  - hp: int
+  - state: State
+  - glowing: boolean
+  + getTileX(): int
+  + kill()
+}
+
+class ZombieDeath {
+  - spec: ZombieSpec
+  - glowing: boolean
+  - cheatKill: boolean
+}
+
+class ZombieCombatSystem implements SimulationSystem {
+  + tick(context: TickContext)
+}
+
+class WaveConfig {
+  - waveCount: int
+  - firstWaveCost: int
+  - costOverride: int[]
+  + costOfWave(waveNumber: int): int
+  + isFinalWave(waveNumber: int): boolean
+  + {static} ofExplicitCosts(costs: int[]): WaveConfig
+}
+
+class WaveComposer <<static>> {
+  + {static} compose(targetCost: int, specs: List<ZombieSpec>, random: RandomSource): List<ZombieSpec>
+}
+
+class WaveSystem implements SimulationSystem {
+  + {static} NEXT_WAVE_THRESHOLD: double = 0.75
+  - config: WaveConfig
+  - specSource: ZombieSpecSource
+  + tick(context: TickContext)
+}
+
+class GameConclusionService {
+  - userService: UserService
+  - newsService: NewsService
+  + onWin(user: User, session: GameSession): List<String>
+  + onLoss(user: User, session: GameSession)
+}
+
+ZombieInstance --> ZombieSpec
+DefaultZombieSpecSource --> ZombieRepository
+ZombieCombatSystem ..> ZombieInstance
+ZombieCombatSystem ..> ZombieDeath
+WaveSystem --> WaveConfig
+WaveSystem --> ZombieSpecSource
+WaveSystem ..> WaveComposer
+WaveSystem ..> ZombieInstance
+Level --> WaveConfig
+SimulationWorld --> GameOutcome
+SimulationWorld o-- ZombieDeath
+Simulation o-- WaveSystem
+Simulation o-- ZombieCombatSystem
+GameplayController ..> ZombieInstance
+GameplayController --> RewardService
+GameplayController --> GameConclusionService
+GameConclusionService --> UserService
+GameConclusionService --> NewsService
+PlantSelectionController --> ZombieSpecSource
+App --> ZombieSpecSource
+App --> RewardService
+App --> GameConclusionService
+
 abstract class MenuView {
   - menuController: MenuController
   + handleCommonCommand(input: String): boolean
