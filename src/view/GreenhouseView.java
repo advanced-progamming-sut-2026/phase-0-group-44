@@ -51,6 +51,11 @@ public class GreenhouseView extends MenuView {
             return;
         }
 
+        if (Command.ENTER_SHOP.matches(input)) {
+            print(getMenuController().enterMenu("shop"));
+            return;
+        }
+
         if (handleCommonCommand(input)) {
             return;
         }

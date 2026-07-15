@@ -36,6 +36,12 @@ public enum Command {
     PLANT_POT("^plant\\s+pot\\s+at\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
     COLLECT_GREENHOUSE("^collect\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
     GROW_GREENHOUSE("^grow\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    ENTER_SHOP("^enter\\s+shop$"),
+
+    // Shop
+    SHOP_LIST("^shop\\s+list$"),
+    SHOP_DAILY("^shop\\s+daily$"),
+    SHOP_BUY("^shop\\s+buy\\s+-i\\s+(\\S+)\\s+-n\\s+(-?\\d+)(?:\\s+-t\\s+(.+))?$"),
 
     // Settings Menu
     MENU_SETTINGS_CHANGE_DIFFICULTY(
