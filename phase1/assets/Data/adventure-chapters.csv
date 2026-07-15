@@ -1,0 +1,5 @@
+chapter,initial_graves,final_wave_tornadoes,icy_wind_rows,slippery_up,slippery_down,frozen_zombies,max_water_columns,water_schedule,low_tide,dark_graves_per_wave,necromancy
+ANCIENT_EGYPT,3:1;5:3,true,0,,,,0,,,0,
+FROSTBITE_CAVES,,,2,4:1,5:3,NORMAL@7.5:2,0,,,0,
+BIG_WAVE_BEACH,,,0,,,,5,3;5;4;5,5:1;6:3,0,
+DARK_AGES,,,0,,,,0,,,2,4:1;6:3

@@ -3,7 +3,10 @@ package controller;
 import model.Result;
 import model.Store;
 import model.config.ChapterCatalog;
+import model.config.AdventureCatalog;
+import model.level.Level;
 import model.config.GameWorld;
+import model.enums.MenuName;
 import model.user.User;
 import service.UserService;
 
@@ -48,8 +51,50 @@ public class GameMenuController {
         return result;
     }
 
+
+    /** Opens an unlocked non-boss level and returns its canonical configuration. */
+    public Result<Level> enterLevel(String chapterName, int levelNumber) {
+        Result<Level> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+        GameWorld world = GameWorld.fromName(chapterName);
+        if (world == null) {
+            result.appendToMessage("no chapter named \"" + chapterName + "\"");
+            return result;
+        }
+        Level level = AdventureCatalog.level(world, levelNumber);
+        if (level == null) {
+            result.appendToMessage("level number must be between 1 and 4");
+            return result;
+        }
+        if (!ChapterCatalog.isLevelUnlocked(user, world, levelNumber)) {
+            result.appendToMessage(level.getName() + " is locked");
+            return result;
+        }
+        if (level.isBossDeferred()) {
+            result.appendToMessage("boss gameplay is deferred to Phase 2");
+            return result;
+        }
+        result.setStatus(true);
+        result.setData(level);
+        result.appendToMessage("entered " + level.getName());
+        return result;
+    }
+
     public Result<String> greenhouse() {
-        return placeholder("greenhouse");
+        Result<String> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+
+        Store.setCurrentMenu(MenuName.GREENHOUSE);
+        result.setStatus(true);
+        result.setData("greenhouse");
+        result.appendToMessage("entered greenhouse menu");
+        return result;
     }
 
     public Result<String> travelLog() {

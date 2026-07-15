@@ -1,6 +1,7 @@
 package model.user;
 
 import model.News;
+import model.config.ChapterCatalog;
 import model.Result;
 import model.enums.PlantType;
 import model.miniGame.GreenHouse;
@@ -553,6 +554,7 @@ public class User {
         getInventory();
         getNewsList();
         getDailyShop();
+        ChapterCatalog.applyDefaultUnlocks(this);
 
         if (upgradedPlants == null) {
             upgradedPlants = new ArrayList<>();

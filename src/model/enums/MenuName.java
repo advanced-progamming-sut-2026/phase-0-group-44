@@ -10,6 +10,7 @@ public enum MenuName {
     NEWS("news"),
     PROFILE("profile"),
     COLLECTION("collection"),
+    GREENHOUSE("greenhouse"),
     PLANT_SELECTION("plant-selection"),
     GAMEPLAY("gameplay");
 

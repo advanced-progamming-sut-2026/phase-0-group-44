@@ -9,12 +9,15 @@ import model.sim.Damageable;
  */
 public class PlantInstance implements Damageable {
 
+    public static final int ICE_HEALTH = 600;
+
     private final PlantSpec spec;
     private final int tileX;
     private final int tileY;
     private int hp;
     private boolean stackedOnSupport;
-    private int iceHitCount;
+    private int freezeLevel;
+    private int iceHealth;
     private boolean frozen;
     private boolean octopused;
 
@@ -57,15 +60,50 @@ public class PlantInstance implements Damageable {
 
 
     public int getIceHitCount() {
-        return iceHitCount;
+        return freezeLevel;
+    }
+
+    public int getFreezeLevel() {
+        return freezeLevel;
+    }
+
+    public int getIceHealth() {
+        return iceHealth;
     }
 
     public boolean addIceHit() {
-        iceHitCount++;
-        if (iceHitCount >= 3) {
+        return addFreezeLevel();
+    }
+
+    /** Icy wind and Hunter attacks share the same three-level freeze system. */
+    public boolean addFreezeLevel() {
+        if (freezeLevel < 3) {
+            freezeLevel++;
+        }
+        if (freezeLevel >= 3) {
             frozen = true;
+            if (iceHealth <= 0) {
+                iceHealth = ICE_HEALTH;
+            }
         }
         return frozen;
+    }
+
+    /** Fire removes the ice immediately; other damage reduces its 600 health. */
+    public boolean damageIce(int amount, boolean fire) {
+        if (!frozen) {
+            return false;
+        }
+        if (fire) {
+            clearFrozen();
+            return true;
+        }
+        iceHealth -= Math.max(0, amount);
+        if (iceHealth <= 0) {
+            clearFrozen();
+            return true;
+        }
+        return false;
     }
 
     public boolean isFrozen() {
@@ -74,7 +112,8 @@ public class PlantInstance implements Damageable {
 
     public void clearFrozen() {
         frozen = false;
-        iceHitCount = 0;
+        freezeLevel = 0;
+        iceHealth = 0;
     }
 
     public boolean isOctopused() {

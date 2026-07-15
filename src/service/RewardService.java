@@ -86,7 +86,9 @@ public class RewardService {
 
             default:
                 GreenHouse greenHouse = user.getGreenHouse();
-                greenHouse.addSlot();
+                if (greenHouse.unlockNextSlot() == null) {
+                    return "A zombie dropeed a pot, but all greenhouse slots are unlocked.";
+                }
                 return "A zombie dropeed a pot; you have "
                         + greenHouse.getSlotCount() + " pots now.";
         }
