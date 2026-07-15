@@ -10,6 +10,8 @@ import model.inGame.zombie.ZombieRepository;
 import repository.JsonUserRepository;
 import repository.UserRepository;
 import service.PasswordService;
+import model.sim.board.DefaultPlantSpecSource;
+import model.sim.board.PlantSpecSource;
 import service.GreenhouseBoostService;
 import service.NewsService;
 import service.SecurityQuestionCatalog;
@@ -39,6 +41,7 @@ public class App {
     private final NewsService newsService;
     private final GreenhouseBoostService greenhouseBoostService;
     private final PlantSelectionController plantSelectionController;
+    private final PlantSpecSource plantSpecSource;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -67,6 +70,7 @@ public class App {
         profileController = new ProfileMenuController(userService, passwordService);
         newsService = new NewsService(userService);
         greenhouseBoostService = new GreenhouseBoostService(userService);
+        plantSpecSource = new DefaultPlantSpecSource(plantRepository);
         plantSelectionController = new PlantSelectionController(plantRepository, userService);
     }
 
@@ -147,5 +151,9 @@ public class App {
 
     public PlantSelectionController getPlantSelectionController() {
         return plantSelectionController;
+    }
+
+    public PlantSpecSource getPlantSpecSource() {
+        return plantSpecSource;
     }
 }

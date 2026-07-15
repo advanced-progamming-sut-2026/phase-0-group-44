@@ -54,10 +54,97 @@ public class GameplayView extends MenuView {
             return;
         }
 
+        if (handleBoardCommand(input)) {
+            return;
+        }
+
         if (handleCommonCommand(input)) {
             return;
         }
 
         System.out.println("invalid command");
+    }
+
+    private boolean handleBoardCommand(String input) {
+        controller.BoardController board = controller.getBoard();
+
+        if (board == null) {
+            return false;
+        }
+
+        if (Command.PLANT_PLANT.matches(input)) {
+            Matcher matcher = Command.PLANT_PLANT.getMatcher(input);
+            matcher.matches();
+            print(board.plantPlant(
+                    parsePlantType(matcher.group(1)),
+                    Integer.parseInt(matcher.group(2)),
+                    Integer.parseInt(matcher.group(3))));
+
+            return true;
+        }
+
+        if (Command.PLUCK_PLANT.matches(input)) {
+            Matcher matcher = Command.PLUCK_PLANT.getMatcher(input);
+            matcher.matches();
+            print(board.pluckPlant(
+                    Integer.parseInt(matcher.group(1)),
+                    Integer.parseInt(matcher.group(2))));
+
+            return true;
+        }
+
+        if (Command.CHEAT_REMOVE_COOLDOWN.matches(input)) {
+            print(board.cheatRemoveCooldown());
+            return true;
+        }
+
+        if (Command.FEED_PLANT.matches(input)) {
+            Matcher matcher = Command.FEED_PLANT.getMatcher(input);
+            matcher.matches();
+            print(board.feedPlant(
+                    Integer.parseInt(matcher.group(1)),
+                    Integer.parseInt(matcher.group(2))));
+
+            return true;
+        }
+
+        if (Command.CHEAT_ADD_PLANT_FOOD.matches(input)) {
+            print(board.cheatAddPlantFood());
+            return true;
+        }
+
+        if (Command.SHOW_MAP.matches(input)) {
+            print(board.showMap());
+            return true;
+        }
+
+        if (Command.SHOW_PLANTS_STATUS.matches(input)) {
+            print(board.showPlantsStatus());
+            return true;
+        }
+
+        if (Command.SHOW_TILE_STATUS.matches(input)) {
+            Matcher matcher = Command.SHOW_TILE_STATUS.getMatcher(input);
+            matcher.matches();
+            print(board.showTileStatus(
+                    Integer.parseInt(matcher.group(1)),
+                    Integer.parseInt(matcher.group(2))));
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private model.enums.PlantType parsePlantType(String token) {
+        String normalized = token.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+
+        for (model.enums.PlantType type : model.enums.PlantType.values()) {
+            if (type.name().equals(normalized)) {
+                return type;
+            }
+        }
+
+        return null;
     }
 }
