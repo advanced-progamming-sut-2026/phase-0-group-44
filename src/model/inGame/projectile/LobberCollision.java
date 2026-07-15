@@ -1,4 +1,10 @@
 package model.inGame.projectile;
 
-public class LobberCollision {
+import model.GameEngine;
+
+public class LobberCollision implements CollisionLogic {
+    @Override
+    public void advance(Projectile projectile, GameEngine engine, double deltaSeconds) {
+        projectile.advanceLobbed(engine, deltaSeconds);
+    }
 }

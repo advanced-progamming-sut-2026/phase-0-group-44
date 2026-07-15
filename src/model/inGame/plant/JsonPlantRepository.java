@@ -1,89 +1,40 @@
 package model.inGame.plant;
 
-import java.io.FileReader;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import model.enums.PlantType;
 
-public class JsonPlantRepository implements PlantRepository {
-    private final String filePath;
-    private final ArrayList<PlantDefinition> plants;
+import java.util.ArrayList;
 
-    public JsonPlantRepository(String filePath) {
-        this.filePath = filePath;
-        this.plants = new ArrayList<PlantDefinition>();
+/**
+ * Compatibility facade retained for callers from Phase 0.
+ *
+ * <p>Plant data is now canonicalized in {@code phase1/assets/Data/plants.csv};
+ * this adapter deliberately delegates to that registry so JSON and CSV cannot
+ * silently diverge.</p>
+ */
+@Deprecated
+public class JsonPlantRepository implements PlantRepository {
+    private final PlantRegistry canonical = PlantRegistry.getDefault();
+
+    public JsonPlantRepository(String ignoredFilePath) {
     }
 
     @Override
     public void load() {
-        plants.clear();
-
-        try (FileReader reader = new FileReader(filePath)) {
-            Gson gson = new Gson();
-
-            Type listType = new TypeToken<ArrayList<PlantDefinition>>() {}.getType();
-
-            ArrayList<PlantDefinition> loadedPlants = gson.fromJson(reader, listType);
-
-            if (loadedPlants != null) {
-                plants.addAll(loadedPlants);
-            }
-        } catch (IOException exception) {
-            throw new IllegalStateException(
-                    "Could not load plant definitions from: " + filePath,
-                    exception
-            );
-        }
+        // The canonical registry is loaded once by PlantRegistry.getDefault().
     }
 
     @Override
     public ArrayList<PlantDefinition> findAll() {
-        return new ArrayList<PlantDefinition>(plants);
+        return canonical.findAll();
     }
 
     @Override
     public PlantDefinition findByType(PlantType type) {
-        if (type == null) {
-            return null;
-        }
-
-        for (PlantDefinition plant : plants) {
-            if (plant.getType() == type) {
-                return plant;
-            }
-        }
-
-        return null;
+        return canonical.findByType(type);
     }
 
     @Override
     public PlantDefinition findByName(String name) {
-        if (name == null) {
-            return null;
-        }
-
-        String normalizedName = name.trim();
-
-        for (PlantDefinition plant : plants) {
-            if (plant.getName().equalsIgnoreCase(normalizedName)
-                    || plant.getType().name().equalsIgnoreCase(
-                    normalizeEnumName(normalizedName)
-            )) {
-                return plant;
-            }
-        }
-
-        return null;
-    }
-
-    private String normalizeEnumName(String value) {
-        return value.trim()
-                .toUpperCase()
-                .replace('-', '_')
-                .replace(' ', '_');
+        return canonical.findByName(name);
     }
 }
-

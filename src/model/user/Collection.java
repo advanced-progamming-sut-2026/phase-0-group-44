@@ -2,6 +2,7 @@ package model.user;
 
 import model.enums.PlantType;
 import model.enums.ZombieType;
+import model.inGame.plant.PlantDefinition;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -15,11 +16,9 @@ public class Collection {
     private ArrayList<ZombieCard> zombieCards;
 
     public Collection() {
-        ownedPlants =
-                new EnumMap<PlantType, PlantCard>(PlantType.class);
+        ownedPlants = new EnumMap<PlantType, PlantCard>(PlantType.class);
 
-        seenZombies =
-                EnumSet.noneOf(ZombieType.class);
+        seenZombies = EnumSet.noneOf(ZombieType.class);
 
         zombieCards = new ArrayList<ZombieCard>();
     }
@@ -58,6 +57,22 @@ public class Collection {
         }
 
         ownedPlants.put(type, new PlantCard(type));
+    }
+
+    public void purchasePlant(PlantDefinition definition) {
+        if (definition == null) {
+            throw new IllegalArgumentException(
+                    "Plant definition is null."
+            );
+        }
+
+        if (definition.isBonus()) {
+            throw new UnsupportedOperationException(
+                    definition.getName() + " is a blue/bonus plant."
+            );
+        }
+
+        purchasePlant(definition.getType());
     }
 
     public void upgradePlant(PlantType type) {
@@ -106,6 +121,12 @@ public class Collection {
 
         if (zombieCards == null) {
             zombieCards = new ArrayList<>();
+        }
+
+        for (PlantCard card : ownedPlants.values()) {
+            if (card != null) {
+                card.applyDefaults();
+            }
         }
     }
 }

@@ -3,7 +3,6 @@ package controller;
 import model.Result;
 import model.Store;
 import model.enums.MenuName;
-import model.inGame.plant.JsonPlantRepository;
 import model.inGame.plant.PlantRepository;
 import model.inGame.zombie.JsonZombieRepository;
 import model.inGame.zombie.ZombieRepository;
@@ -22,11 +21,10 @@ import service.NewsService;
 import service.SecurityQuestionCatalog;
 import service.Sha256PasswordService;
 import service.UserService;
-
+import model.inGame.plant.PlantRegistry;
 import java.time.Clock;
 
 public class App {
-    private static final String PLANTS_PATH = "src/assets/plants.json";
     private static final String ZOMBIES_PATH = "src/assets/zombies.json";
 
     private final PlantRepository plantRepository;
@@ -56,7 +54,7 @@ public class App {
     }
 
     public App(UserRepository userRepository, Clock clock) {
-        plantRepository = new JsonPlantRepository(PLANTS_PATH);
+        plantRepository = PlantRegistry.getDefault();
         zombieRepository = new JsonZombieRepository(ZOMBIES_PATH);
 
         loadQuietly(plantRepository::load, "plant");

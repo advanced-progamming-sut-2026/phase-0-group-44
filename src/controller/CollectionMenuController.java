@@ -165,6 +165,12 @@ public class CollectionMenuController {
         if (definition == null) {
             return failure(result, "Plant does not exist.");
         }
+        if (definition.isBonus()) {
+            return failure(
+                    result,
+                    "Blue/bonus plants are not available in the mandatory phase."
+            );
+        }
 
         Collection collection = user.getCollection();
 
@@ -180,7 +186,7 @@ public class CollectionMenuController {
         }
 
         user.decreaseCoins(PLANT_PURCHASE_COST);
-        collection.purchasePlant(definition.getType());
+        collection.purchasePlant(definition);
         userService.updateUser(user);
 
         PlantCard card = collection.getPlantCard(
@@ -210,8 +216,7 @@ public class CollectionMenuController {
             return failure(result, "No user is logged in.");
         }
 
-        PlantDefinition definition =
-                plantRepository.findByName(plantName);
+        PlantDefinition definition = plantRepository.findByName(plantName);
 
         if (definition == null) {
             return failure(result, "Plant does not exist.");
@@ -223,6 +228,12 @@ public class CollectionMenuController {
             return failure(
                     result,
                     "Plant not found in your collection."
+            );
+        }
+        if (!card.canUpgrade()) {
+            return failure(
+                    result,
+                    "Plant is already at maximum level."
             );
         }
 
