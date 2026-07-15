@@ -36,6 +36,8 @@ public class ZombieInstance implements Damageable {
     private State state;
     private boolean glowing;
     private int direction = -1;
+    private boolean encasedInIce;
+    private int encasingIceHealth;
 
     public ZombieInstance(ZombieSpec spec, double x, int row) {
         this.spec = spec;
@@ -157,6 +159,24 @@ public class ZombieInstance implements Damageable {
         }
         int remaining = amount;
         int dealt = 0;
+        if (encasedInIce) {
+            if (type == DamageType.FIRE) {
+                encasedInIce = false;
+                encasingIceHealth = 0;
+            } else {
+                int absorbed = Math.min(encasingIceHealth, remaining);
+                encasingIceHealth -= absorbed;
+                remaining -= absorbed;
+                dealt += absorbed;
+                if (encasingIceHealth <= 0) {
+                    encasedInIce = false;
+                    encasingIceHealth = 0;
+                }
+                if (remaining <= 0) {
+                    return dealt;
+                }
+            }
+        }
         if (type != DamageType.POISON && type != DamageType.TRUE) {
             for (ZombieArmorPart part : armorParts) {
                 boolean wasIntact = !part.isBroken();
@@ -227,7 +247,36 @@ public class ZombieInstance implements Damageable {
     }
 
     public boolean isFrozen() {
-        return effects.containsKey(ZombieEffectType.FROZEN);
+        return encasedInIce || effects.containsKey(ZombieEffectType.FROZEN);
+    }
+
+    public void freezeInIce() {
+        encasedInIce = true;
+        encasingIceHealth = 600;
+    }
+
+    public boolean isEncasedInIce() {
+        return encasedInIce;
+    }
+
+    public int getEncasingIceHealth() {
+        return encasingIceHealth;
+    }
+
+    public void damageEncasingIce(int amount, boolean fire) {
+        if (!encasedInIce) {
+            return;
+        }
+        if (fire) {
+            encasedInIce = false;
+            encasingIceHealth = 0;
+            return;
+        }
+        encasingIceHealth -= Math.max(0, amount);
+        if (encasingIceHealth <= 0) {
+            encasedInIce = false;
+            encasingIceHealth = 0;
+        }
     }
 
     public boolean isSlowed() {

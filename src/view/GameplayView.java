@@ -22,6 +22,11 @@ public class GameplayView extends MenuView {
             return;
         }
 
+        if (Command.START_ZOMBIE_WAVES.matches(input)) {
+            print(controller.startZombieWaves());
+            return;
+        }
+
         if (Command.ADVANCE_TIME.matches(input)) {
             Matcher matcher = Command.ADVANCE_TIME.getMatcher(input);
             matcher.matches();

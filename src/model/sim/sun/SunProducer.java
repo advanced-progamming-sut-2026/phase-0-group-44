@@ -65,6 +65,7 @@ public class SunProducer {
     private void produce(TickContext context) {
         uncollectedSun = Sun.onPlant(SunType.NORMAL, tileX, tileY);
         context.getWorld().getSuns().add(uncollectedSun);
+        context.getWorld().recordProducedSun(uncollectedSun.getValue());
         ticksSinceProduction = 0;
 
         context.emit("plant " + plantTypeLabel + " produced a sun at ("
