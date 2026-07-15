@@ -8,6 +8,8 @@ import model.sim.GameOutcome;
 import model.sim.board.Board;
 import model.sim.zombie.ZombieDeath;
 import model.sim.zombie.ZombieInstance;
+import model.sim.adventure.AdventureRuntimeState;
+import model.sim.adventure.GraveReward;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -48,6 +50,11 @@ public class SimulationWorld {
     private boolean cooldownsDisabled;
     private GameOutcome outcome = GameOutcome.RUNNING;
     private final List<ZombieDeath> pendingDeaths = new ArrayList<>();
+    private AdventureRuntimeState adventureState;
+    private boolean wavesStarted = true;
+    private int zombieKillCount;
+    private int producedSunTotal;
+    private int plantLossCount;
 
     public SimulationWorld() {
         this(DEFAULT_ROWS, DEFAULT_COLUMNS);
@@ -149,6 +156,49 @@ public class SimulationWorld {
         return outcome == GameOutcome.RUNNING;
     }
 
+
+    public AdventureRuntimeState getAdventureState() {
+        return adventureState;
+    }
+
+    public void setAdventureState(AdventureRuntimeState adventureState) {
+        this.adventureState = adventureState;
+    }
+
+    public boolean areWavesStarted() {
+        return wavesStarted;
+    }
+
+    public void setWavesStarted(boolean wavesStarted) {
+        this.wavesStarted = wavesStarted;
+    }
+
+    public int getZombieKillCount() {
+        return zombieKillCount;
+    }
+
+    public void recordZombieKill() {
+        zombieKillCount++;
+    }
+
+    public int getProducedSunTotal() {
+        return producedSunTotal;
+    }
+
+    public void recordProducedSun(int amount) {
+        if (amount > 0) {
+            producedSunTotal += amount;
+        }
+    }
+
+    public int getPlantLossCount() {
+        return plantLossCount;
+    }
+
+    public void recordPlantLost() {
+        plantLossCount++;
+    }
+
     public List<ZombieDeath> getPendingDeaths() {
         return pendingDeaths;
     }
@@ -168,6 +218,29 @@ public class SimulationWorld {
         }
 
         return result;
+    }
+
+
+    /** Damages a grave and grants its configured payload when it is destroyed. */
+    public boolean damageGrave(int x, int y, int damage) {
+        model.sim.board.Tile tile = board.tileAt(x, y);
+        if (tile == null || !tile.isGravestone() || damage <= 0) {
+            return false;
+        }
+        GraveReward reward = tile.getGraveReward();
+        TerrainType ground = adventureState != null
+                && adventureState.getConfig().getWorld() == model.config.GameWorld.DARK_AGES
+                ? TerrainType.NORMAL_DARK_AGES : TerrainType.NORMAL_EGYPT;
+        tile.damageTerrain(damage, ground);
+        if (tile.isGravestone()) {
+            return false;
+        }
+        if (reward == GraveReward.SUN_50) {
+            addSun(50);
+        } else if (reward == GraveReward.PLANT_FOOD) {
+            addPlantFood();
+        }
+        return true;
     }
 
     public int getRows() {

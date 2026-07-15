@@ -53,6 +53,7 @@ public enum Command {
 
     // Gameplay
     ADVANCE_TIME("^advance\\s+time\\s+-t\\s+(\\d+)\\s+ticks$"),
+    START_ZOMBIE_WAVES("^start\\s+zombie\\s+waves$"),
     COLLECT_SUN("^collect\\s+sun\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
     SHOW_SUN_AMOUNT("^show\\s+sun\\s+amount$"),
     CHEAT_ADD_SUNS("^cheat\\s+add\\s+-n\\s+(\\d+)\\s+suns$"),

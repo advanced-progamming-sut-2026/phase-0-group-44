@@ -220,8 +220,9 @@ public final class ZombieSpecialSystem implements SimulationSystem {
             return;
         }
         PlantInstance target = nearestPlantInLane(context.getWorld(), zombie.getRow(), zombie.getX());
-        if (target != null && target.addIceHit()) {
-            context.getWorld().getBoard().tileAt(target.getTileX(), target.getTileY()).freeze();
+        if (target != null && target.addFreezeLevel()) {
+            context.getWorld().getBoard().tileAt(target.getTileX(), target.getTileY())
+                    .setProjectileBlocker("ice", PlantInstance.ICE_HEALTH);
         }
     }
 
@@ -311,6 +312,7 @@ public final class ZombieSpecialSystem implements SimulationSystem {
             tile.clearPlants();
         }
         world.getPlants().remove(plant);
+        world.recordPlantLost();
         context.emit("Plant " + plant.getType() + " at (" + plant.getTileX()
                 + ", " + plant.getTileY() + ") is destroyed.");
     }

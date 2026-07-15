@@ -3,15 +3,13 @@ package service;
 import model.config.ChapterCatalog;
 import model.config.GameWorld;
 import model.inGame.GameSession;
+import model.level.Level;
 import model.user.User;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * What happens when a game ends: on a win, record completion, unlock the next
- * content, add news, and persist; on a loss, simply end.
- */
+/** Applies persistent statistics, progression and news when a game ends. */
 public class GameConclusionService {
 
     private final UserService userService;
@@ -22,41 +20,50 @@ public class GameConclusionService {
         this.newsService = newsService;
     }
 
-    /** Records a win. Returns any follow-up messages (e.g. unlock news). */
     public List<String> onWin(User user, GameSession session) {
         List<String> messages = new ArrayList<>();
-
         if (user == null) {
             return messages;
         }
 
         user.setCompletedLevelCount(user.getCompletedLevelCount() + 1);
         user.setGamesPlayed(user.getGamesPlayed() + 1);
+        Level level = session == null ? null : session.getLevel();
 
-        GameWorld current = session != null
-                ? GameWorld.fromName(session.getLevel().getName()) : null;
-
-        if (current != null) {
-            user.setLatestCompletedChapter(current.getChapterNumber());
-            GameWorld unlocked = ChapterCatalog.unlockNext(user, current);
-
-            if (unlocked != null && newsService != null) {
-                newsService.levelUnlocked(user, unlocked.getDisplayName());
-                messages.add(unlocked.getDisplayName() + " unlocked");
+        if (level != null && level.getWorld() != null) {
+            user.setLatestCompletedChapter(level.getWorld().getChapterNumber());
+            user.setLatestCompletedLevel(level.getLevelNumber());
+            ChapterCatalog.CompletionResult progression =
+                    ChapterCatalog.completeLevel(user, level);
+            for (String unlocked : progression.getUnlockedLabels()) {
+                if (newsService != null) {
+                    newsService.levelUnlocked(user, unlocked);
+                }
+                messages.add(unlocked + " unlocked");
+            }
+        } else if (level != null) {
+            // Compatibility for older callers that used a chapter name as the level name.
+            GameWorld current = GameWorld.fromName(level.getName());
+            if (current != null) {
+                user.setLatestCompletedChapter(current.getChapterNumber());
+                GameWorld unlocked = ChapterCatalog.unlockNext(user, current);
+                if (unlocked != null) {
+                    if (newsService != null) {
+                        newsService.levelUnlocked(user, unlocked.getDisplayName());
+                    }
+                    messages.add(unlocked.getDisplayName() + " unlocked");
+                }
             }
         }
 
         userService.updateUser(user);
-
         return messages;
     }
 
-    /** Records a loss. */
     public void onLoss(User user, GameSession session) {
         if (user == null) {
             return;
         }
-
         user.setGamesPlayed(user.getGamesPlayed() + 1);
         userService.updateUser(user);
     }

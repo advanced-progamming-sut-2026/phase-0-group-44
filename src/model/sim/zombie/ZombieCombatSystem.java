@@ -67,11 +67,43 @@ public class ZombieCombatSystem implements SimulationSystem {
         zombie.setState(ZombieInstance.State.MOVING);
         double perTick = zombie.effectiveSpeed() / TickContext.TICKS_PER_SECOND;
         zombie.setX(zombie.getX() + zombie.getDirection() * perTick);
+        applySlipperyTile(world, zombie, context);
 
         if (zombie.getDirection() < 0 && zombie.getX() <= LANE_END_X) {
             reachEndOfLane(context, world, zombie);
         } else if (zombie.getDirection() > 0 && zombie.getX() >= world.getColumns()) {
             zombie.setX(world.getColumns() - 0.01);
+        }
+    }
+
+
+    private void applySlipperyTile(
+            SimulationWorld world,
+            ZombieInstance zombie,
+            TickContext context
+    ) {
+        if (zombie.getType() == ZombieType.DODO_RIDER) {
+            return;
+        }
+        int x = zombie.getTileX();
+        if (x < 0 || x >= world.getColumns()) {
+            return;
+        }
+        Tile tile = world.getBoard().tileAt(x, zombie.getRow());
+        if (tile == null || !tile.getTerrain().isSlippery()) {
+            zombie.putState("LAST_SLIPPERY_TILE", -1);
+            return;
+        }
+        int marker = zombie.getRow() * world.getColumns() + x;
+        if (zombie.getIntState("LAST_SLIPPERY_TILE", -1) == marker) {
+            return;
+        }
+        int newRow = zombie.getRow() + tile.getTerrain().slipperyRowDelta();
+        newRow = Math.max(0, Math.min(world.getRows() - 1, newRow));
+        zombie.putState("LAST_SLIPPERY_TILE", marker);
+        if (newRow != zombie.getRow()) {
+            zombie.setRow(newRow);
+            context.emit(zombie.getSpec().getName() + " slid to row " + newRow + ".");
         }
     }
 
@@ -132,6 +164,7 @@ public class ZombieCombatSystem implements SimulationSystem {
             }
         }
         world.getPlants().remove(plant);
+        world.recordPlantLost();
         context.emit("Plant " + plant.getType().name()
                 + " at (" + plant.getTileX() + ", " + plant.getTileY() + ") is destroyed.");
     }
@@ -172,6 +205,7 @@ public class ZombieCombatSystem implements SimulationSystem {
             world.recordDeath(new ZombieDeath(
                     zombie.getSpec(), zombie.getTileX(), zombie.getRow(),
                     zombie.isGlowing(), false));
+            world.recordZombieKill();
             world.getZombies().remove(zombie);
         }
     }
@@ -188,6 +222,9 @@ public class ZombieCombatSystem implements SimulationSystem {
         world.recordDeath(new ZombieDeath(
                 zombie.getSpec(), zombie.getTileX(), zombie.getRow(),
                 zombie.isGlowing(), cheatKill));
+        if (!cheatKill) {
+            world.recordZombieKill();
+        }
         world.getZombies().remove(zombie);
     }
 

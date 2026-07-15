@@ -7,6 +7,9 @@ import model.inGame.GameSession;
 import model.inGame.PlantSelection;
 import model.sim.Simulation;
 import model.sim.SimulationWorld;
+import model.sim.adventure.AdventureInitializer;
+import model.sim.adventure.AdventureRuleSystem;
+import model.sim.board.DefaultPlantSpecSource;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRepository;
 import model.level.Level;
@@ -64,9 +67,16 @@ public class PlantSelectionController {
             result.appendToMessage("no level to select for");
             return result;
         }
+        if (level.isBossDeferred()) {
+            result.appendToMessage("boss gameplay is deferred to Phase 2");
+            return result;
+        }
 
         this.level = level;
         this.selection = new PlantSelection();
+        for (PlantType forced : level.getSelectionRules().getForcedPlants()) {
+            this.selection.add(forced);
+        }
         Store.setCurrentMenu(model.enums.MenuName.PLANT_SELECTION);
 
         result.setStatus(true);
@@ -189,6 +199,10 @@ public class PlantSelectionController {
             result.appendToMessage("this plant is not selected");
             return result;
         }
+        if (level.getSelectionRules().isForced(type)) {
+            result.appendToMessage("this plant is forced by the level");
+            return result;
+        }
 
         selection.remove(type);
 
@@ -286,12 +300,25 @@ public class PlantSelectionController {
 
         Store.setActiveSession(session);
 
-        Simulation simulation = new Simulation(
-                randomSource, new SimulationWorld(), skySunEnabled());
+        SimulationWorld world = new SimulationWorld();
+        DefaultPlantSpecSource plantSpecs = new DefaultPlantSpecSource(plantRepository);
+        AdventureInitializer.initialize(
+                world,
+                level.getAdventureConfig(),
+                plantSpecs,
+                zombieSpecSource,
+                user,
+                randomSource);
+        Simulation simulation = new Simulation(randomSource, world, skySunEnabled());
 
         if (zombieSpecSource != null) {
             simulation.register(new model.sim.wave.WaveSystem(
                     level.getWaveConfig(), zombieSpecSource));
+        }
+        if (level.getAdventureConfig() != null) {
+            simulation.register(new AdventureRuleSystem(zombieSpecSource));
+        }
+        if (zombieSpecSource != null) {
             simulation.register(new model.sim.zombie.ZombieSpecialSystem());
             simulation.register(new model.sim.zombie.ZombieCombatSystem());
         }
@@ -320,7 +347,8 @@ public class PlantSelectionController {
      * suns are not available yet, so this defaults to enabled.
      */
     private boolean skySunEnabled() {
-        return true;
+        return level == null || level.getAdventureConfig() == null
+                || level.getAdventureConfig().isSkySunEnabled();
     }
 
     private Set<PlantType> pendingGreenhouseBoosts(User user) {
@@ -344,7 +372,8 @@ public class PlantSelectionController {
     }
 
     private boolean isSelectable(User user, PlantType type) {
-        return user.getCollection().hasPlant(type) && level.getSelectionRules().allows(type);
+        return (user.getCollection().hasPlant(type) || level.getSelectionRules().isForced(type))
+                && level.getSelectionRules().allows(type);
     }
 
     private PlantType parseType(String token) {

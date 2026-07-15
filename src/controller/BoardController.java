@@ -5,6 +5,8 @@ import model.enums.PlantType;
 import model.enums.TerrainType;
 import model.inGame.PlantSelection;
 import model.sim.SimulationWorld;
+import model.sim.adventure.AdventureRuntimeState;
+import model.level.SpecialLevelType;
 import model.sim.board.Board;
 import model.sim.board.PlantInstance;
 import model.sim.board.PlantSpec;
@@ -44,8 +46,13 @@ public class BoardController {
             return result;
         }
 
-        if (selection != null && !selection.contains(type)) {
+        boolean conveyor = isConveyorLevel();
+        if (!conveyor && selection != null && !selection.contains(type)) {
             result.appendToMessage("this plant is not selected for the level");
+            return result;
+        }
+        if (conveyor && world.getAdventureState().getConveyorPacketCount(type) <= 0) {
+            result.appendToMessage("no conveyor packet for this plant");
             return result;
         }
 
@@ -71,22 +78,28 @@ public class BoardController {
             return result;
         }
 
-        if (world.isOnCooldown(type)) {
+        if (!conveyor && world.isOnCooldown(type)) {
             result.appendToMessage("this plant is still recharging");
             return result;
         }
 
-        if (world.getSunBalance() < spec.getSunCost()) {
+        if (!conveyor && world.getSunBalance() < spec.getSunCost()) {
             result.appendToMessage("not enough sun");
             return result;
         }
 
-        // All validation passed: only now is sun deducted and the plant placed.
-        world.addSun(-spec.getSunCost());
+        // All validation passed: only now are the packet/resources consumed.
+        if (conveyor) {
+            world.getAdventureState().consumeConveyorPacket(type);
+        } else {
+            world.addSun(-spec.getSunCost());
+        }
         PlantInstance plant = new PlantInstance(spec, x, y);
         place(tile, plant, placement);
         world.addPlant(plant);
-        world.startCooldown(type, spec.getRechargeTicks());
+        if (!conveyor && !isFreePreWavePlanting()) {
+            world.startCooldown(type, spec.getRechargeTicks());
+        }
 
         result.setStatus(true);
         result.setData(type.name());
@@ -107,6 +120,11 @@ public class BoardController {
 
         if (!tile.hasAnyPlant()) {
             result.appendToMessage("no plant to pluck here");
+            return result;
+        }
+        if (world.getAdventureState() != null
+                && world.getAdventureState().isProtected(x, y)) {
+            result.appendToMessage("protected plants cannot be plucked");
             return result;
         }
 
@@ -273,7 +291,8 @@ public class BoardController {
         builder.append("terrain: ").append(tile.getTerrain());
 
         if (tile.isGravestone()) {
-            builder.append(" (health ").append(tile.getTerrainHealth()).append(')');
+            builder.append(" (health ").append(tile.getTerrainHealth())
+                    .append(", reward ").append(tile.getGraveReward()).append(')');
         }
 
         if (tile.isFrozen()) {
@@ -289,6 +308,20 @@ public class BoardController {
         result.appendToMessage(builder.toString().trim());
 
         return result;
+    }
+
+
+    private boolean isConveyorLevel() {
+        AdventureRuntimeState state = world.getAdventureState();
+        return state != null
+                && state.getConfig().getSpecialType() == SpecialLevelType.CONVEYOR_BELT;
+    }
+
+    private boolean isFreePreWavePlanting() {
+        AdventureRuntimeState state = world.getAdventureState();
+        return state != null
+                && state.getConfig().getSpecialType() == SpecialLevelType.PLANT_WHAT_YOU_GET
+                && !world.areWavesStarted();
     }
 
     private enum Placement {
@@ -369,8 +402,13 @@ public class BoardController {
             case WATER:
                 return "~";
             case GRAVESTONE:
-            case DARK_AGES_GRAVESTONE:
                 return "#";
+            case DARK_AGES_GRAVESTONE:
+                return switch (tile.getGraveReward()) {
+                    case SUN_50 -> "$";
+                    case PLANT_FOOD -> "F";
+                    default -> "#";
+                };
             case SLIPPERY_UP:
                 return "^";
             case SLIPPERY_DOWN:

@@ -1,6 +1,7 @@
 package model.sim.board;
 
 import model.enums.PlantType;
+import model.enums.PlantTag;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRepository;
 import model.sim.TickContext;
@@ -32,10 +33,18 @@ public class DefaultPlantSpecSource implements PlantSpecSource {
             return null;
         }
 
+        boolean lilyPad = type == PlantType.LILY_PAD;
         return PlantSpec.builder(type)
                 .sunCost(definition.getCost())
                 .rechargeTicks(definition.getRechargeTime() * TickContext.TICKS_PER_SECOND)
                 .hp(definition.getHp())
+                .waterCapable(definition.hasTag(PlantTag.WATER))
+                .providesSupport(lilyPad)
+                .stacksOnSupport(!lilyPad)
+                .fire(definition.hasTag(PlantTag.FIRE))
+                .hasPlantFoodEffect(definition.getPlantFoodEffect() != null
+                        && !definition.getPlantFoodEffect().isBlank()
+                        && !definition.getPlantFoodEffect().equalsIgnoreCase("none"))
                 .build();
     }
 }

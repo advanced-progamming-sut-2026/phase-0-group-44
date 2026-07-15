@@ -1,0 +1,17 @@
+chapter,level,name,kind,special_type,sky_sun,starting_sun,waves_paused,wave_count,first_wave_cost,selection_mode,forced_plants,excluded_categories,conveyor_candidates,protected_plants,timed_objective,timed_target,timed_seconds,dead_line,max_plant_losses
+ANCIENT_EGYPT,1,Ancient Egypt 1,NORMAL,,true,50,false,3,100,NORMAL,,,,,,,,,
+ANCIENT_EGYPT,2,Ancient Egypt 2 - Conveyor Belt,SPECIAL,CONVEYOR_BELT,true,50,false,3,100,BYPASSED,,,SUNFLOWER;PEASHOOTER;WALL_NUT;POTATO_MINE,,,,,,
+ANCIENT_EGYPT,3,Ancient Egypt 3 - Locked Plants,SPECIAL,LOCKED_PLANTS,true,50,false,4,100,LOCKED,SUNFLOWER,EXPLOSIVE,,,,,,,
+ANCIENT_EGYPT,4,Ancient Egypt 4 - Boss,BOSS,,true,50,false,3,100,NORMAL,,,,,,,,,
+FROSTBITE_CAVES,1,Frostbite Caves 1,NORMAL,,true,50,false,3,100,NORMAL,,,,,,,,,
+FROSTBITE_CAVES,2,Frostbite Caves 2 - Save Our Seeds,SPECIAL,SAVE_OUR_SEEDS,true,50,false,3,100,NORMAL,,,,SUNFLOWER@1:1;WALL_NUT@2:3,,,,,
+FROSTBITE_CAVES,3,Frostbite Caves 3 - Timed War,SPECIAL,TIMED_WAR,true,50,false,4,100,NORMAL,,,,,ZOMBIE_KILLS,5,60,,
+FROSTBITE_CAVES,4,Frostbite Caves 4 - Boss,BOSS,,true,50,false,3,100,NORMAL,,,,,,,,,
+BIG_WAVE_BEACH,1,Big Wave Beach 1,NORMAL,,true,50,false,3,100,NORMAL,,,,,,,,,
+BIG_WAVE_BEACH,2,Big Wave Beach 2 - Night Ops,SPECIAL,NIGHT_OPS,false,50,false,3,100,NORMAL,,,,,,,,,
+BIG_WAVE_BEACH,3,Big Wave Beach 3 - Dead Line,SPECIAL,DEAD_LINE,true,50,false,4,100,NORMAL,,,,,,,,2,
+BIG_WAVE_BEACH,4,Big Wave Beach 4 - Boss,BOSS,,true,50,false,3,100,NORMAL,,,,,,,,,
+DARK_AGES,1,Dark Ages 1,NORMAL,,false,50,false,3,100,NORMAL,,,,,,,,,
+DARK_AGES,2,Dark Ages 2 - Love Your Plants,SPECIAL,LOVE_YOUR_PLANTS,false,50,false,3,100,NORMAL,,,,,,,,,5
+DARK_AGES,3,Dark Ages 3 - Plant What You Get,SPECIAL,PLANT_WHAT_YOU_GET,false,800,true,4,100,LOCKED,,SUN_PRODUCER,,,,,,,,
+DARK_AGES,4,Dark Ages 4 - Boss,BOSS,,false,50,false,3,100,NORMAL,,,,,,,,,
