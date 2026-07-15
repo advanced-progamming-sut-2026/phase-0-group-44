@@ -37,6 +37,7 @@ public class PlantSelectionController {
     private final PlantRepository plantRepository;
     private final UserService userService;
     private final RandomSource randomSource;
+    private model.sim.zombie.ZombieSpecSource zombieSpecSource;
 
     private Level level;
     private PlantSelection selection;
@@ -287,6 +288,13 @@ public class PlantSelectionController {
 
         Simulation simulation = new Simulation(
                 randomSource, new SimulationWorld(), skySunEnabled());
+
+        if (zombieSpecSource != null) {
+            simulation.register(new model.sim.wave.WaveSystem(
+                    level.getWaveConfig(), zombieSpecSource));
+            simulation.register(new model.sim.zombie.ZombieCombatSystem());
+        }
+
         Store.setActiveSimulation(simulation);
 
         Store.setCurrentMenu(model.enums.MenuName.GAMEPLAY);
@@ -296,6 +304,10 @@ public class PlantSelectionController {
         result.appendToMessage("game started for " + level.getName());
 
         return result;
+    }
+
+    public void setZombieSpecSource(model.sim.zombie.ZombieSpecSource zombieSpecSource) {
+        this.zombieSpecSource = zombieSpecSource;
     }
 
     public PlantSelection getSelection() {

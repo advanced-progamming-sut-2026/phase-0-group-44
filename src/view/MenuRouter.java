@@ -4,6 +4,7 @@ import controller.App;
 import model.Store;
 import controller.BoardController;
 import controller.GameplayController;
+import model.user.User;
 import model.sim.SimulationWorld;
 import model.sim.board.PlantSpecSource;
 import model.Store;
@@ -23,6 +24,7 @@ public class MenuRouter {
     private final PlantSelectionView plantSelectionView;
     private final CommonMenuView commonMenuView;
     private final PlantSpecSource plantSpecSource;
+    private final controller.App app;
 
     public MenuRouter(App app) {
         this.menuController = app.getMenuController();
@@ -44,6 +46,7 @@ public class MenuRouter {
                 app.getMenuController(), app.getPlantSelectionController());
         this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
         this.plantSpecSource = app.getPlantSpecSource();
+        this.app = app;
     }
 
     private GameplayView gameplayView() {
@@ -56,8 +59,14 @@ public class MenuRouter {
                 world,
                 Store.getActiveSession() == null ? null : Store.getActiveSession().getSelection(),
                 plantSpecSource);
-        GameplayController controller =
-                new GameplayController(Store.getActiveSimulation(), board);
+        User user = Store.getLoggedInUser();
+        GameplayController controller = new GameplayController(
+                Store.getActiveSimulation(),
+                board,
+                app.getRewardService(),
+                app.getConclusionService(),
+                Store.getActiveSession(),
+                user);
 
         return new GameplayView(menuController, controller);
     }

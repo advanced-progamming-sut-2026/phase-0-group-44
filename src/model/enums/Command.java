@@ -66,6 +66,7 @@ public enum Command {
     SHOW_MAP("^show\\s+map$"),
     SHOW_PLANTS_STATUS("^show\\s+plants\\s+status$"),
     SHOW_TILE_STATUS("^show\\s+tile\\s+status\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    RELEASE_NUKE("^release\\s+the\\s+nuke$"),
 
     // News Menu
 

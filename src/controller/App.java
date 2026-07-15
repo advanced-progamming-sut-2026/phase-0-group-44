@@ -11,6 +11,11 @@ import repository.JsonUserRepository;
 import repository.UserRepository;
 import service.PasswordService;
 import model.sim.board.DefaultPlantSpecSource;
+import model.sim.zombie.DefaultZombieSpecSource;
+import model.sim.zombie.ZombieSpecSource;
+import service.GameConclusionService;
+import service.RewardService;
+import util.SeededRandomSource;
 import model.sim.board.PlantSpecSource;
 import service.GreenhouseBoostService;
 import service.NewsService;
@@ -42,6 +47,9 @@ public class App {
     private final GreenhouseBoostService greenhouseBoostService;
     private final PlantSelectionController plantSelectionController;
     private final PlantSpecSource plantSpecSource;
+    private final ZombieSpecSource zombieSpecSource;
+    private final RewardService rewardService;
+    private final GameConclusionService conclusionService;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -71,7 +79,11 @@ public class App {
         newsService = new NewsService(userService);
         greenhouseBoostService = new GreenhouseBoostService(userService);
         plantSpecSource = new DefaultPlantSpecSource(plantRepository);
+        zombieSpecSource = new DefaultZombieSpecSource(zombieRepository);
+        rewardService = new RewardService(userService, new SeededRandomSource());
+        conclusionService = new GameConclusionService(userService, newsService);
         plantSelectionController = new PlantSelectionController(plantRepository, userService);
+        plantSelectionController.setZombieSpecSource(zombieSpecSource);
     }
 
     /**
@@ -155,5 +167,13 @@ public class App {
 
     public PlantSpecSource getPlantSpecSource() {
         return plantSpecSource;
+    }
+
+    public RewardService getRewardService() {
+        return rewardService;
+    }
+
+    public GameConclusionService getConclusionService() {
+        return conclusionService;
     }
 }

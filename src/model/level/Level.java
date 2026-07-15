@@ -9,4 +9,6 @@ public interface Level {
     String getName();
 
     LevelSelectionRules getSelectionRules();
+
+    model.sim.wave.WaveConfig getWaveConfig();
 }

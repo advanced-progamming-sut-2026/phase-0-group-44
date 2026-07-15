@@ -4,7 +4,10 @@ import model.sim.sun.Sun;
 import model.sim.sun.SunProducer;
 import model.enums.PlantType;
 import model.enums.TerrainType;
+import model.sim.GameOutcome;
 import model.sim.board.Board;
+import model.sim.zombie.ZombieDeath;
+import model.sim.zombie.ZombieInstance;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -43,6 +46,8 @@ public class SimulationWorld {
     private final boolean[] lawnMowerUsed;
     private final Map<PlantType, Integer> cooldownRemaining = new EnumMap<>(PlantType.class);
     private boolean cooldownsDisabled;
+    private GameOutcome outcome = GameOutcome.RUNNING;
+    private final List<ZombieDeath> pendingDeaths = new ArrayList<>();
 
     public SimulationWorld() {
         this(DEFAULT_ROWS, DEFAULT_COLUMNS);
@@ -130,6 +135,39 @@ public class SimulationWorld {
 
     public boolean areCooldownsDisabled() {
         return cooldownsDisabled;
+    }
+
+    public GameOutcome getOutcome() {
+        return outcome;
+    }
+
+    public void setOutcome(GameOutcome outcome) {
+        this.outcome = outcome;
+    }
+
+    public boolean isRunning() {
+        return outcome == GameOutcome.RUNNING;
+    }
+
+    public List<ZombieDeath> getPendingDeaths() {
+        return pendingDeaths;
+    }
+
+    public void recordDeath(ZombieDeath death) {
+        pendingDeaths.add(death);
+    }
+
+    /** The live (non-dead) zombies as typed instances. */
+    public List<ZombieInstance> getZombieInstances() {
+        List<ZombieInstance> result = new ArrayList<>();
+
+        for (Damageable damageable : zombies) {
+            if (damageable instanceof ZombieInstance) {
+                result.add((ZombieInstance) damageable);
+            }
+        }
+
+        return result;
     }
 
     public int getRows() {
