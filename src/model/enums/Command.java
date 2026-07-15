@@ -67,6 +67,9 @@ public enum Command {
     SHOW_PLANTS_STATUS("^show\\s+plants\\s+status$"),
     SHOW_TILE_STATUS("^show\\s+tile\\s+status\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
     RELEASE_NUKE("^release\\s+the\\s+nuke$"),
+    ZOMBIES_INFO("^zombies\\s+info$"),
+    CHEAT_SPAWN_ZOMBIE(
+            "^cheat\\s+spawn-zombie\\s+-t\\s+(.+?)\\s+-l\\s+\\(?\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)?$"),
 
     // News Menu
 

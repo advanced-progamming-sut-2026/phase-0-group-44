@@ -4,6 +4,8 @@ import model.enums.DamageType;
 import model.enums.ObstacleType;
 import model.enums.PlantCategory;
 import model.enums.PlantType;
+import model.enums.TerrainType;
+import model.enums.ZombieType;
 import model.inGame.GameMap;
 import model.inGame.plant.Plant;
 import model.inGame.plant.PlantDefinition;
@@ -12,6 +14,7 @@ import model.inGame.plant.PlantRegistry;
 import model.inGame.projectile.FireEffect;
 import model.inGame.projectile.Projectile;
 import model.inGame.zombie.Zombie;
+import model.inGame.zombie.ZombieFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,12 +30,14 @@ import java.util.Set;
 public class GameEngine {
     private final PlantRegistry plantRegistry;
     private final PlantFactory plantFactory;
+    private final ZombieFactory zombieFactory;
     private final GameMap gameMap;
     private final List<Zombie> zombies = new ArrayList<>();
     private final List<Projectile> projectiles = new ArrayList<>();
     private final Map<PlantType, Double> seedCooldowns = new EnumMap<>(PlantType.class);
     private final Map<PlantCategory, Double> familyBoosts = new EnumMap<>(PlantCategory.class);
     private final List<String> events = new ArrayList<>();
+    private final Map<Position, Integer> groundSuns = new LinkedHashMap<>();
     private final Random random;
     private int sun = 50;
     private double elapsedSeconds;
@@ -46,6 +51,7 @@ public class GameEngine {
         this.gameMap = gameMap;
         this.random = random == null ? new Random(0) : random;
         this.plantFactory = new PlantFactory(registry);
+        this.zombieFactory = new ZombieFactory();
     }
 
     public Plant plant(PlantType type, int level, Position position) {
@@ -100,13 +106,12 @@ public class GameEngine {
         updateDurations(seedCooldowns, deltaSeconds);
         updateDurations(familyBoosts, deltaSeconds);
 
-        // Advance pre-existing zombie status effects before attacks create new ones.
-        // This prevents a freshly applied poison/freeze/slow effect from losing a
-        // full tick of duration during the same engine update that applied it.
+        // Zombie status/special transitions happen before plant attacks so a
+        // freshly applied effect keeps its full duration until the next update.
         for (Zombie zombie : new ArrayList<>(zombies)) {
-            zombie.tick(deltaSeconds);
+            zombie.tick(this, deltaSeconds);
         }
-        zombies.removeIf(Zombie::isDead);
+        cleanupDeadZombies();
 
         for (Plant plant : new ArrayList<>(gameMap.getPlants())) {
             plant.tick(this, deltaSeconds);
@@ -115,7 +120,7 @@ public class GameEngine {
             projectile.tick(this, deltaSeconds);
         }
         projectiles.removeIf(projectile -> !projectile.isActive());
-        zombies.removeIf(Zombie::isDead);
+        cleanupDeadZombies();
         cleanupDeadPlants();
     }
 
@@ -126,6 +131,16 @@ public class GameEngine {
                 durations.remove(entry.getKey());
             } else {
                 durations.put(entry.getKey(), remaining);
+            }
+        }
+    }
+
+
+    private void cleanupDeadZombies() {
+        for (Zombie zombie : new ArrayList<>(zombies)) {
+            if (zombie.isDead()) {
+                zombie.handleDeath(this);
+                zombies.remove(zombie);
             }
         }
     }
@@ -143,6 +158,15 @@ public class GameEngine {
             throw new IllegalArgumentException("Zombie is null or outside the map.");
         }
         zombies.add(zombie);
+    }
+
+    public Zombie spawnZombie(ZombieType type, int row, double x) {
+        if (row < 0 || row >= gameMap.getRows() || x < 0.0 || x > gameMap.getColumns()) {
+            throw new IllegalArgumentException("Zombie spawn position is outside the map.");
+        }
+        Zombie zombie = zombieFactory.create(type, row, x);
+        addZombie(zombie);
+        return zombie;
     }
 
     public void spawnProjectile(Projectile projectile) {
@@ -318,9 +342,12 @@ public class GameEngine {
     public int damageArea(Position center, int rowRadius, int columnRadius, int damage, DamageType type) {
         int hit = 0;
         for (Zombie zombie : getZombiesInArea(center, rowRadius, columnRadius)) {
-            zombie.takeDamage(damage, type);
+            zombie.receiveDamage(damage, type, this);
             if (type == DamageType.FIRE) {
+                zombie.onFireHit(this);
                 zombie.thaw();
+            } else if (type == DamageType.ICE) {
+                zombie.onIceHit(this);
             }
             hit++;
         }
@@ -330,9 +357,12 @@ public class GameEngine {
     public int damageLane(int row, int damage, DamageType type) {
         int hit = 0;
         for (Zombie zombie : getZombiesInLane(row)) {
-            zombie.takeDamage(damage, type);
+            zombie.receiveDamage(damage, type, this);
             if (type == DamageType.FIRE) {
+                zombie.onFireHit(this);
                 zombie.thaw();
+            } else if (type == DamageType.ICE) {
+                zombie.onIceHit(this);
             }
             hit++;
         }
@@ -379,9 +409,158 @@ public class GameEngine {
         }
     }
 
+    public Plant findCollidingPlant(Zombie zombie) {
+        if (zombie == null || zombie.getRow() < 0 || zombie.getRow() >= gameMap.getRows()) {
+            return null;
+        }
+        int current = Math.max(0, Math.min(gameMap.getColumns() - 1, zombie.getColumn()));
+        Plant plant = gameMap.getPlantForZombieAttack(new Position(zombie.getRow(), current));
+        if (plant != null && !plant.getBooleanState("TRANSFORMED")) {
+            return plant;
+        }
+        int next = current + zombie.getDirection();
+        if (next >= 0 && next < gameMap.getColumns()) {
+            double distance = Math.abs(zombie.getX() - (next + 0.5));
+            if (distance <= 0.55) {
+                plant = gameMap.getPlantForZombieAttack(new Position(zombie.getRow(), next));
+                if (plant != null && !plant.getBooleanState("TRANSFORMED")) {
+                    return plant;
+                }
+            }
+        }
+        return null;
+    }
+
+    public Zombie findCollidingHypnotizedZombie(Zombie source) {
+        if (source == null) {
+            return null;
+        }
+        for (Zombie zombie : zombies) {
+            if (zombie != source && zombie.isHypnotized() && !zombie.isDead()
+                    && zombie.getRow() == source.getRow()
+                    && Math.abs(zombie.getX() - source.getX()) <= 0.55) {
+                return zombie;
+            }
+        }
+        return null;
+    }
+
+    public Plant findPlantWithin(int row, double x, int direction, double range) {
+        Plant best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (Plant plant : gameMap.getPlants()) {
+            if (plant.isDead() || plant.getPosition() == null
+                    || plant.getPosition().getRow() != row
+                    || plant.getBooleanState("TRANSFORMED")) {
+                continue;
+            }
+            double plantX = plant.getPosition().getColumn() + 0.5;
+            double signed = direction < 0 ? x - plantX : plantX - x;
+            if (signed >= 0.0 && signed <= range && signed < bestDistance) {
+                bestDistance = signed;
+                best = plant;
+            }
+        }
+        return best;
+    }
+
+    public Plant findNearestPlantInLane(int row, double x) {
+        Plant result = null;
+        double best = Double.MAX_VALUE;
+        for (Plant plant : gameMap.getPlants()) {
+            if (plant.isDead() || plant.getPosition() == null
+                    || plant.getPosition().getRow() != row) {
+                continue;
+            }
+            double distance = Math.abs(plant.getPosition().getColumn() + 0.5 - x);
+            if (distance < best) {
+                best = distance;
+                result = plant;
+            }
+        }
+        return result;
+    }
+
+    public void destroyPlantsAhead(Zombie zombie, int tileCount) {
+        int start = zombie.getColumn() + zombie.getDirection();
+        for (int step = 0; step < tileCount; step++) {
+            int column = start + step * zombie.getDirection();
+            if (column < 0 || column >= gameMap.getColumns()) {
+                continue;
+            }
+            Tile tile = gameMap.getTile(zombie.getRow(), column);
+            for (Plant plant : new ArrayList<>(tile.getPlants())) {
+                plant.receiveDamage(Integer.MAX_VALUE, this, zombie);
+            }
+        }
+        cleanupDeadPlants();
+    }
+
+    public void addIceHit(Plant plant) {
+        if (plant == null || plant.isDead() || plant.getPosition() == null) {
+            return;
+        }
+        int hits = plant.getState("ICE_HITS", Integer.class, 0) + 1;
+        plant.putState("ICE_HITS", hits);
+        if (hits >= 3 && !plant.getBooleanState("FROZEN")) {
+            plant.putState("FROZEN", true);
+            placeObstacle(plant.getPosition(), ObstacleType.ICE, 600, "FROZEN_PLANT");
+        }
+    }
+
+    public boolean applyOctopus(Plant plant) {
+        if (plant == null || plant.isDead() || plant.getPosition() == null
+                || plant.getBooleanState("OCTOPUSED")) {
+            return false;
+        }
+        plant.putState("OCTOPUSED", true);
+        placeObstacle(plant.getPosition(), ObstacleType.OCTOPUS, 600, "OCTOPUS_PLANT");
+        return true;
+    }
+
+    public void placeObstacle(Position position, ObstacleType type, int health, String payload) {
+        gameMap.setObstacle(position, type, health, payload);
+    }
+
+    public int damageObstacleAt(int row, int column, int damage, DamageType type) {
+        if (row < 0 || row >= gameMap.getRows() || column < 0 || column >= gameMap.getColumns()) {
+            return 0;
+        }
+        Tile tile = gameMap.getTile(row, column);
+        if (tile.getObstacle() == ObstacleType.NONE) {
+            return 0;
+        }
+        String payload = tile.getObstaclePayload();
+        ObstacleType obstacle = tile.getObstacle();
+        int dealt;
+        if (type == DamageType.FIRE && obstacle == ObstacleType.ICE) {
+            dealt = tile.getObstacleHealth();
+            tile.damageObstacle(Integer.MAX_VALUE);
+        } else {
+            dealt = tile.damageObstacle(damage);
+        }
+        if (tile.isObstacleDestroyed()) {
+            gameMap.clearObstacle(new Position(row, column));
+            for (Plant plant : tile.getPlants()) {
+                if ("FROZEN_PLANT".equals(payload)) {
+                    plant.putState("FROZEN", false);
+                    plant.putState("ICE_HITS", 0);
+                } else if ("OCTOPUS_PLANT".equals(payload)) {
+                    plant.putState("OCTOPUSED", false);
+                }
+            }
+            if ("RELEASE_TWO_IMPS".equals(payload)) {
+                for (int i = 0; i < 2; i++) {
+                    addZombie(zombieFactory.create(ZombieType.IMP, row, column + 0.2 + i * 0.1));
+                }
+            }
+        }
+        return dealt;
+    }
+
     public void damagePlantAt(Position position, int damage, Zombie attacker) {
         Plant target = gameMap.getPlantForZombieAttack(position);
-        if (target != null) {
+        if (target != null && !target.getBooleanState("TRANSFORMED")) {
             target.receiveDamage(damage, this, attacker);
             cleanupDeadPlants();
         }
@@ -417,7 +596,7 @@ public class GameEngine {
         boolean cleared = false;
         for (Position position : gameMap.positionsInArea(center, radius, radius)) {
             if (gameMap.getTile(position).getObstacle() == ObstacleType.ICE) {
-                gameMap.clearObstacle(position);
+                damageObstacleAt(position.getRow(), position.getColumn(), Integer.MAX_VALUE, DamageType.FIRE);
                 cleared = true;
             }
         }
@@ -428,7 +607,7 @@ public class GameEngine {
         for (int column = 0; column < gameMap.getColumns(); column++) {
             Position position = new Position(row, column);
             if (gameMap.getTile(position).getObstacle() == ObstacleType.ICE) {
-                gameMap.clearObstacle(position);
+                damageObstacleAt(row, column, Integer.MAX_VALUE, DamageType.FIRE);
             }
         }
     }
@@ -462,6 +641,37 @@ public class GameEngine {
         }
     }
 
+    public int removeSun(int amount) {
+        int removed = Math.min(Math.max(0, amount), sun);
+        sun -= removed;
+        return removed;
+    }
+
+    public void addGroundSun(Position position, int amount) {
+        if (position != null && amount > 0) {
+            groundSuns.merge(position, amount, Integer::sum);
+        }
+    }
+
+    public int stealNearestGroundSun(int row, double x) {
+        Position best = null;
+        double distance = Double.MAX_VALUE;
+        for (Position position : groundSuns.keySet()) {
+            if (position.getRow() == row) {
+                double current = Math.abs(position.getColumn() + 0.5 - x);
+                if (current < distance) {
+                    distance = current;
+                    best = position;
+                }
+            }
+        }
+        return best == null ? 0 : groundSuns.remove(best);
+    }
+
+    public Map<Position, Integer> getGroundSuns() {
+        return Map.copyOf(groundSuns);
+    }
+
     public void setSun(int sun) {
         this.sun = Math.max(0, sun);
     }
@@ -484,6 +694,10 @@ public class GameEngine {
 
     public PlantFactory getPlantFactory() {
         return plantFactory;
+    }
+
+    public ZombieFactory getZombieFactory() {
+        return zombieFactory;
     }
 
     public GameMap getGameMap() {

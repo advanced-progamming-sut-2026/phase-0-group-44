@@ -13,7 +13,13 @@ public class ButterEffect implements ProjectileEffect {
 
     @Override
     public void apply(Projectile projectile, Zombie zombie, GameEngine engine) {
-        zombie.takeDamage(projectile.getDamage(), DamageType.NORMAL);
-        zombie.applyFreeze(stunDuration);
+        zombie.receiveDamage(projectile.getDamage(), DamageType.NORMAL, engine);
+        zombie.applyStun(stunDuration);
     }
+
+    @Override
+    public DamageType damageType() {
+        return DamageType.NORMAL;
+    }
+
 }

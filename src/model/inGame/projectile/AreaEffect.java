@@ -30,7 +30,7 @@ public class AreaEffect implements ProjectileEffect {
         Position center = new Position(zombie.getRow(), Math.max(0, zombie.getColumn()));
         for (Zombie nearby : engine.getZombiesInArea(center, rowRadius, columnRadius)) {
             if (nearby != zombie && !nearby.isDead()) {
-                nearby.takeDamage(splashDamage, splashType);
+                nearby.receiveDamage(splashDamage, splashType, engine);
                 if (splashType == DamageType.ICE) {
                     nearby.applySlow(5.0);
                 } else if (splashType == DamageType.FIRE) {
@@ -39,4 +39,10 @@ public class AreaEffect implements ProjectileEffect {
             }
         }
     }
+
+    @Override
+    public DamageType damageType() {
+        return primary.damageType();
+    }
+
 }

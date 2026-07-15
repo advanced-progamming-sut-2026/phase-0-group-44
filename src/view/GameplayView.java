@@ -59,6 +59,21 @@ public class GameplayView extends MenuView {
             return;
         }
 
+        if (Command.ZOMBIES_INFO.matches(input)) {
+            print(controller.zombiesInfo());
+            return;
+        }
+
+        if (Command.CHEAT_SPAWN_ZOMBIE.matches(input)) {
+            Matcher matcher = Command.CHEAT_SPAWN_ZOMBIE.getMatcher(input);
+            matcher.matches();
+            print(controller.spawnZombie(
+                    matcher.group(1),
+                    Integer.parseInt(matcher.group(2)),
+                    Integer.parseInt(matcher.group(3))));
+            return;
+        }
+
         if (handleBoardCommand(input)) {
             return;
         }

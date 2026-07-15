@@ -19,7 +19,13 @@ public class PoisonEffect implements ProjectileEffect {
 
     @Override
     public void apply(Projectile projectile, Zombie zombie, GameEngine engine) {
-        zombie.takeDamage(projectile.getDamage(), DamageType.POISON);
+        zombie.receiveDamage(projectile.getDamage(), DamageType.POISON, engine);
         zombie.applyPoison(tickDamage, duration);
     }
+
+    @Override
+    public DamageType damageType() {
+        return DamageType.POISON;
+    }
+
 }

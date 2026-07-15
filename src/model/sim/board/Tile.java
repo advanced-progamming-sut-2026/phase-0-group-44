@@ -21,6 +21,8 @@ public class Tile {
     private int terrainHealth;
     private boolean frozen;
     private int iceHealth;
+    private int projectileBlockerHealth;
+    private String projectileBlockerKind = "";
 
     private PlantInstance supportPlant;
     private PlantInstance stackedPlant;
@@ -99,6 +101,39 @@ public class Tile {
             frozen = false;
             iceHealth = 0;
         }
+    }
+
+
+    public boolean hasProjectileBlocker() {
+        return frozen || projectileBlockerHealth > 0;
+    }
+
+    public int getProjectileBlockerHealth() {
+        return frozen ? iceHealth : projectileBlockerHealth;
+    }
+
+    public String getProjectileBlockerKind() {
+        return frozen ? "ice" : projectileBlockerKind;
+    }
+
+    public void setProjectileBlocker(String kind, int health) {
+        projectileBlockerKind = kind == null ? "" : kind;
+        projectileBlockerHealth = Math.max(0, health);
+    }
+
+    public int damageProjectileBlocker(int damage) {
+        if (frozen) {
+            int before = iceHealth;
+            meltIce(damage);
+            return Math.min(before, Math.max(0, damage));
+        }
+        int dealt = Math.min(projectileBlockerHealth, Math.max(0, damage));
+        projectileBlockerHealth -= dealt;
+        if (projectileBlockerHealth <= 0) {
+            projectileBlockerHealth = 0;
+            projectileBlockerKind = "";
+        }
+        return dealt;
     }
 
     public PlantInstance getSupportPlant() {

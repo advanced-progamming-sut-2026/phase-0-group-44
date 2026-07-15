@@ -1,12 +1,12 @@
 package model.sim.zombie;
 
+import model.enums.ZombieType;
+import model.inGame.zombie.ZombieDefinition;
+
 /**
- * The gameplay facts about a zombie kind: its name, wave cost, health, movement
- * speed, how fast it eats, and whether it is a boss.
- *
- * <p>These come from the zombie data layer once it loads; until then a
- * {@link ZombieSpecSource} supplies them, so the combat and wave logic run
- * against explicit, injectable values rather than hardcoded numbers.</p>
+ * Immutable wave/runtime facts for a zombie kind. Canonical definitions are
+ * attached when the registry supplies them; tests may still build lightweight
+ * ad-hoc specs through the builder.
  */
 public final class ZombieSpec {
 
@@ -16,6 +16,7 @@ public final class ZombieSpec {
     private final double speedTilesPerSecond;
     private final int eatDamagePerSecond;
     private final boolean boss;
+    private final ZombieDefinition definition;
 
     private ZombieSpec(Builder builder) {
         this.name = builder.name;
@@ -24,6 +25,7 @@ public final class ZombieSpec {
         this.speedTilesPerSecond = builder.speedTilesPerSecond;
         this.eatDamagePerSecond = builder.eatDamagePerSecond;
         this.boss = builder.boss;
+        this.definition = builder.definition;
     }
 
     public String getName() {
@@ -50,11 +52,28 @@ public final class ZombieSpec {
         return boss;
     }
 
+    public ZombieDefinition getDefinition() {
+        return definition;
+    }
+
+    public ZombieType getType() {
+        return definition == null ? ZombieType.NORMAL : definition.getType();
+    }
+
     public static Builder builder(String name) {
         return new Builder(name);
     }
 
-    /** Fluent builder; numeric fields default to 0 and boss to false. */
+    public static ZombieSpec fromDefinition(ZombieDefinition definition) {
+        return builder(definition.getName())
+                .definition(definition)
+                .waveCost(definition.getWaveCost())
+                .health(definition.getHealth())
+                .speedTilesPerSecond(definition.getSpeedTilesPerSecond())
+                .eatDamagePerSecond(definition.getEatDamagePerSecond())
+                .build();
+    }
+
     public static final class Builder {
         private final String name;
         private int waveCost;
@@ -62,6 +81,7 @@ public final class ZombieSpec {
         private double speedTilesPerSecond;
         private int eatDamagePerSecond;
         private boolean boss;
+        private ZombieDefinition definition;
 
         private Builder(String name) {
             this.name = name;
@@ -89,6 +109,11 @@ public final class ZombieSpec {
 
         public Builder boss(boolean boss) {
             this.boss = boss;
+            return this;
+        }
+
+        public Builder definition(ZombieDefinition definition) {
+            this.definition = definition;
             return this;
         }
 
