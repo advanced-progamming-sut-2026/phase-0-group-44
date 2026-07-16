@@ -43,9 +43,7 @@ public class GameMenuView extends MenuView {
         }
 
         if (Command.MENU_LEADERBOARD.matches(input)) {
-            Matcher matcher = Command.MENU_LEADERBOARD.getMatcher(input);
-            matcher.matches();
-            print(controller.leaderboard(matcher.group(1), matcher.group(2)));
+            print(controller.leaderboard());
             return;
         }
 
