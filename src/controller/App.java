@@ -13,6 +13,8 @@ import model.sim.board.DefaultPlantSpecSource;
 import model.sim.zombie.DefaultZombieSpecSource;
 import model.sim.zombie.ZombieSpecSource;
 import service.GameConclusionService;
+import service.minigame.MinigameService;
+import model.miniGame.framework.MinigameStrategy;
 import service.RewardService;
 import util.SeededRandomSource;
 import model.sim.board.PlantSpecSource;
@@ -48,6 +50,8 @@ public class App {
     private final ZombieSpecSource zombieSpecSource;
     private final RewardService rewardService;
     private final GameConclusionService conclusionService;
+    private final MinigameService minigameService;
+    private final MiniGameController miniGameController;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -86,6 +90,8 @@ public class App {
         zombieSpecSource = new DefaultZombieSpecSource(zombieRepository);
         rewardService = new RewardService(userService, new SeededRandomSource());
         conclusionService = new GameConclusionService(userService, newsService);
+        minigameService = new MinigameService(userService, newsService);
+        miniGameController = new MiniGameController(minigameService, new MinigameStrategy() { });
         plantSelectionController = new PlantSelectionController(plantRepository, userService);
         plantSelectionController.setZombieSpecSource(zombieSpecSource);
     }
@@ -191,5 +197,13 @@ public class App {
 
     public GameConclusionService getConclusionService() {
         return conclusionService;
+    }
+
+    public MinigameService getMinigameService() {
+        return minigameService;
+    }
+
+    public MiniGameController getMiniGameController() {
+        return miniGameController;
     }
 }
