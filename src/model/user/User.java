@@ -5,6 +5,7 @@ import model.config.ChapterCatalog;
 import model.Result;
 import model.enums.PlantType;
 import model.miniGame.GreenHouse;
+import model.miniGame.framework.MinigameProgress;
 import model.quest.ActiveQuest;
 import model.quest.QuestProgress;
 
@@ -56,6 +57,7 @@ public class User {
     private DailyShopState dailyShop = new DailyShopState();
     private Map<String, ActiveQuest> activeQuests = new LinkedHashMap<>();
     private Map<String, QuestProgress> questProgress = new LinkedHashMap<>();
+    private Map<String, MinigameProgress> minigameProgress = new LinkedHashMap<>();
 
 
     //constructor
@@ -554,6 +556,11 @@ public class User {
     public Map<String, QuestProgress> getQuestProgress() {
         if (questProgress == null) questProgress = new LinkedHashMap<>();
         return questProgress;
+    }
+
+    public Map<String, MinigameProgress> getMinigameProgress() {
+        if (minigameProgress == null) minigameProgress = new LinkedHashMap<>();
+        return minigameProgress;
     }
 
     /**
