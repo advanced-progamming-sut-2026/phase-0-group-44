@@ -33,10 +33,20 @@ public class MiniGameController {
             return "selected " + id.getDisplayName() + " level " + level;
         }
         if (value.equalsIgnoreCase("minigame start")) { service.start(); return "minigame started"; }
+        if (value.equalsIgnoreCase("minigame tick")) { service.tick(); return "minigame ticked"; }
         if (value.equalsIgnoreCase("minigame win")) { service.win(user); return "minigame won"; }
         if (value.equalsIgnoreCase("minigame lose")) { service.lose(user); return "minigame lost"; }
         if (value.toLowerCase().startsWith("minigame command ")) {
             return service.extensionCommand(value.substring("minigame command ".length()));
+        }
+        if (value.toLowerCase().startsWith("minigame break vase ")) {
+            return service.extensionCommand(value.substring("minigame ".length()));
+        }
+        if (value.toLowerCase().startsWith("minigame plant packet ")) {
+            return service.extensionCommand(value.substring("minigame ".length()));
+        }
+        if (value.equalsIgnoreCase("minigame show vasebreaker")) {
+            return service.extensionCommand("show vasebreaker");
         }
         throw new IllegalArgumentException("Unknown minigame command.");
     }
