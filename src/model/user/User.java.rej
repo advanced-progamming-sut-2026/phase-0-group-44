@@ -1,0 +1,29 @@
+diff a/src/model/user/User.java b/src/model/user/User.java	(rejected hunks)
+@@ -5,6 +5,7 @@
+ import model.Result;
+ import model.enums.PlantType;
+ import model.miniGame.GreenHouse;
++import model.miniGame.framework.MinigameProgress;
+ import model.quest.ActiveQuest;
+ import model.quest.QuestProgress;
+ 
+@@ -56,6 +57,7 @@
+     private DailyShopState dailyShop = new DailyShopState();
+     private Map<String, ActiveQuest> activeQuests = new LinkedHashMap<>();
+     private Map<String, QuestProgress> questProgress = new LinkedHashMap<>();
++    private Map<String, MinigameProgress> minigameProgress = new LinkedHashMap<>();
+ 
+ 
+     //constructor
+@@ -556,6 +558,11 @@
+         return questProgress;
+     }
+ 
++    public Map<String, MinigameProgress> getMinigameProgress() {
++        if (minigameProgress == null) minigameProgress = new LinkedHashMap<>();
++        return minigameProgress;
++    }
++
+     /**
+      * Materializes every default this user relies on. Called after loading, so
+      * that a save file written by an older version never yields null state.
