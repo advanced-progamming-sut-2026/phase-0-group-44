@@ -9,6 +9,12 @@ import model.config.GameWorld;
 import model.enums.MenuName;
 import model.user.User;
 import service.UserService;
+import service.LeaderboardService;
+import model.leaderboard.LeaderboardColumn;
+import model.leaderboard.LeaderboardEntry;
+import model.leaderboard.SortDirection;
+
+import java.util.List;
 
 /**
  * The game menu: navigation into worlds and the sub-screens, wallet queries and
@@ -101,8 +107,45 @@ public class GameMenuController {
         return placeholder("travel log");
     }
 
-    public Result<String> leaderboard() {
-        return placeholder("leaderboard");
+    public Result<List<LeaderboardEntry>> leaderboard(String columnToken, String directionToken) {
+        Result<List<LeaderboardEntry>> result = new Result<>();
+        if (requireUser(result) == null) return result;
+
+        LeaderboardColumn column = LeaderboardColumn.fromToken(columnToken);
+        SortDirection direction = SortDirection.fromToken(directionToken);
+        if (column == null) {
+            result.appendToMessage("unknown leaderboard column");
+            return result;
+        }
+        if (direction == null) {
+            result.appendToMessage("sort direction must be asc or desc");
+            return result;
+        }
+
+        List<LeaderboardEntry> entries = new LeaderboardService().getLeaderboard(column, direction);
+        result.setStatus(true);
+        result.setData(entries);
+        result.appendToMessage(formatLeaderboard(entries));
+        return result;
+    }
+
+    public Result<List<LeaderboardEntry>> leaderboard() {
+        return leaderboard(null, null);
+    }
+
+    private String formatLeaderboard(List<LeaderboardEntry> entries) {
+        StringBuilder output = new StringBuilder(
+                "username | chapter-level | minigames | daily quests | non-daily quests | highest score");
+        for (LeaderboardEntry entry : entries) {
+            output.append(System.lineSeparator())
+                    .append(entry.getUsername()).append(" | ")
+                    .append(entry.progressLabel()).append(" | ")
+                    .append(entry.getCompletedMiniGames()).append(" | ")
+                    .append(entry.getCompletedDailyQuests()).append(" | ")
+                    .append(entry.getCompletedNonDailyQuests()).append(" | ")
+                    .append(entry.getHighestScore());
+        }
+        return output.toString();
     }
 
     public Result<Integer> showCoinWallet() {
