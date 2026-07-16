@@ -50,7 +50,7 @@ public class MenuRouter {
                 app.getMenuController(), app.getCollectionController(), app.getMainController());
         this.plantSelectionView = new PlantSelectionView(
                 app.getMenuController(), app.getPlantSelectionController());
-        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController(), app.getGameController());
+        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
         this.plantSpecSource = app.getPlantSpecSource();
         this.app = app;
     }

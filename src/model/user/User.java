@@ -5,9 +5,6 @@ import model.config.ChapterCatalog;
 import model.Result;
 import model.enums.PlantType;
 import model.miniGame.GreenHouse;
-import model.miniGame.framework.MinigameProgress;
-import model.quest.ActiveQuest;
-import model.quest.QuestProgress;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -55,9 +52,6 @@ public class User {
     private Map<String, Integer> inventory = new LinkedHashMap<>();
     private ArrayList<News> news = new ArrayList<>();
     private DailyShopState dailyShop = new DailyShopState();
-    private Map<String, ActiveQuest> activeQuests = new LinkedHashMap<>();
-    private Map<String, QuestProgress> questProgress = new LinkedHashMap<>();
-    private Map<String, MinigameProgress> minigameProgress = new LinkedHashMap<>();
 
 
     //constructor
@@ -548,21 +542,6 @@ public class User {
         this.dailyShop = dailyShop;
     }
 
-    public Map<String, ActiveQuest> getActiveQuests() {
-        if (activeQuests == null) activeQuests = new LinkedHashMap<>();
-        return activeQuests;
-    }
-
-    public Map<String, QuestProgress> getQuestProgress() {
-        if (questProgress == null) questProgress = new LinkedHashMap<>();
-        return questProgress;
-    }
-
-    public Map<String, MinigameProgress> getMinigameProgress() {
-        if (minigameProgress == null) minigameProgress = new LinkedHashMap<>();
-        return minigameProgress;
-    }
-
     /**
      * Materializes every default this user relies on. Called after loading, so
      * that a save file written by an older version never yields null state.
@@ -575,8 +554,6 @@ public class User {
         getInventory();
         getNewsList();
         getDailyShop();
-        getActiveQuests();
-        getQuestProgress();
         ChapterCatalog.applyDefaultUnlocks(this);
 
         if (upgradedPlants == null) {
