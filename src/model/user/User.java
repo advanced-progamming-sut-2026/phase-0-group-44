@@ -5,6 +5,7 @@ import model.config.ChapterCatalog;
 import model.Result;
 import model.enums.PlantType;
 import model.miniGame.GreenHouse;
+import model.miniGame.MiniGameProgress;
 import model.utility.QuestProgress;
 
 import java.nio.charset.StandardCharsets;
@@ -52,6 +53,7 @@ public class User {
     private Map<PlantType, Integer> plantBoosts = new LinkedHashMap<>();
     private Map<String, Integer> inventory = new LinkedHashMap<>();
     private Map<String, QuestProgress> questProgress = new LinkedHashMap<>();
+    private Map<String, MiniGameProgress> miniGameProgress = new LinkedHashMap<>();
     private ArrayList<News> news = new ArrayList<>();
     private DailyShopState dailyShop = new DailyShopState();
 
@@ -532,6 +534,13 @@ public class User {
         return questProgress;
     }
 
+    public Map<String, MiniGameProgress> getMiniGameProgress() {
+        if (miniGameProgress == null) {
+            miniGameProgress = new LinkedHashMap<>();
+        }
+        return miniGameProgress;
+    }
+
     public ArrayList<News> getNewsList() {
         if (news == null) {
             news = new ArrayList<>();
@@ -563,6 +572,10 @@ public class User {
         getPlantBoosts();
         getInventory();
         getQuestProgress();
+        getMiniGameProgress().values().removeIf(value -> value == null);
+        for (MiniGameProgress progress : getMiniGameProgress().values()) {
+            progress.applyDefaults();
+        }
         getNewsList();
         getDailyShop();
         ChapterCatalog.applyDefaultUnlocks(this);

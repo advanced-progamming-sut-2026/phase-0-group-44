@@ -94,8 +94,9 @@ public class App {
         leaderboardService = new LeaderboardService(userService);
         mainController = new MainMenuController(userService, leaderboardService);
         gameController = new GameMenuController(userService, leaderboardService);
-        travelController = new TravelMenuController(questService);
-        miniGameController = new MiniGameController(domainEvents, userService);
+        newsService = new NewsService(userService);
+        miniGameController = new MiniGameController(domainEvents, userService, newsService);
+        travelController = new TravelMenuController(questService, miniGameController);
         greenhouseController = new GreenhouseController(
                 plantRepository, userService, new SeededRandomSource()
         );
@@ -105,7 +106,6 @@ public class App {
         settingsController = new SettingsMenuController(userService);
         newsController = new NewsMenuController(userService);
         profileController = new ProfileMenuController(userService, passwordService);
-        newsService = new NewsService(userService);
         greenhouseBoostService = new GreenhouseBoostService(userService);
         plantSpecSource = new DefaultPlantSpecSource(plantRepository);
         zombieSpecSource = new DefaultZombieSpecSource(zombieRepository);

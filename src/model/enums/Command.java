@@ -36,6 +36,14 @@ public enum Command {
     // Travel Log
     TRAVEL_LOG_PAGE("^travel\\s+log\\s+page\\s+(.+)$"),
     TRAVEL_LOG_CLAIM("^travel\\s+log\\s+claim\\s+(\\d+)$"),
+    MINIGAME_SELECT("^minigame\\s+select\\s+-n\\s+(.+?)\\s+-l\\s+([123])$"),
+    MINIGAME_START("^minigame\\s+start$"),
+
+    // Running minigame
+    MINIGAME_STATUS("^minigame\\s+status$"),
+    MINIGAME_ADVANCE("^minigame\\s+advance\\s+-t\\s+(\\d+)\\s+ticks$"),
+    MINIGAME_COMMAND("^minigame\\s+command\\s+(.+)$"),
+    MINIGAME_FORFEIT("^minigame\\s+forfeit$"),
 
     // Greenhouse
     SHOW_GREENHOUSE("^show\\s+greenhouse$"),
