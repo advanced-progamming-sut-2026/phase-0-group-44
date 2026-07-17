@@ -1,10 +1,16 @@
 package controller;
 
 import model.Result;
+import model.events.DomainEventType;
 import model.Store;
 import model.enums.MenuName;
+import model.enums.PlantCategory;
+import model.enums.PlantTag;
+import model.enums.PlantType;
 import model.enums.ZombieType;
 import model.inGame.GameSession;
+import model.inGame.plant.PlantDefinition;
+import model.inGame.plant.PlantRegistry;
 import model.sim.GameOutcome;
 import model.sim.Simulation;
 import model.sim.SimulationWorld;
@@ -16,11 +22,17 @@ import model.level.SpecialLevelType;
 import model.inGame.zombie.ZombieDefinition;
 import model.inGame.zombie.ZombieRegistry;
 import model.user.User;
+import service.DomainEventPublisher;
 import service.GameConclusionService;
 import service.RewardService;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.StringJoiner;
 
 /**
  * The gameplay command context entered after {@code start game}: driving the
@@ -38,6 +50,7 @@ public class GameplayController {
     private final GameConclusionService conclusionService;
     private final GameSession session;
     private final User user;
+    private final DomainEventPublisher events;
 
     public GameplayController(Simulation simulation) {
         this(simulation, null);
@@ -55,12 +68,25 @@ public class GameplayController {
             GameSession session,
             User user
     ) {
+        this(simulation, board, rewardService, conclusionService, session, user, null);
+    }
+
+    public GameplayController(
+            Simulation simulation,
+            BoardController board,
+            RewardService rewardService,
+            GameConclusionService conclusionService,
+            GameSession session,
+            User user,
+            DomainEventPublisher events
+    ) {
         this.simulation = simulation;
         this.board = board;
         this.rewardService = rewardService;
         this.conclusionService = conclusionService;
         this.session = session;
         this.user = user;
+        this.events = events;
     }
 
     public BoardController getBoard() {
@@ -80,8 +106,13 @@ public class GameplayController {
             return result;
         }
 
-        List<String> events = simulation.advance(ticks);
-        List<String> messages = new ArrayList<>(events);
+        int producedBefore = simulation.getWorld().getProducedSunTotal();
+        List<String> simulationEvents = simulation.advance(ticks);
+        List<String> messages = new ArrayList<>(simulationEvents);
+        int produced = simulation.getWorld().getProducedSunTotal() - producedBefore;
+        if (produced > 0 && events != null && user != null) {
+            events.publish(DomainEventType.SUN_PRODUCED, user, produced, Map.of());
+        }
 
         messages.addAll(drainRewards());
         messages.addAll(resolveOutcome());
@@ -223,11 +254,23 @@ public class GameplayController {
         SimulationWorld world = simulation.getWorld();
 
         for (ZombieDeath death : world.getPendingDeaths()) {
-            if (death.isCheatKill() || rewardService == null || user == null) {
+            if (death.isCheatKill() || user == null) {
                 continue;
             }
-
-            messages.addAll(rewardService.onZombieDeath(death.isGlowing(), user, world));
+            if (events != null) {
+                Map<String, String> attributes = new LinkedHashMap<>();
+                attributes.put("tileX", String.valueOf(death.getTileX()));
+                attributes.put("row", String.valueOf(death.getRow()));
+                attributes.put("mowerReady", String.valueOf(!world.isLawnMowerUsed(death.getRow())));
+                if (session != null && session.getLevel() != null
+                        && session.getLevel().getWorld() != null) {
+                    attributes.put("chapter", session.getLevel().getWorld().getDisplayName());
+                }
+                events.publish(DomainEventType.ZOMBIE_KILLED, user, attributes);
+            }
+            if (rewardService != null) {
+                messages.addAll(rewardService.onZombieDeath(death.isGlowing(), user, world));
+            }
         }
 
         world.getPendingDeaths().clear();
@@ -240,6 +283,7 @@ public class GameplayController {
         GameOutcome outcome = simulation.getWorld().getOutcome();
 
         if (outcome == GameOutcome.WON) {
+            publishLevelCompleted(true);
             if (conclusionService != null) {
                 messages.addAll(conclusionService.onWin(user, session));
             }
@@ -247,6 +291,7 @@ public class GameplayController {
             Store.setCurrentMenu(MenuName.GAME);
             Store.setActiveSimulation(null);
         } else if (outcome == GameOutcome.LOST) {
+            publishLevelCompleted(false);
             if (conclusionService != null) {
                 conclusionService.onLoss(user, session);
             }
@@ -256,6 +301,88 @@ public class GameplayController {
         }
 
         return messages;
+    }
+
+    private void publishLevelCompleted(boolean won) {
+        if (events == null || user == null) {
+            return;
+        }
+        SimulationWorld world = simulation.getWorld();
+        Map<String, String> attributes = new LinkedHashMap<>();
+        attributes.put("won", String.valueOf(won));
+        attributes.put("sunBalance", String.valueOf(world.getSunBalance()));
+        attributes.put("plantLossCount", String.valueOf(world.getPlantLossCount()));
+        attributes.put("emptyRows", emptyRows(world));
+        attributes.put("emptyColumns", emptyColumns(world));
+        if (session != null) {
+            attributes.put("difficulty", String.valueOf(session.getDifficulty()));
+            if (session.getLevel() != null) {
+                attributes.put("level", session.getLevel().getName());
+                if (session.getLevel().getWorld() != null) {
+                    attributes.put("chapter", session.getLevel().getWorld().getDisplayName());
+                }
+            }
+            addUsedPlantAttributes(attributes, session.getUsedPlants());
+        }
+        events.publish(DomainEventType.LEVEL_COMPLETED, user, attributes);
+    }
+
+    private void addUsedPlantAttributes(Map<String, String> attributes, Set<PlantType> used) {
+        Set<String> families = new LinkedHashSet<>();
+        boolean allNight = !used.isEmpty();
+        boolean allSun = !used.isEmpty();
+        for (PlantType type : used) {
+            PlantDefinition definition = PlantRegistry.getDefault().findByType(type);
+            if (definition == null) {
+                allNight = false;
+                allSun = false;
+                continue;
+            }
+            PlantCategory category = definition.getBehaviorCategory();
+            if (category != null) {
+                families.add(category.name());
+            }
+            allNight &= definition.hasTag(PlantTag.NIGHT) || definition.hasTag(PlantTag.SHROOM);
+            allSun &= category == PlantCategory.SUN_PRODUCER || definition.hasTag(PlantTag.SUN);
+        }
+        attributes.put("usedPlantFamilies", String.join(",", families));
+        attributes.put("plantsUsedCount", String.valueOf(used.size()));
+        attributes.put("allUsedPlantsNight", String.valueOf(allNight));
+        attributes.put("allUsedPlantsSunProducers", String.valueOf(allSun));
+    }
+
+    private String emptyRows(SimulationWorld world) {
+        StringJoiner rows = new StringJoiner(",");
+        for (int row = 0; row < world.getRows(); row++) {
+            boolean empty = true;
+            for (int column = 0; column < world.getColumns(); column++) {
+                if (world.getBoard().tileAt(column, row).hasAnyPlant()) {
+                    empty = false;
+                    break;
+                }
+            }
+            if (empty) {
+                rows.add(String.valueOf(row));
+            }
+        }
+        return rows.toString();
+    }
+
+    private String emptyColumns(SimulationWorld world) {
+        StringJoiner columns = new StringJoiner(",");
+        for (int column = 0; column < world.getColumns(); column++) {
+            boolean empty = true;
+            for (int row = 0; row < world.getRows(); row++) {
+                if (world.getBoard().tileAt(column, row).hasAnyPlant()) {
+                    empty = false;
+                    break;
+                }
+            }
+            if (empty) {
+                columns.add(String.valueOf(column));
+            }
+        }
+        return columns.toString();
     }
 
     /** Handles {@code collect sun -l (<x>, <y>)}. */

@@ -31,6 +31,10 @@ public enum Command {
     MENU_GEM_WALLET("^menu\\s+gem-wallet$"),
     MENU_CHEAT_ADD("^menu\\s+cheat\\s+add\\s+(-?\\d+)\\s+(\\S+)$"),
 
+    // Travel Log
+    TRAVEL_LOG_PAGE("^travel\\s+log\\s+page\\s+(.+)$"),
+    TRAVEL_LOG_CLAIM("^travel\\s+log\\s+claim\\s+(\\d+)$"),
+
     // Greenhouse
     SHOW_GREENHOUSE("^show\\s+greenhouse$"),
     PLANT_POT("^plant\\s+pot\\s+at\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),

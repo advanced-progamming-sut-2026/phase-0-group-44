@@ -62,6 +62,16 @@ public class GameSession {
         return Collections.unmodifiableSet(new LinkedHashSet<>(pendingGreenhouseBoosts));
     }
 
+    public void recordPlantUsed(PlantType type) {
+        if (type != null) {
+            usedPlants.add(type);
+        }
+    }
+
+    public Set<PlantType> getUsedPlants() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(usedPlants));
+    }
+
     /**
      * Records that a plant was used and reports whether a stored greenhouse boost
      * was consumed by this first use. The pending flag is cleared so a later use
