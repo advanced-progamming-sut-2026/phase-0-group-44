@@ -12,6 +12,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Owns the lifecycle of persisted accounts: loading them at start-up, keeping
@@ -132,6 +133,11 @@ public class UserService {
 
     public User findByUsername(String username) {
         return Store.findUser(username);
+    }
+
+    /** Snapshot of every registered local profile currently loaded from persistence. */
+    public List<User> getRegisteredUsers() {
+        return List.copyOf(Store.getUsers());
     }
 
     /** The user whose session survives a restart, or {@code null}. */

@@ -26,6 +26,8 @@ public enum Command {
     MENU_ENTER_CHAPTER("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)$"),
     MENU_GREENHOUSE("^menu\\s+greenhouse$"),
     MENU_TRAVEL_LOG("^menu\\s+travel-log$"),
+    MENU_LEADERBOARD_SORT(
+            "^menu\\s+leaderboard\\s+-s\\s+(\\S+)\\s+-o\\s+(\\S+)$"),
     MENU_LEADERBOARD("^menu\\s+leaderboard$"),
     MENU_COIN_WALLET("^menu\\s+coin-wallet$"),
     MENU_GEM_WALLET("^menu\\s+gem-wallet$"),
