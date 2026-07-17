@@ -11,6 +11,7 @@ public enum MenuName {
     PROFILE("profile"),
     COLLECTION("collection"),
     GREENHOUSE("greenhouse"),
+    TRAVEL_LOG("travel-log"),
     SHOP("shop"),
     PLANT_SELECTION("plant-selection"),
     GAMEPLAY("gameplay");
@@ -52,7 +53,11 @@ public enum MenuName {
         }
 
         for (MenuName menu : values()) {
-            if (menu.token.equals(normalized)) {
+            String normalizedToken = menu.token
+                    .replace("-", "")
+                    .replace("_", "")
+                    .replace(" ", "");
+            if (normalizedToken.equals(normalized)) {
                 return menu;
             }
         }

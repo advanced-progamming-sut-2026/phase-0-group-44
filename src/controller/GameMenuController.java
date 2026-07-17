@@ -98,7 +98,16 @@ public class GameMenuController {
     }
 
     public Result<String> travelLog() {
-        return placeholder("travel log");
+        Result<String> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+        Store.setCurrentMenu(MenuName.TRAVEL_LOG);
+        result.setStatus(true);
+        result.setData("travel log");
+        result.appendToMessage("entered travel log; use travel log page <main|epic|daily|minigame>");
+        return result;
     }
 
     public Result<String> leaderboard() {

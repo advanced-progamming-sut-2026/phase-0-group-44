@@ -1,6 +1,7 @@
 package controller;
 
 import model.Result;
+import model.events.DomainEventBus;
 import model.Store;
 import model.enums.MenuName;
 import model.inGame.plant.PlantRepository;
@@ -9,9 +10,13 @@ import model.inGame.zombie.ZombieRegistry;
 import repository.JsonUserRepository;
 import repository.UserRepository;
 import service.PasswordService;
+import service.QuestCatalog;
+import service.QuestRewardService;
+import service.QuestService;
 import model.sim.board.DefaultPlantSpecSource;
 import model.sim.zombie.DefaultZombieSpecSource;
 import model.sim.zombie.ZombieSpecSource;
+import service.DomainEventPublisher;
 import service.GameConclusionService;
 import service.RewardService;
 import util.SeededRandomSource;
@@ -48,6 +53,12 @@ public class App {
     private final ZombieSpecSource zombieSpecSource;
     private final RewardService rewardService;
     private final GameConclusionService conclusionService;
+    private final DomainEventBus domainEventBus;
+    private final DomainEventPublisher domainEvents;
+    private final QuestCatalog questCatalog;
+    private final QuestService questService;
+    private final TravelMenuController travelController;
+    private final MiniGameController miniGameController;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -61,6 +72,15 @@ public class App {
         loadQuietly(zombieRepository::load, "zombie");
 
         userService = new UserService(userRepository, clock);
+        domainEventBus = new DomainEventBus();
+        domainEvents = new DomainEventPublisher(domainEventBus, userService);
+        questCatalog = QuestCatalog.fromFile(QuestCatalog.DEFAULT_PATH);
+        questService = new QuestService(
+                questCatalog,
+                new QuestRewardService(plantRepository, new SeededRandomSource()),
+                userService
+        );
+        domainEventBus.subscribe(questService);
         collectionController =
                 new CollectionMenuController(plantRepository, zombieRepository, userService);
         menuController = new MenuController(userService);
@@ -71,11 +91,13 @@ public class App {
         loginController = new LoginMenuController(userService, passwordService);
         mainController = new MainMenuController(userService);
         gameController = new GameMenuController(userService);
+        travelController = new TravelMenuController(questService);
+        miniGameController = new MiniGameController(domainEvents, userService);
         greenhouseController = new GreenhouseController(
                 plantRepository, userService, new SeededRandomSource()
         );
         shopController = new ShopController(
-                plantRepository, userService, new SeededRandomSource()
+                plantRepository, userService, new SeededRandomSource(), domainEvents
         );
         settingsController = new SettingsMenuController(userService);
         newsController = new NewsMenuController(userService);
@@ -86,7 +108,8 @@ public class App {
         zombieSpecSource = new DefaultZombieSpecSource(zombieRepository);
         rewardService = new RewardService(userService, new SeededRandomSource());
         conclusionService = new GameConclusionService(userService, newsService);
-        plantSelectionController = new PlantSelectionController(plantRepository, userService);
+        plantSelectionController = new PlantSelectionController(
+                plantRepository, userService, new SeededRandomSource(), domainEvents);
         plantSelectionController.setZombieSpecSource(zombieSpecSource);
     }
 
@@ -145,6 +168,14 @@ public class App {
         return gameController;
     }
 
+    public TravelMenuController getTravelController() {
+        return travelController;
+    }
+
+    public MiniGameController getMiniGameController() {
+        return miniGameController;
+    }
+
     public ShopController getShopController() {
         return shopController;
     }
@@ -191,5 +222,17 @@ public class App {
 
     public GameConclusionService getConclusionService() {
         return conclusionService;
+    }
+
+    public DomainEventBus getDomainEventBus() {
+        return domainEventBus;
+    }
+
+    public DomainEventPublisher getDomainEvents() {
+        return domainEvents;
+    }
+
+    public QuestService getQuestService() {
+        return questService;
     }
 }

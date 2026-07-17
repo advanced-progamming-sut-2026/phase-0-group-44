@@ -18,6 +18,7 @@ public class MenuRouter {
     private final LoginMenuView loginMenuView;
     private final GameMenuView gameMenuView;
     private final GreenhouseView greenhouseView;
+    private final TravelMenuView travelMenuView;
     private final ShopView shopView;
     private final SettingsMenuView settingsMenuView;
     private final NewsMenuView newsMenuView;
@@ -38,6 +39,8 @@ public class MenuRouter {
                 app.getMenuController(), app.getGameController(), app.getMainController());
         this.greenhouseView = new GreenhouseView(
                 app.getMenuController(), app.getGreenhouseController());
+        this.travelMenuView = new TravelMenuView(
+                app.getMenuController(), app.getTravelController());
         this.shopView = new ShopView(
                 app.getMenuController(), app.getShopController());
         this.settingsMenuView = new SettingsMenuView(
@@ -64,7 +67,10 @@ public class MenuRouter {
         BoardController board = new BoardController(
                 world,
                 Store.getActiveSession() == null ? null : Store.getActiveSession().getSelection(),
-                plantSpecSource);
+                plantSpecSource,
+                app.getDomainEvents(),
+                Store.getLoggedInUser(),
+                Store.getActiveSession());
         User user = Store.getLoggedInUser();
         GameplayController controller = new GameplayController(
                 Store.getActiveSimulation(),
@@ -72,7 +78,8 @@ public class MenuRouter {
                 app.getRewardService(),
                 app.getConclusionService(),
                 Store.getActiveSession(),
-                user);
+                user,
+                app.getDomainEvents());
 
         return new GameplayView(menuController, controller);
     }
@@ -92,6 +99,9 @@ public class MenuRouter {
                 return;
             case GREENHOUSE:
                 greenhouseView.checkCommand(input);
+                return;
+            case TRAVEL_LOG:
+                travelMenuView.checkCommand(input);
                 return;
             case SHOP:
                 shopView.checkCommand(input);

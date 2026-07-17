@@ -1,6 +1,7 @@
 package controller;
 
 import model.Result;
+import model.events.DomainEventType;
 import model.Store;
 import model.enums.PlantType;
 import model.inGame.GameSession;
@@ -16,6 +17,7 @@ import model.level.Level;
 import model.level.LevelSelectionRules;
 import model.user.Settings;
 import model.user.User;
+import service.DomainEventPublisher;
 import service.UserService;
 import util.RandomSource;
 import util.SeededRandomSource;
@@ -23,6 +25,7 @@ import util.SeededRandomSource;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -40,13 +43,14 @@ public class PlantSelectionController {
     private final PlantRepository plantRepository;
     private final UserService userService;
     private final RandomSource randomSource;
+    private final DomainEventPublisher events;
     private model.sim.zombie.ZombieSpecSource zombieSpecSource;
 
     private Level level;
     private PlantSelection selection;
 
     public PlantSelectionController(PlantRepository plantRepository, UserService userService) {
-        this(plantRepository, userService, new SeededRandomSource());
+        this(plantRepository, userService, new SeededRandomSource(), null);
     }
 
     public PlantSelectionController(
@@ -54,9 +58,19 @@ public class PlantSelectionController {
             UserService userService,
             RandomSource randomSource
     ) {
+        this(plantRepository, userService, randomSource, null);
+    }
+
+    public PlantSelectionController(
+            PlantRepository plantRepository,
+            UserService userService,
+            RandomSource randomSource,
+            DomainEventPublisher events
+    ) {
         this.plantRepository = plantRepository;
         this.userService = userService;
         this.randomSource = randomSource;
+        this.events = events;
     }
 
     /** Opens the selection screen for a level; called when a level is entered. */
@@ -326,6 +340,13 @@ public class PlantSelectionController {
         Store.setActiveSimulation(simulation);
 
         Store.setCurrentMenu(model.enums.MenuName.GAMEPLAY);
+        if (events != null) {
+            events.publish(DomainEventType.LEVEL_STARTED, user, Map.of(
+                    "level", level.getName(),
+                    "difficulty", String.valueOf(session.getDifficulty()),
+                    "chapter", level.getWorld() == null ? "" : level.getWorld().getDisplayName()
+            ));
+        }
 
         result.setStatus(true);
         result.setData(session);
