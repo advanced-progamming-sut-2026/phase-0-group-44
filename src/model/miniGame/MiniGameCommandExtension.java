@@ -1,0 +1,10 @@
+package model.miniGame;
+
+import model.Result;
+
+/** Extension point for commands owned by one minigame strategy. */
+public interface MiniGameCommandExtension {
+    boolean supports(String input);
+
+    Result<String> execute(MiniGameSession session, String input);
+}
