@@ -22,6 +22,7 @@ import service.RewardService;
 import util.SeededRandomSource;
 import model.sim.board.PlantSpecSource;
 import service.GreenhouseBoostService;
+import service.LeaderboardService;
 import service.NewsService;
 import service.SecurityQuestionCatalog;
 import service.Sha256PasswordService;
@@ -59,6 +60,7 @@ public class App {
     private final QuestService questService;
     private final TravelMenuController travelController;
     private final MiniGameController miniGameController;
+    private final LeaderboardService leaderboardService;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -89,8 +91,9 @@ public class App {
         registerController =
                 new RegisterMenuController(userService, passwordService, questionCatalog);
         loginController = new LoginMenuController(userService, passwordService);
-        mainController = new MainMenuController(userService);
-        gameController = new GameMenuController(userService);
+        leaderboardService = new LeaderboardService(userService);
+        mainController = new MainMenuController(userService, leaderboardService);
+        gameController = new GameMenuController(userService, leaderboardService);
         travelController = new TravelMenuController(questService);
         miniGameController = new MiniGameController(domainEvents, userService);
         greenhouseController = new GreenhouseController(
@@ -235,4 +238,8 @@ public class App {
     public QuestService getQuestService() {
         return questService;
     }
+    public LeaderboardService getLeaderboardService() {
+        return leaderboardService;
+    }
+
 }

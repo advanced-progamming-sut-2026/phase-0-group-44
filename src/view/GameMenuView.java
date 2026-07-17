@@ -42,6 +42,13 @@ public class GameMenuView extends MenuView {
             return;
         }
 
+        if (Command.MENU_LEADERBOARD_SORT.matches(input)) {
+            Matcher matcher = Command.MENU_LEADERBOARD_SORT.getMatcher(input);
+            matcher.matches();
+            print(controller.leaderboard(matcher.group(1), matcher.group(2)));
+            return;
+        }
+
         if (Command.MENU_LEADERBOARD.matches(input)) {
             print(controller.leaderboard());
             return;
