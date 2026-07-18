@@ -17,7 +17,7 @@ public class PlantFactory {
     public PlantFactory(PlantRegistry registry, PlantBehaviorFactory behaviorFactory) {
         this.registry = registry;
         this.behaviorFactory = behaviorFactory;
-        validateMandatoryCoverage();
+        validateCoverage();
     }
 
     public Plant create(PlantType type) {
@@ -25,7 +25,7 @@ public class PlantFactory {
     }
 
     public Plant create(PlantType type, int level) {
-        PlantDefinition definition = registry.requireMandatory(type);
+        PlantDefinition definition = registry.require(type);
         if (type == PlantType.IMITATER) {
             throw new IllegalArgumentException("Imitater requires the plant type it should copy.");
         }
@@ -37,8 +37,8 @@ public class PlantFactory {
         if (copiedType == null || copiedType == PlantType.IMITATER) {
             throw new IllegalArgumentException("Imitater must copy another plant.");
         }
-        PlantDefinition imitater = registry.requireMandatory(PlantType.IMITATER);
-        PlantDefinition copied = registry.requireMandatory(copiedType);
+        PlantDefinition imitater = registry.require(PlantType.IMITATER);
+        PlantDefinition copied = registry.require(copiedType);
         PlantBehavior copiedBehavior = behaviorFactory.create(copied);
         PlantBehavior wrapper = new ModifierBehavior(ModifierBehavior.Mode.IMITATER_WRAPPER, copiedBehavior);
         PlantStats stats = PlantStats.imitate(copied, imitater, imitaterLevel);
@@ -47,14 +47,14 @@ public class PlantFactory {
 
     public boolean supports(PlantType type) {
         PlantDefinition definition = registry.findByType(type);
-        return definition != null && definition.isMandatory()
+        return definition != null
                 && (type == PlantType.IMITATER || behaviorFactory.supports(type));
     }
 
-    private void validateMandatoryCoverage() {
-        for (PlantDefinition definition : registry.findMandatory()) {
+    private void validateCoverage() {
+        for (PlantDefinition definition : registry.findAll()) {
             if (definition.getType() != PlantType.IMITATER && !behaviorFactory.supports(definition.getType())) {
-                throw new IllegalStateException("Mandatory plant has no behavior: " + definition.getName());
+                throw new IllegalStateException("Plant has no behavior: " + definition.getName());
             }
         }
     }

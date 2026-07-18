@@ -1,6 +1,7 @@
 package controller;
 
 import model.Result;
+import model.events.DomainEventBus;
 import model.Store;
 import model.enums.MenuName;
 import model.inGame.plant.PlantRepository;
@@ -9,16 +10,22 @@ import model.inGame.zombie.ZombieRegistry;
 import repository.JsonUserRepository;
 import repository.UserRepository;
 import service.PasswordService;
+import service.QuestCatalog;
+import service.QuestRewardService;
+import service.QuestService;
 import model.sim.board.DefaultPlantSpecSource;
 import model.sim.zombie.DefaultZombieSpecSource;
 import model.sim.zombie.ZombieSpecSource;
+import service.DomainEventPublisher;
 import service.GameConclusionService;
 import service.RewardService;
 import util.SeededRandomSource;
 import model.sim.board.PlantSpecSource;
 import service.GreenhouseBoostService;
+import service.LeaderboardService;
 import service.NewsService;
 import service.SecurityQuestionCatalog;
+import service.ScoredGameService;
 import service.Sha256PasswordService;
 import service.UserService;
 import model.inGame.plant.PlantRegistry;
@@ -48,11 +55,21 @@ public class App {
     private final ZombieSpecSource zombieSpecSource;
     private final RewardService rewardService;
     private final GameConclusionService conclusionService;
+    private final DomainEventBus domainEventBus;
+    private final DomainEventPublisher domainEvents;
+    private final QuestCatalog questCatalog;
+    private final QuestService questService;
+    private final TravelMenuController travelController;
+    private final MiniGameController miniGameController;
+    private final LeaderboardService leaderboardService;
+    private final ScoredGameService scoredGameService;
+    private final ScoredGameController scoredGameController;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public App(UserRepository userRepository, Clock clock) {
         plantRepository = PlantRegistry.getDefault();
         zombieRepository = ZombieRegistry.getDefault();
@@ -61,6 +78,15 @@ public class App {
         loadQuietly(zombieRepository::load, "zombie");
 
         userService = new UserService(userRepository, clock);
+        domainEventBus = new DomainEventBus();
+        domainEvents = new DomainEventPublisher(domainEventBus, userService);
+        questCatalog = QuestCatalog.fromFile(QuestCatalog.DEFAULT_PATH);
+        questService = new QuestService(
+                questCatalog,
+                new QuestRewardService(plantRepository, new SeededRandomSource()),
+                userService
+        );
+        domainEventBus.subscribe(questService);
         collectionController =
                 new CollectionMenuController(plantRepository, zombieRepository, userService);
         menuController = new MenuController(userService);
@@ -69,24 +95,30 @@ public class App {
         registerController =
                 new RegisterMenuController(userService, passwordService, questionCatalog);
         loginController = new LoginMenuController(userService, passwordService);
-        mainController = new MainMenuController(userService);
-        gameController = new GameMenuController(userService);
+        leaderboardService = new LeaderboardService(userService);
+        scoredGameService = new ScoredGameService(userService, clock);
+        scoredGameController = new ScoredGameController(scoredGameService);
+        mainController = new MainMenuController(userService, leaderboardService);
+        gameController = new GameMenuController(userService, leaderboardService);
+        newsService = new NewsService(userService);
+        miniGameController = new MiniGameController(domainEvents, userService, newsService);
+        travelController = new TravelMenuController(questService, miniGameController);
         greenhouseController = new GreenhouseController(
                 plantRepository, userService, new SeededRandomSource()
         );
         shopController = new ShopController(
-                plantRepository, userService, new SeededRandomSource()
+                plantRepository, userService, new SeededRandomSource(), domainEvents
         );
         settingsController = new SettingsMenuController(userService);
         newsController = new NewsMenuController(userService);
         profileController = new ProfileMenuController(userService, passwordService);
-        newsService = new NewsService(userService);
         greenhouseBoostService = new GreenhouseBoostService(userService);
         plantSpecSource = new DefaultPlantSpecSource(plantRepository);
         zombieSpecSource = new DefaultZombieSpecSource(zombieRepository);
         rewardService = new RewardService(userService, new SeededRandomSource());
         conclusionService = new GameConclusionService(userService, newsService);
-        plantSelectionController = new PlantSelectionController(plantRepository, userService);
+        plantSelectionController = new PlantSelectionController(
+                plantRepository, userService, new SeededRandomSource(), domainEvents);
         plantSelectionController.setZombieSpecSource(zombieSpecSource);
     }
 
@@ -145,6 +177,14 @@ public class App {
         return gameController;
     }
 
+    public TravelMenuController getTravelController() {
+        return travelController;
+    }
+
+    public MiniGameController getMiniGameController() {
+        return miniGameController;
+    }
+
     public ShopController getShopController() {
         return shopController;
     }
@@ -192,4 +232,28 @@ public class App {
     public GameConclusionService getConclusionService() {
         return conclusionService;
     }
+
+    public DomainEventBus getDomainEventBus() {
+        return domainEventBus;
+    }
+
+    public DomainEventPublisher getDomainEvents() {
+        return domainEvents;
+    }
+
+    public QuestService getQuestService() {
+        return questService;
+    }
+    public LeaderboardService getLeaderboardService() {
+        return leaderboardService;
+    }
+
+    public ScoredGameService getScoredGameService() {
+        return scoredGameService;
+    }
+
+    public ScoredGameController getScoredGameController() {
+        return scoredGameController;
+    }
+
 }

@@ -10,8 +10,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ZombieRegistryTest {
@@ -36,18 +34,13 @@ class ZombieRegistryTest {
     }
 
     @Test
-    void factoryCoversEveryMandatoryRowAndNoBlueRow() {
+    void factoryCoversEveryCanonicalRow() {
         ZombieRegistry registry = ZombieRegistry.getDefault();
         ZombieBehaviorFactory factory = new ZombieBehaviorFactory();
 
-        for (ZombieDefinition definition : registry.findMandatory()) {
+        for (ZombieDefinition definition : registry.findAll()) {
             assertTrue(factory.supports(definition.getType()), definition.getName());
             factory.create(definition);
-        }
-        for (ZombieDefinition definition : registry.findBonus()) {
-            assertFalse(factory.supports(definition.getType()), definition.getName());
-            assertThrows(UnsupportedOperationException.class,
-                    () -> factory.create(definition));
         }
     }
 

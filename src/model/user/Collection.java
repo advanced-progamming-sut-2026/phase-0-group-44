@@ -66,12 +66,6 @@ public class Collection {
             );
         }
 
-        if (definition.isBonus()) {
-            throw new UnsupportedOperationException(
-                    definition.getName() + " is a blue/bonus plant."
-            );
-        }
-
         purchasePlant(definition.getType());
     }
 

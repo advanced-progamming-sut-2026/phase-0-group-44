@@ -1,1785 +1,327 @@
 @startuml
+skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
-
-
-' APP / STORE / SERVICES / STORAGE '
-
-class App {
-  - store: Store
-  - userRepository: UserRepository
-  - userService: UserService
-  - gameService: GameService
-  - shop: Shop
-  - leaderboard: Leaderboard
-  + start()
-  + changeMenu(menu: Menu)
-  + logout()
-}
-
-class Store {
-  - users: List<User>
-  - currentUser: User
-  - currentMenu: Menu
-  - currentPlayer: Player
-  - currentGameEngine: GameEngine
-  - selectedLevel: Level
-  - currentChapter: Chapter
-  - activeMiniGame: MiniGame
-  - chapters: List<Chapter>
-  - newsItems: List<NewsItem>
-  - quests: List<Quest>
-  - shop: Shop
-  - leaderboard: Leaderboard
-  + getCurrentUser(): User
-  + setCurrentUser(user: User)
-  + getCurrentMenu(): Menu
-  + setCurrentMenu(menu: Menu)
-  + resetGameData()
-}
-
-interface UserRepository {
-  + load(): SaveFile
-  + save(saveFile: SaveFile)
-  + quarantineCorruptSave(stamp: String): Path
-  + getSaveFilePath(): Path
-}
-
-class JsonUserRepository implements UserRepository {
-  - saveFilePath: Path
-  - serializer: SaveSerializer
-  - writer: AtomicFileWriter
-}
-
-' PERSISTENCE (serialization kept out of the domain) '
-
-class SaveFile {
-  + {static} CURRENT_VERSION: int
-  - version: int
-  - users: List<User>
-  - lastLoggedInUsername: String
-}
-
-interface SaveSerializer {
-  + serialize(saveFile: SaveFile): String
-  + deserialize(content: String): SaveFile
-}
-
-class GsonSaveSerializer implements SaveSerializer {
-  - gson: Gson
-  - migrator: SaveFileMigrator
-}
-
-class SaveFileMigrator {
-  + migrate(saveFile: SaveFile): SaveFile
-}
-
-class AtomicFileWriter {
-  + write(target: Path, content: String)
-}
-
-SaveFile o-- User
-JsonUserRepository --> SaveFile
-JsonUserRepository --> SaveSerializer
-JsonUserRepository --> AtomicFileWriter
-GsonSaveSerializer --> SaveFileMigrator
-SaveFileMigrator --> SaveFile
-
-class UserService {
-  - repository: UserRepository
-  - clock: Clock
-  + loadUsers(): Result<Integer>
-  + saveUsers(): Result<String>
-  + addUser(user: User): Result<String>
-  + updateUser(user: User): Result<String>
-  + getAutoLoginUser(): User
-  + shutdown(): Result<String>
-  + today(): LocalDate
-  + login(username: String, password: String): User
-  + logout()
-  + changeUsername(user: User, username: String)
-  + changeNickname(user: User, nickname: String)
-  + changeEmail(user: User, email: String)
-  + changePassword(user: User, oldPassword: String, newPassword: String)
-  + changeDifficulty(user: User, level: int)
-  + purchasePlant(user: User, type: PlantType)
-  + upgradePlant(user: User, type: PlantType)
-  + addNews(user: User, text: String)
-  + showUnreadNews(user: User)
-  + showAllNews(user: User)
-  + getActiveQuests(user: User): List<Quest>
-  + completeQuest(user: User, quest: Quest)
-  + updateLeaderboard(user: User)
-}
-
-class GameService {
-  - store: Store
-  - userRepository: UserRepository
-  + startGame(user: User, level: Level): GameEngine
-  + finishGame(user: User, result: GameResult)
-  + startMiniGame(user: User, miniGame: MiniGame)
-  + finishMiniGame(user: User, result: GameResult)
-}
-
-App *-- Store
-App --> UserRepository
-App --> UserService
-App --> GameService
-App --> Shop
-App --> Leaderboard
-
-Store o-- User
-Store --> Menu
-Store --> Player
-Store --> GameEngine
-Store --> Level
-Store --> Chapter
-Store --> MiniGame
-Store o-- NewsItem
-Store o-- Quest
-Store *-- Shop
-Store *-- Leaderboard
-
-UserService --> Store
-UserService --> Clock
-UserService --> UserRepository
-GameService --> Store
-GameService --> UserRepository
-
-' USER / ACCOUNT DATA '
-
-class User {
-  - username: String
-  - hashOfPassword: String
-  - nickname: String
-  - email: String
-  - gender: String
-  - question: String
-  - answerToQuestion: String
-  - coins: int
-  - gems: int
-  - mioPoint: int
-  - gamesPlayed: int
-  - completedLevelCount: int
-  - latestCompletedChapter: int
-  - latestCompletedLevel: int
-  - completedDailyQuests: int
-  - completedNonDailyQuests: int
-  - completedMiniGames: int
-  - plantFood: int
-  - stayLoggedIn: boolean
-  - unlockedChapters: Set<Integer>
-  - unlockedLevels: Map<Integer, Set<Integer>>
-  - plantBoosts: Map<PlantType, Integer>
-  - inventory: Map<String, Integer>
-  - news: List<News>
-  - dailyShop: DailyShopState
-  - settings: Settings
-  - collection: Collection
-  - greenHouse: GreenHouse
-  + applyDefaults()
-  + addCoins(amount: int)
-  + decreaseCoins(amount: int)
-}
-
-class DailyShopState {
-  - offerId: String
-  - offerDate: String
-  - purchasedItemIds: List<String>
-  + isPurchased(itemId: String): boolean
-  + markPurchased(itemId: String)
-}
-
-class Settings {
-  - difficultyLevel: int
-  + changeDifficulty(level: int)
-}
-
-class Collection {
-  - ownedPlants: Map<PlantType, PlantCard>
-  - seenZombies: Set<ZombieType>
-  - zombieCards: List<ZombieCard>
-  + showPlants()
-  + showZombies()
-  + purchasePlant(type: PlantType)
-  + upgradePlant(type: PlantType)
-  + hasPlant(type: PlantType): boolean
-}
-
-class PlantCard {
-  - type: PlantType
-  - level: int
-  - seedPackets: int
-  - unlocked: boolean
-  + upgrade()
-}
-
-class ZombieCard {
-  - type: ZombieType
-  - seen: boolean
-  - unlocked: boolean
-  + showInfo()
-}
-
-class GreenHouse {
-  - slots: List<GreenhouseSlot>
-  + addSlot(): GreenhouseSlot
-  + getSlot(index: int): GreenhouseSlot
-  + applyDefaults()
-}
-
-class GreenhouseSlot {
-  - index: int
-  - plantType: PlantType
-  - plantedAtEpochSecond: long
-  + isOccupied(): boolean
-  + plant(type: PlantType, epochSecond: long)
-  + clear()
-}
-User *-- Settings
-User *-- Collection
-User *-- GreenHouse
-User *-- DailyShopState
-User o-- News
-GreenHouse *-- GreenhouseSlot
-Collection *-- PlantCard
-Collection *-- ZombieCard
-
-
-' MENU FRAMEWORK '
-
-enum MenuName {
-  REGISTER
-  LOGIN
-  MAIN
-  GAME
-  SETTINGS
-  NETWORK
-  NEWS
-  PROFILE
-  COLLECTION
-  + getToken(): String
-  + getDisplayName(): String
-  + {static} fromToken(input: String): MenuName
-}
-
-class MenuGraph <<static>> {
-  - {static} ENTRIES: Map<MenuName, Set<MenuName>>
-  - {static} EXITS: Map<MenuName, MenuExit>
-  + {static} reachableFrom(source: MenuName): Set<MenuName>
-  + {static} canEnter(source: MenuName, destination: MenuName): boolean
-  + {static} requiresAuthentication(source: MenuName, destination: MenuName): boolean
-  + {static} exitOf(source: MenuName): MenuExit
-}
-
-class MenuExit {
-  - kind: Kind
-  - destination: MenuName
-  + {static} returnTo(destination: MenuName): MenuExit
-  + {static} terminate(): MenuExit
-  + {static} forbidden(): MenuExit
-}
-
-enum MenuExit.Kind {
-  RETURN_TO
-  TERMINATE
-  FORBIDDEN
-}
-
-class MenuController {
-  - userService: UserService
-  + enterMenu(menuName: String): Result<String>
-  + showCurrentMenu(): Result<String>
-  + exitMenu(): Result<String>
-}
-
-' AUTHENTICATION '
-
-enum Gender {
-  MALE
-  FEMALE
-  + getToken(): String
-  + {static} fromToken(input: String): Gender
-}
-
-class AuthFlowState {
-  - pendingRegistration: User
-  - recoveringUser: User
-  - recoveryAnswerAccepted: boolean
-  + startRecovery(user: User)
-  + acceptRecoveryAnswer()
-  + clearRecovery()
-}
-
-interface PasswordService {
-  + store(rawPassword: String): String
-  + matches(rawPassword: String, storedPassword: String): boolean
-}
-
-class Sha256PasswordService implements PasswordService
-
-class SecurityQuestionCatalog {
-  - questions: List<String>
-  + {static} fromFile(path: Path): SecurityQuestionCatalog
-  + isValidNumber(number: int): boolean
-  + getQuestion(number: int): String
-  + render(): String
-}
-
-class RegisterMenuController {
-  - userService: UserService
-  - passwordService: PasswordService
-  - questionCatalog: SecurityQuestionCatalog
-  + register(username, password, repeatPassword, nickname, email, gender): Result<String>
-  + pickQuestion(questionNumber: int, answer: String, answerConfirm: String): Result<String>
-}
-
-class LoginMenuController {
-  - userService: UserService
-  - passwordService: PasswordService
-  + login(username: String, password: String, stayLoggedIn: boolean): Result<String>
-  + forgetPassword(username: String, email: String): Result<String>
-  + answer(answer: String): Result<String>
-  + newPassword(password: String): Result<String>
-}
-
-class RegisterMenuView extends MenuView
-class LoginMenuView extends MenuView
-class MenuRouter
-
-Store *-- AuthFlowState
-AuthFlowState --> User
-RegisterMenuController --> UserService
-RegisterMenuController --> PasswordService
-RegisterMenuController --> SecurityQuestionCatalog
-RegisterMenuController --> Store
-LoginMenuController --> UserService
-LoginMenuController --> PasswordService
-LoginMenuController --> Store
-RegisterMenuView --> RegisterMenuController
-LoginMenuView --> LoginMenuController
-MenuRouter --> RegisterMenuView
-MenuRouter --> LoginMenuView
-MenuRouter --> CommonMenuView
-User --> Gender
-App --> RegisterMenuController
-App --> LoginMenuController
-
-' MAIN / GAME / SETTINGS / NEWS / PROFILE / COLLECTION MENUS '
-
-class DifficultyScaling <<static>> {
-  + {static} NEUTRAL_DIFFICULTY: int = 3
-  + {static} STEP_PER_LEVEL: double
-  + {static} zombieHealthMultiplier(difficulty: int): double
-  + {static} zombieDamageMultiplier(difficulty: int): double
-  + {static} gameSpeedMultiplier(difficulty: int): double
-  + {static} waveCostMultiplier(difficulty: int): double
-  + {static} skySunRateMultiplier(difficulty: int): double
-}
-
-enum GameWorld {
-  ANCIENT_EGYPT
-  FROSTBITE_CAVES
-  BIG_WAVE_BEACH
-  DARK_AGES
-  + getChapterNumber(): int
-  + {static} fromName(input: String): GameWorld
-}
-
-class ChapterCatalog <<static>> {
-  + {static} first(): GameWorld
-  + {static} next(world: GameWorld): GameWorld
-  + {static} applyDefaultUnlocks(user: User)
-  + {static} isUnlocked(user: User, world: GameWorld): boolean
-  + {static} unlockNext(user: User, completed: GameWorld): GameWorld
-}
-
-class NewsService {
-  - userService: UserService
-  + plantUnlocked(user: User, plantName: String): News
-  + zombieEncountered(user: User, zombieName: String): News
-  + levelUnlocked(user: User, levelName: String): News
-  + miniGameUnlocked(user: User, miniGameName: String): News
-}
-
-class MainMenuController {
-  - userService: UserService
-  + logout(): Result<String>
-}
-
-class GameMenuController {
-  - userService: UserService
-  + enterChapter(chapterName: String): Result<String>
-  + greenhouse(): Result<String>
-  + travelLog(): Result<String>
-  + leaderboard(): Result<String>
-  + showCoinWallet(): Result<Integer>
-  + showGemWallet(): Result<Integer>
-  + cheatAdd(amount: int, currency: String): Result<Integer>
-}
-
-class SettingsMenuController {
-  - userService: UserService
-  + changeDifficulty(level: int): Result<Integer>
-  + showDifficulty(): Result<Integer>
-}
-
-class NewsMenuController {
-  - userService: UserService
-  + showAllNews(): Result<ArrayList<News>>
-  + showUnreadNews(): Result<ArrayList<News>>
-}
-
-class ProfileMenuController {
-  - userService: UserService
-  - passwordService: PasswordService
-  + changeUsername(username: String): Result<String>
-  + changeNickname(nickname: String): Result<String>
-  + changeEmail(email: String): Result<String>
-  + changePassword(newPassword: String, oldPassword: String): Result<String>
-  + showInfo(): Result<String>
-}
-
-class GameMenuView extends MenuView
-class SettingsMenuView extends MenuView
-class NewsMenuView extends MenuView
-class ProfileMenuView extends MenuView
-class CollectionMenuView extends MenuView
-
-GameMenuController --> ChapterCatalog
-ChapterCatalog --> GameWorld
-ChapterCatalog --> User
-DifficultyScaling ..> Settings
-NewsService --> UserService
-NewsService --> User
-MainMenuController --> UserService
-GameMenuController --> UserService
-SettingsMenuController --> UserService
-SettingsMenuController ..> DifficultyScaling
-NewsMenuController --> UserService
-ProfileMenuController --> UserService
-ProfileMenuController --> PasswordService
-CollectionMenuController --> UserService
-MenuRouter --> GameMenuView
-MenuRouter --> SettingsMenuView
-MenuRouter --> NewsMenuView
-MenuRouter --> ProfileMenuView
-MenuRouter --> CollectionMenuView
-App --> MainMenuController
-App --> GameMenuController
-App --> SettingsMenuController
-App --> NewsMenuController
-App --> ProfileMenuController
-App --> NewsService
-
-' PLANT SELECTION / START GAME '
-
-interface Level {
-  + getName(): String
-  + getSelectionRules(): LevelSelectionRules
-}
-
-class NormalLevel implements Level
-
-class LevelSelectionRules {
-  + {static} DEFAULT_CAPACITY: int = 8
-  - capacity: int
-  - allowedPlants: Set<PlantType>
-  - selectionBypassed: boolean
-  + {static} normal(): LevelSelectionRules
-  + {static} withCapacity(capacity: int): LevelSelectionRules
-  + {static} restrictedTo(capacity: int, allowed: Set<PlantType>): LevelSelectionRules
-  + {static} bypassed(): LevelSelectionRules
-  + allows(type: PlantType): boolean
-}
-
-class PlantSelection {
-  - chosen: Set<PlantType>
-  - diamondBoosted: Set<PlantType>
-  + add(type: PlantType): boolean
-  + remove(type: PlantType): boolean
-  + contains(type: PlantType): boolean
-  + isDiamondBoosted(type: PlantType): boolean
-  + copy(): PlantSelection
-}
-
-class GameSession {
-  - level: Level
-  - selection: PlantSelection
-  - difficulty: int
-  - pendingGreenhouseBoosts: Set<PlantType>
-  - usedPlants: Set<PlantType>
-  + hasImmediatePlantFood(type: PlantType): boolean
-  + hasPendingGreenhouseBoost(type: PlantType): boolean
-  + useAndConsumeGreenhouseBoost(type: PlantType): boolean
-}
-
-class PlantSelectionController {
-  + {static} DIAMOND_BOOST_COST: int = 2
-  - plantRepository: PlantRepository
-  - userService: UserService
-  - level: Level
-  - selection: PlantSelection
-  + begin(level: Level): Result<String>
-  + showAllPlants(): Result<List<PlantDefinition>>
-  + showAvailablePlants(): Result<List<PlantDefinition>>
-  + addPlant(typeToken: String): Result<String>
-  + removePlant(typeToken: String): Result<String>
-  + boostPlant(typeToken: String): Result<String>
-  + startGame(): Result<GameSession>
-}
-
-class GreenhouseBoostService {
-  - userService: UserService
-  + consumeOnFirstUse(session: GameSession, user: User, type: PlantType): boolean
-}
-
-class PlantSelectionView extends MenuView
-
-NormalLevel --> LevelSelectionRules
-LevelSelectionRules --> PlantType
-PlantSelection --> PlantType
-GameSession --> Level
-GameSession --> PlantSelection
-PlantSelectionController --> PlantRepository
-PlantSelectionController --> UserService
-PlantSelectionController --> PlantSelection
-PlantSelectionController --> GameSession
-PlantSelectionController --> LevelSelectionRules
-GreenhouseBoostService --> UserService
-GreenhouseBoostService ..> GameSession
-Store --> GameSession
-MenuRouter --> PlantSelectionView
-App --> PlantSelectionController
-App --> GreenhouseBoostService
-
-' SIMULATION CLOCK / SUN MECHANICS '
-
-interface RandomSource {
-  + nextInt(bound: int): int
-  + nextDouble(): double
-}
-
-class SeededRandomSource implements RandomSource
-
-interface SimulationSystem {
-  + tick(context: TickContext)
-}
-
-interface Damageable {
-  + getTileX(): int
-  + getTileY(): int
-  + takeDamage(amount: int)
-  + isDead(): boolean
-}
-
-class TickContext {
-  + {static} TICKS_PER_SECOND: int = 10
-  - currentTick: long
-  - random: RandomSource
-  - world: SimulationWorld
-  + getElapsedSeconds(): double
-  + emit(message: String)
-}
-
-class SimulationWorld {
-  + {static} DEFAULT_ROWS: int = 5
-  + {static} DEFAULT_COLUMNS: int = 9
-  - sunBalance: int
-  - suns: List<Sun>
-  - producers: List<SunProducer>
-  - zombies: List<Damageable>
-  - plants: List<Damageable>
-  + isInsideBoard(x: int, y: int): boolean
-  + addSun(amount: int)
-}
-
-class Simulation {
-  - random: RandomSource
-  - world: SimulationWorld
-  - systems: List<SimulationSystem>
-  - currentTick: long
-  + advance(ticks: int): List<String>
-  + collectSun(x: int, y: int): SunCollector.Outcome
-  + getSunAmount(): int
-  + addSun(amount: int)
-  + register(system: SimulationSystem)
-}
-
-enum SunType {
-  NORMAL
-  SPECIAL
-  RADIOACTIVE
-  + getLabel(): String
-  + getValue(): int
-  + {static} roll(random: RandomSource): SunType
-}
-
-class Sun {
-  - type: SunType
-  - tileX: int
-  - tileY: int
-  - state: State
-  - remainingFallTicks: int
-  + {static} onPlant(type: SunType, x: int, y: int): Sun
-  + {static} falling(type: SunType, x: int, y: int, fallTicks: int): Sun
-  + tickFall(): boolean
-}
-
-class SunProducer implements SimulationSystem {
-  - plantTypeLabel: String
-  - tileX: int
-  - tileY: int
-  - productionIntervalTicks: int
-  - uncollectedSun: Sun
-  + tick(context: TickContext)
-  + hasUncollectedSun(): boolean
-  + onSunCollected(sun: Sun)
-}
-
-class FallingSunSystem implements SimulationSystem {
-  + {static} FALL_TICKS: int = 50
-  - enabled: boolean
-  - ticksSinceSpawn: long
-  + tick(context: TickContext)
-}
-
-class SunDropSchedule {
-  + {static} intervalSeconds(elapsedSeconds: double): double
-  + {static} intervalTicks(elapsedSeconds: double, ticksPerSecond: int): long
-}
-
-class SunCollector {
-  + {static} RADIOACTIVE_ZOMBIE_DAMAGE: int = 150
-  + {static} RADIOACTIVE_PLANT_DAMAGE: int = 80
-  - world: SimulationWorld
-  + collectAt(x: int, y: int): Outcome
-}
-
-class GameplayController {
-  - simulation: Simulation
-  + advanceTime(ticks: int): Result<List<String>>
-  + collectSun(x: int, y: int): Result<Integer>
-  + showSunAmount(): Result<Integer>
-  + cheatAddSuns(count: int): Result<Integer>
-}
-
-class GameplayView extends MenuView
-
-Simulation --> RandomSource
-Simulation --> SimulationWorld
-Simulation o-- SimulationSystem
-SimulationWorld o-- Sun
-SimulationWorld o-- SunProducer
-SimulationWorld o-- Damageable
-TickContext --> RandomSource
-TickContext --> SimulationWorld
-SunProducer ..> Sun
-FallingSunSystem ..> SunDropSchedule
-FallingSunSystem ..> Sun
-SunCollector --> SimulationWorld
-Sun --> SunType
-GameplayController --> Simulation
-GameplayController ..> SunCollector
-GameplayView --> GameplayController
-MenuRouter --> GameplayView
-Store --> Simulation
-PlantSelectionController ..> Simulation
-PlantSelectionController --> RandomSource
-
-' BOARD / TERRAIN / PLANTING / PLANT FOOD / DROPS '
-
-enum TerrainType {
-  NORMAL_EGYPT
-  GRAVESTONE
-  NORMAL_FROSTBITE
-  SLIPPERY_UP
-  SLIPPERY_DOWN
-  FROZEN
-  NORMAL_BEACH
-  WATER
-  LOW_TIDE
-  NORMAL_DARK_AGES
-  DARK_AGES_GRAVESTONE
-  NECROMANCY
-  + isPlantableByDefault(): boolean
-  + blocksHorizontalProjectiles(): boolean
-  + requiresWaterCapablePlant(): boolean
-  + slipperyRowDelta(): int
-}
-
-class Board {
-  + {static} DEFAULT_ROWS: int = 5
-  + {static} DEFAULT_COLUMNS: int = 9
-  - tiles: Tile[][]
-  + isValidTile(x: int, y: int): boolean
-  + isValidZombitePosition(x: double, row: int): boolean
-  + tileAt(x: int, y: int): Tile
-  + neighboursOf(x: int, y: int): List<Tile>
-}
-
-class Tile {
-  + {static} ICE_HEALTH: int = 600
-  + {static} GRAVESTONE_HEALTH: int = 700
-  - terrain: TerrainType
-  - terrainHealth: int
-  - frozen: boolean
-  - supportPlant: PlantInstance
-  - stackedPlant: PlantInstance
-  + setTerrain(terrain: TerrainType)
-  + damageTerrain(amount: int, groundWhenDestroyed: TerrainType)
-  + freeze()
-  + meltIce(amount: int)
-}
-
-class PlantSpec {
-  - sunCost: int
-  - rechargeTicks: int
-  - hp: int
-  - waterCapable: boolean
-  - providesSupport: boolean
-  - stacksOnSupport: boolean
-  - fire: boolean
-  - hasPlantFoodEffect: boolean
-}
-
-interface PlantSpecSource {
-  + specOf(type: PlantType): PlantSpec
-}
-
-class DefaultPlantSpecSource implements PlantSpecSource
-
-class PlantInstance implements Damageable {
-  - spec: PlantSpec
-  - hp: int
-  - stackedOnSupport: boolean
-}
-
-class CooldownSystem implements SimulationSystem
-
-class BoardController {
-  - world: SimulationWorld
-  - selection: PlantSelection
-  - specSource: PlantSpecSource
-  + plantPlant(type: PlantType, x: int, y: int): Result<String>
-  + pluckPlant(x: int, y: int): Result<String>
-  + cheatRemoveCooldown(): Result<String>
-  + feedPlant(x: int, y: int): Result<String>
-  + cheatAddPlantFood(): Result<String>
-  + showMap(): Result<String>
-  + showPlantsStatus(): Result<String>
-  + showTileStatus(x: int, y: int): Result<String>
-}
-
-class RewardService {
-  + {static} GLOW_CHANCE: double = 0.05
-  + {static} DROP_CHANCE: double = 0.10
-  - userService: UserService
-  - random: RandomSource
-  + rollGlowing(): boolean
-  + onZombieDeath(glowing: boolean, user: User, world: SimulationWorld): List<String>
-}
-
-Board o-- Tile
-Tile --> TerrainType
-Tile o-- PlantInstance
-PlantInstance --> PlantSpec
-DefaultPlantSpecSource --> PlantRepository
-SimulationWorld o-- Board
-BoardController --> SimulationWorld
-BoardController --> PlantSelection
-BoardController --> PlantSpecSource
-BoardController ..> PlantInstance
-Simulation o-- CooldownSystem
-RewardService --> UserService
-RewardService --> RandomSource
-GameplayController --> BoardController
-App --> PlantSpecSource
-
-' ZOMBIE COMBAT / WAVES / WIN / LOSS '
-
-enum GameOutcome {
-  RUNNING
-  WON
-  LOST
-}
-
-class ZombieSpec {
-  - name: String
-  - waveCost: int
-  - health: int
-  - speedTilesPerSecond: double
-  - eatDamagePerSecond: int
-  - boss: boolean
-}
-
-interface ZombieSpecSource {
-  + availableSpecs(): List<ZombieSpec>
-}
-
-class DefaultZombieSpecSource implements ZombieSpecSource
-
-class ZombieInstance implements Damageable {
-  - spec: ZombieSpec
-  - x: double
-  - row: int
-  - hp: int
-  - state: State
-  - glowing: boolean
-  + getTileX(): int
-  + kill()
-}
-
-class ZombieDeath {
-  - spec: ZombieSpec
-  - glowing: boolean
-  - cheatKill: boolean
-}
-
-class ZombieCombatSystem implements SimulationSystem {
-  + tick(context: TickContext)
-}
-
-class WaveConfig {
-  - waveCount: int
-  - firstWaveCost: int
-  - costOverride: int[]
-  + costOfWave(waveNumber: int): int
-  + isFinalWave(waveNumber: int): boolean
-  + {static} ofExplicitCosts(costs: int[]): WaveConfig
-}
-
-class WaveComposer <<static>> {
-  + {static} compose(targetCost: int, specs: List<ZombieSpec>, random: RandomSource): List<ZombieSpec>
-}
-
-class WaveSystem implements SimulationSystem {
-  + {static} NEXT_WAVE_THRESHOLD: double = 0.75
-  - config: WaveConfig
-  - specSource: ZombieSpecSource
-  + tick(context: TickContext)
-}
-
-class GameConclusionService {
-  - userService: UserService
-  - newsService: NewsService
-  + onWin(user: User, session: GameSession): List<String>
-  + onLoss(user: User, session: GameSession)
-}
-
-ZombieInstance --> ZombieSpec
-DefaultZombieSpecSource --> ZombieRepository
-ZombieCombatSystem ..> ZombieInstance
-ZombieCombatSystem ..> ZombieDeath
-WaveSystem --> WaveConfig
-WaveSystem --> ZombieSpecSource
-WaveSystem ..> WaveComposer
-WaveSystem ..> ZombieInstance
-Level --> WaveConfig
-SimulationWorld --> GameOutcome
-SimulationWorld o-- ZombieDeath
-Simulation o-- WaveSystem
-Simulation o-- ZombieCombatSystem
-GameplayController ..> ZombieInstance
-GameplayController --> RewardService
-GameplayController --> GameConclusionService
-GameConclusionService --> UserService
-GameConclusionService --> NewsService
-PlantSelectionController --> ZombieSpecSource
-App --> ZombieSpecSource
-App --> RewardService
-App --> GameConclusionService
-
-abstract class MenuView {
-  - menuController: MenuController
-  + handleCommonCommand(input: String): boolean
-  # print(result: Result)
-}
-
-class CommonMenuView extends MenuView {
-  + checkCommand(input: String)
-}
-
-MenuGraph --> MenuName
-MenuGraph --> MenuExit
-MenuExit --> MenuName
-MenuController --> MenuGraph
-MenuController --> Store
-MenuController --> UserService
-MenuView --> MenuController
-MenuView --> Command
-App --> MenuController
-
-' MENUS '
-
-abstract class Menu {
-  # store: Store
-  + enter()
-  + exit()
-  + handleCommand(command: String)
-}
-class RegisterMenu
-class LoginMenu
-class MainMenu
-class GameMenu
-class SettingsMenu
-class NewsMenu
-class ProfileMenu
-class CollectionMenu
-class PlantSelectionMenu
-class TravelMenu
-class MiniGameMenu
-
-Menu <|-- RegisterMenu
-Menu <|-- LoginMenu
-Menu <|-- MainMenu
-Menu <|-- GameMenu
-Menu <|-- SettingsMenu
-Menu <|-- NewsMenu
-Menu <|-- ProfileMenu
-Menu <|-- CollectionMenu
-Menu <|-- PlantSelectionMenu
-Menu <|-- TravelMenu
-Menu <|-- MiniGameMenu
-
-Menu --> Store
-
-RegisterMenu --> UserService
-LoginMenu --> UserService
-ProfileMenu --> UserService
-SettingsMenu --> UserService
-CollectionMenu --> UserService
-NewsMenu --> UserService
-TravelMenu --> UserService
-
-GameMenu --> GameService
-PlantSelectionMenu --> GameService
-MiniGameMenu --> GameService
-
-TravelMenu --> MiniGameMenu
-MiniGameMenu --> MiniGame
-
-' PROGRESSION SYSTEMS '
-
-class Shop {
-  + buyPlant(user: User, type: PlantType)
-  + buyItem(user: User, item: ShopItem)
-}
-
-class Leaderboard {
-  - entries: List<LeaderboardEntry>
-  + update(user: User)
-  + getTopPlayers(): List<LeaderboardEntry>
-}
-
-class NewsItem {
-  - text: String
-  - read: boolean
-  - type: NewsType
-}
-
-class Quest {
-  - title: String
-  - priority: QuestPriority
-  - reward: Reward
-  - completed: boolean
-}
-
-class Reward {
-  - rewardType: RewardType
-  - amount: int
-  + apply(user: User)
-}
-
-enum ShopItem {
-  PLANT
-  SEED_PACKET
-  POT
-}
-
-enum NewsType {
-  PLANT_UNLOCKED
-  ZOMBIE_UNLOCKED
-  LEVEL_UNLOCKED
-  MINIGAME_UNLOCKED
-}
-
-
-enum RewardType {
-  COIN
-  GEM
-  SEED_PACKET
-  POT
-}
-
-Leaderboard *-- LeaderboardEntry
-Quest *-- Reward
-UserService --> Shop
-UserService --> Leaderboard
-UserService --> NewsItem
-UserService --> Quest
-
-
-' GAME / PLAYER / LEVEL '
-class Player {
-  - user: User
-  - sunPoints: int
-  - plantFoods: int
-  - chosenPlants: List<PlantType>
-  - boostedPlants: Set<PlantType>
-  + choosePlant(type: PlantType)
-  + removePlant(type: PlantType)
-  + boostPlant(type: PlantType)
-  + addSun(amount: int)
-  + usePlantFood(position: Position)
-}
-
-class GameEngine {
-  - player: Player
-  - level: Level
-  - map: GameMap
-  - waveManager: WaveManager
-  - timeManager: TimeManager
-  - plantFactory: PlantFactory
-  - zombieFactory: ZombieFactory
-  - projectileFactory: ProjectileFactory
-  - obstacleFactory: ObstacleFactory
-  - gameState: GameState
-  + start()
-  + advanceTime(ticks: int)
-  + plant(type: PlantType, position: Position)
-  + pluckPlant(position: Position)
-  + collectSun(position: Position)
-  + checkWinningLogic()
-  + showMap()
-}
-
-interface Level {
-  + getName(): String
-  + getRows(): int
-  + getColumns(): int
-  + isUnlocked(): boolean
-  + getSelectablePlantCount(): int
-  + getWaves(): List<Wave>
-}
-
-class NormalLevel {
-  - name: String
-  - rows: int
-  - columns: int
-  - unlocked: boolean
-  - selectablePlantCount: int
-  - waves: List<Wave>
-}
-
-class SpecialLevel {
-  - name: String
-  - rows: int
-  - columns: int
-  - unlocked: boolean
-  - selectablePlantCount: int
-  - waves: List<Wave>
-  - specialRule: String
-}
-
-class BossLevel {
-  - name: String
-  - rows: int
-  - columns: int
-  - unlocked: boolean
-  - selectablePlantCount: int
-  - waves: List<Wave>
-  - bossType: ZombieType
-}
-
-class Chapter {
-  - name: String
-  - levels: List<Level>
-  - unlocked: boolean
-}
-
-class ChapterFactory {
-  + createChapter(name: String): Chapter
-}
-
-class LevelFactory {
-  + createNormalLevel(name: String): Level
-  + createSpecialLevel(name: String): Level
-  + createBossLevel(name: String): Level
-}
-
-class WaveFactory {
-  + createWave(number: int, difficulty: int, finalWave: boolean): Wave
-}
-
-class TimeManager {
-  - currentTick: int
-  + advance(ticks: int)
-  + getSeconds(): double
-}
-
-class Position {
-  - x: double
-  - y: int
-}
-
-enum GameState {
-  PLANT_SELECTION
-  RUNNING
-  WON
-  LOST
-}
-
-
-
-Level <|.. NormalLevel
-Level <|.. SpecialLevel
-Level <|.. BossLevel
-
-User --> Player
-Player --> User
-
-GameEngine *-- Player
-GameEngine *-- GameMap
-GameEngine *-- WaveManager
-GameEngine *-- TimeManager
-GameEngine --> Level
-GameEngine --> ObstacleFactory
-
-Chapter *-- Level
-
-NormalLevel *-- Wave
-SpecialLevel *-- Wave
-BossLevel *-- Wave
-
-ChapterFactory --> Chapter
-ChapterFactory --> LevelFactory
-
-LevelFactory --> Level
-LevelFactory --> WaveFactory
-
-WaveFactory --> Wave
-
-' MAP / TILES / LAWN MOWER '
-
-class GameMap {
-  - tiles: Tile[][]
-  - lawnMowers: List<LawnMower>
-  - suns: List<Sun>
-  + getTile(position: Position): Tile
-  + addPlant(plant: Plant, position: Position)
-  + removePlant(position: Position)
-  + addZombie(zombie: Zombie)
-  + addObstacle(obstacle: Obstacle, position: Position)
-  + removeObstacle(position: Position)
-  + addSun(sun: Sun)
-  + collectSun(position: Position, player: Player)
-  + moveZombies()
-  + getZombiesInLane(lane: int): List<Zombie>
-}
-class Tile {
-  - position: Position
-  - terrainType: TerrainType
-  - plants: List<Plant>
-  - zombies: List<Zombie>
-  - obstacles: List<Obstacle>
-  + canPlant(type: PlantType): boolean
-  + addPlant(plant: Plant)
-  + removePlant(plant: Plant)
-  + addObstacle(obstacle: Obstacle)
-  + removeObstacle(obstacle: Obstacle)
-  + hasBlockingObstacle(): boolean
-}
-
-class LawnMower {
-  - lane: int
-  - used: boolean
-  + trigger(zombies: List<Zombie>)
-}
-
-class Obstacle {
-  - type: ObstacleType
-  - hp: int
-  - position: Position
-  - blocksPlanting: boolean
-  - blocksProjectiles: boolean
-  - blocksZombies: boolean
-  + takeDamage(amount: int)
-  + isDestroyed(): boolean
-  + onDestroy(tile: Tile)
-}
-
-class ObstacleFactory {
-  + create(type: ObstacleType, position: Position): Obstacle
-}
-
-enum TerrainType {
-  NORMAL
-  SLIPPERY_UP
-  SLIPPERY_DOWN
-  WATER
-  LOW_TIDE
-  NECROMANCY
-  FROZEN_GROUND
-}
-
-enum ObstacleType {
-  GRAVE
-  ICE_BLOCK
-  ROCK
-  VASE
-  NECROMANCY_HOLE
-}
-
-GameMap *-- Tile
-GameMap *-- LawnMower
-Tile o-- Plant
-Tile o-- Zombie
-Tile o-- Obstacle
-Obstacle *-- Position
-ObstacleFactory --> Obstacle
-GameMap --> ObstacleFactory
-
-' PLANTS '
-
-
-class Plant {
-  - type: PlantType
-  - hp: int
-  - rechargeTime: int
-  - actionTime: int
-  - cost: int
-  - category: PlantCategory
-  - position: Position
-  - tags: Set<PlantTag>
-  - sunProduceBehavior: SunProduceBehavior
-  - attackBehavior: AttackBehavior
-  - specialAbility: SpecialAbility
-  + act(engine: GameEngine)
-  + takeDamage(amount: int)
-  + usePlantFood(engine: GameEngine)
-  + isDead(): boolean
-}
-
-interface SunProduceBehavior {
-  + produce(plant: Plant, engine: GameEngine)
-}
-
-class NoSunProduction
-class NormalSunProduction
-class OnDeathSunProduction
-
-SunProduceBehavior <|.. NoSunProduction
-SunProduceBehavior <|.. NormalSunProduction
-SunProduceBehavior <|.. OnDeathSunProduction
-
-interface AttackBehavior {
-  + attack(plant: Plant, engine: GameEngine)
-}
-
-class NoAttack
-class ShooterAttack
-
-AttackBehavior <|.. NoAttack
-AttackBehavior <|.. ShooterAttack
-
-interface SpecialAbility {
-  + activate(plant: Plant, engine: GameEngine)
-}
-
-class PlantFactory {
-  + create(type: PlantType, position: Position): Plant
-}
-
-enum PlantType {
-  SUNFLOWER
-  PEASHOOTER
-  WALL_NUT
-  CHERRY_BOMB
-  JALAPENO
-  SQUASH
-}
-
-enum PlantCategory {
-  SUN_PRODUCER
-  SHOOTER
-  LOBBER
-  EXPLOSIVE
-  MELEE
-  WALL_NUT
-  MODIFIER
-  HOMING
-  MINT
-}
-
-enum PlantTag {
-  FIRE
-  ICE
-  POISON
-  WATER
-  BOOSTED
-}
-
-Plant *-- Position
-Plant --> SunProduceBehavior
-Plant --> AttackBehavior
-Plant --> SpecialAbility
-PlantFactory --> Plant
-
-
-' PROJECTILES '
-
-
-class Projectile {
-  - speed: double
-  - direction: Direction
-  - damage: int
-  - position: Position
-  - collisionLogic: CollisionLogic
-  - effect: ProjectileEffect
-  + move()
-  + checkCollision(engine: GameEngine)
-  + applyEffect(target: Zombie)
-}
-
-interface CollisionLogic {
-  + hasCollided(projectile: Projectile, engine: GameEngine): boolean
-}
-
-class NormalCollision
-class LobberCollision
-class PiercingCollision
-
-CollisionLogic <|.. NormalCollision
-CollisionLogic <|.. LobberCollision
-CollisionLogic <|.. PiercingCollision
-
-interface ProjectileEffect {
-  + apply(zombie: Zombie)
-}
-
-class NormalEffect
-class IceEffect
-class FireEffect
-class PoisonEffect
-class AreaEffect
-
-ProjectileEffect <|.. NormalEffect
-ProjectileEffect <|.. IceEffect
-ProjectileEffect <|.. FireEffect
-ProjectileEffect <|.. PoisonEffect
-ProjectileEffect <|.. AreaEffect
-
-class ProjectileFactory {
-  + create(type: ProjectileType, position: Position): Projectile
-}
-
-
-
-enum ProjectileType {
-  NORMAL
-  ICE
-  FIRE
-  POISON
-  AOE
-  WALLNUT
-  EXPLODE_WALLNUT
-  GIANT_WALLNUT
-}
-
-Projectile *-- Position
-Projectile --> CollisionLogic
-Projectile --> ProjectileEffect
-ProjectileFactory --> Projectile
-ShooterAttack --> ProjectileFactory
-
-
-' ZOMBIES / WAVES '
-class Tile {
-  - position: Position
-  - terrainType: TerrainType
-  - plants: List<Plant>
-  - zombies: List<Zombie>
-  - obstacles: List<Obstacle>
-  + canPlant(type: PlantType): boolean
-  + addPlant(plant: Plant)
-  + removePlant(plant: Plant)
-  + addObstacle(obstacle: Obstacle)
-  + removeObstacle(obstacle: Obstacle)
-  + hasBlockingObstacle(): boolean
-}
-
-class LawnMower {
-  - lane: int
-  - used: boolean
-  + trigger(zombies: List<Zombie>)
-}
-
-class Obstacle {
-  - type: ObstacleType
-  - hp: int
-  - position: Position
-  - blocksPlanting: boolean
-  - blocksProjectiles: boolean
-  - blocksZombies: boolean
-  + takeDamage(amount: int)
-  + isDestroyed(): boolean
-  + onDestroy(tile: Tile)
-}
-
-class ObstacleFactory {
-  + create(type: ObstacleType, position: Position): Obstacle
-}
-
-enum TerrainType {
-  NORMAL
-  SLIPPERY_UP
-  SLIPPERY_DOWN
-  WATER
-  LOW_TIDE
-  NECROMANCY
-  FROZEN_GROUND
-}
-
-enum ObstacleType {
-  GRAVE
-  ICE_BLOCK
-  ROCK
-  VASE
-  NECROMANCY_HOLE
-}
-
-GameMap *-- Tile
-GameMap *-- LawnMower
-Tile o-- Plant
-Tile o-- Zombie
-Tile o-- Obstacle
-Obstacle *-- Position
-ObstacleFactory --> Obstacle
-GameMap --> ObstacleFactory
-
-' PLANTS '
-
-
-class Plant {
-  - type: PlantType
-  - hp: int
-  - rechargeTime: int
-  - actionTime: int
-  - cost: int
-  - category: PlantCategory
-  - position: Position
-  - tags: Set<PlantTag>
-  - sunProduceBehavior: SunProduceBehavior
-  - attackBehavior: AttackBehavior
-  - specialAbility: SpecialAbility
-  + act(engine: GameEngine)
-  + takeDamage(amount: int)
-  + usePlantFood(engine: GameEngine)
-  + isDead(): boolean
-}
-
-interface SunProduceBehavior {
-  + produce(plant: Plant, engine: GameEngine)
-}
-
-class NoSunProduction
-class NormalSunProduction
-class OnDeathSunProduction
-
-SunProduceBehavior <|.. NoSunProduction
-SunProduceBehavior <|.. NormalSunProduction
-SunProduceBehavior <|.. OnDeathSunProduction
-
-interface AttackBehavior {
-  + attack(plant: Plant, engine: GameEngine)
-}
-
-class NoAttack
-class ShooterAttack
-
-AttackBehavior <|.. NoAttack
-AttackBehavior <|.. ShooterAttack
-
-interface SpecialAbility {
-  + activate(plant: Plant, engine: GameEngine)
-}
-
-class PlantFactory {
-  + create(type: PlantType, position: Position): Plant
-}
-
-enum PlantType {
-  SUNFLOWER
-  PEASHOOTER
-  WALL_NUT
-  CHERRY_BOMB
-  JALAPENO
-  SQUASH
-}
-
-enum PlantCategory {
-  SUN_PRODUCER
-  SHOOTER
-  LOBBER
-  EXPLOSIVE
-  MELEE
-  WALL_NUT
-  MODIFIER
-  HOMING
-  MINT
-}
-
-enum PlantTag {
-  FIRE
-  ICE
-  POISON
-  WATER
-  BOOSTED
-}
-
-Plant *-- Position
-Plant --> SunProduceBehavior
-Plant --> AttackBehavior
-Plant --> SpecialAbility
-PlantFactory --> Plant
-
-
-' PROJECTILES '
-
-
-class Projectile {
-  - speed: double
-  - direction: Direction
-  - damage: int
-  - position: Position
-  - collisionLogic: CollisionLogic
-  - effect: ProjectileEffect
-  + move()
-  + checkCollision(engine: GameEngine)
-  + applyEffect(target: Zombie)
-}
-
-interface CollisionLogic {
-  + hasCollided(projectile: Projectile, engine: GameEngine): boolean
-}
-
-class NormalCollision
-class LobberCollision
-class PiercingCollision
-
-CollisionLogic <|.. NormalCollision
-CollisionLogic <|.. LobberCollision
-CollisionLogic <|.. PiercingCollision
-
-interface ProjectileEffect {
-  + apply(zombie: Zombie)
-}
-
-class NormalEffect
-class IceEffect
-class FireEffect
-class PoisonEffect
-class AreaEffect
-
-ProjectileEffect <|.. NormalEffect
-ProjectileEffect <|.. IceEffect
-ProjectileEffect <|.. FireEffect
-ProjectileEffect <|.. PoisonEffect
-ProjectileEffect <|.. AreaEffect
-
-class ProjectileFactory {
-  + create(type: ProjectileType, position: Position): Projectile
-}
-
-
-enum ProjectileType {
-  NORMAL
-  ICE
-  FIRE
-  POISON
-  AOE
-  WALLNUT
-  EXPLODE_WALLNUT
-  GIANT_WALLNUT
-}
-
-Projectile *-- Position
-Projectile --> CollisionLogic
-Projectile --> ProjectileEffect
-ProjectileFactory --> Projectile
-ShooterAttack --> ProjectileFactory
-
-
-' ZOMBIES / WAVES '
-class Zombie {
-  - type: ZombieType
-  - position: Position
-  - armor: int
-  - health: int
-  - waveCost: int
-  - effects: List<StatusEffect>
-  - glowing: boolean
-  - movementLogic: MovementLogic
-  - attackLogic: ZombieAttackLogic
-  + move(engine: GameEngine)
-  + attack(plant: Plant)
-  + takeHit(projectile: Projectile)
-  + die(engine: GameEngine)
-  + isDead(): boolean
-}
-
-interface MovementLogic {
-  + move(zombie: Zombie, engine: GameEngine)
-}
-
-class NormalMovement
-class SlidingMovement
-class BowlingMovement
-
-MovementLogic <|.. NormalMovement
-MovementLogic <|.. SlidingMovement
-MovementLogic <|.. BowlingMovement
-
-interface ZombieAttackLogic {
-  + attack(zombie: Zombie, plant: Plant)
-}
-
-class NormalZombieAttack
-
-ZombieAttackLogic <|.. NormalZombieAttack
-
-class StatusEffect {
-  - type: EffectType
-  - durationTicks: int
-  - power: int
-}
-
-class ZombieFactory {
-  + create(type: ZombieType, lane: int): Zombie
-}
-
-class WaveManager {
-  - currentWaveIndex: int
-  - waves: List<Wave>
-  - zombieFactory: ZombieFactory
-  + startNextWave()
-  + shouldStartNextWave(): boolean
-  + spawnWave(wave: Wave)
-}
-
-class Wave {
-  - number: int
-  - difficulty: int
-  - finalWave: boolean
-  - initialTotalHealth: int
-  - zombies: List<Zombie>
-  + getCurrentTotalHealth(): int
-}
-
-enum ZombieType {
-  BASIC
-  CONEHEAD
-  BUCKETHEAD
-  PEASHOOTER_ZOMBIE
-  WALLNUT_ZOMBIE
-  JALAPENO_ZOMBIE
-  SQUASH_ZOMBIE
-  SUNFLOWER_ZOMBIE
-}
-
-enum EffectType {
-  ICE
-  POISON
-  FIRE
-  STUN
-}
-
-Zombie *-- Position
-Zombie --> MovementLogic
-Zombie --> ZombieAttackLogic
-Zombie o-- StatusEffect
-ZombieFactory --> Zombie
-WaveManager *-- Wave
-WaveManager --> ZombieFactory
-Wave o-- Zombie
-
-
-' MINIGAMES '
-
-abstract class MiniGame {
-  - name: String
-  - unlocked: boolean
-  + start(user: User)
-  + finish(result: GameResult)
-}
-
-class Zombotany {
-  + createSpecialZombies()
-}
-
-class Brain {
-  - health: int
-  + takeDamage(amount: int)
-  + isDestroyed(): boolean
-}
-
-MiniGame <|-- Zombotany
-Zombotany --> ZombieFactory
-Zombotany --> Brain
-
-
-' VASE BREAKER '
-
-
-class VaseBreaker {
-  - vases: List<Vase>
-  + breakVase(position: Position)
-  + revealContent(vase: Vase)
-}
-
-class Vase {
-  - position: Position
-  - contentType: VaseContentType
-  - broken: boolean
-  + break()
-}
-
-class SeedPacket {
-  - plantType: PlantType
-  - amount: int
-}
-
-enum VaseContentType {
-  PLANT
-  ZOMBIE
-  SEED_PACKET
-  SUN
-  EMPTY
-}
-
-MiniGame <|-- VaseBreaker
-VaseBreaker *-- Vase
-Vase --> VaseContentType
-Vase --> SeedPacket
-Vase --> Plant
-Vase --> Zombie
-
-
-' BOWLING WALLNUT '
-
-class BowlingWallnut {
-  - conveyorBelt: ConveyorBelt
-  + launchWallnut(type: ProjectileType, lane: int)
-}
-
-class ConveyorBelt {
-  - packets: Queue<SeedPacket>
-  + addPacket(packet: SeedPacket)
-  + getNextPacket(): SeedPacket
-}
-
-MiniGame <|-- BowlingWallnut
-BowlingWallnut *-- ConveyorBelt
-ConveyorBelt o-- SeedPacket
-
+skinparam linetype ortho
+hide empty members
+
+package "CLI and navigation" {
+  class Main
+  class MenuRouter
+  abstract class MenuView
+  class RegisterMenuView
+  class LoginMenuView
+  class CommonMenuView
+  class GameMenuView
+  class PlantSelectionView
+  class GameplayView
+  class TravelMenuView
+  class MiniGameMenu
+  class ScoredGameView
+  enum Command
+  enum MenuName
+  class Result<T>
+
+  Main --> MenuRouter : routes input
+  MenuRouter o-- MenuView : owns menu views
+  MenuView <|-- RegisterMenuView
+  MenuView <|-- LoginMenuView
+  MenuView <|-- CommonMenuView
+  MenuView <|-- GameMenuView
+  MenuView <|-- PlantSelectionView
+  MenuView <|-- GameplayView
+  MenuView <|-- TravelMenuView
+  MenuView <|-- MiniGameMenu
+  MenuView <|-- ScoredGameView
+  MenuRouter --> MenuName
+  MenuView ..> Command : regex matching
+  MenuView ..> Result : prints
+}
+
+package "Composition root and controllers" {
+  class App
+  class MenuController
+  class RegisterMenuController
+  class LoginMenuController
+  class MainMenuController
+  class GameMenuController
+  class CollectionMenuController
+  class PlantSelectionController
+  class GameplayController
+  class BoardController
+  class GreenhouseController
+  class ShopController
+  class TravelMenuController
+  class MiniGameController
+  class ScoredGameController
+
+  App *-- MenuController
+  App *-- RegisterMenuController
+  App *-- LoginMenuController
+  App *-- MainMenuController
+  App *-- GameMenuController
+  App *-- CollectionMenuController
+  App *-- PlantSelectionController
+  App *-- GreenhouseController
+  App *-- ShopController
+  App *-- TravelMenuController
+  App *-- MiniGameController
+  App *-- ScoredGameController
+  MenuRouter --> App
+  GameMenuView --> GameMenuController
+  GameMenuView --> PlantSelectionController : starts resolved level
+  PlantSelectionView --> PlantSelectionController
+  GameplayView --> GameplayController
+  GameplayController *-- BoardController
+  TravelMenuView --> TravelMenuController
+  MiniGameMenu --> MiniGameController
+  ScoredGameView --> ScoredGameController
+}
+
+package "Users, persistence, and cross-cutting services" {
+  class User
+  class Collection
+  class PlantCard
+  class MiniGameProgress
+  class QuestProgress
+  class DailyShopState
+  class News
+  interface UserRepository
+  class JsonUserRepository
+  class UserService
+  class SaveFile
+  class SaveFileMigrator
+  interface SaveSerializer
+  class GsonSaveSerializer
+  class AtomicFileWriter
+  interface PasswordService
+  class Sha256PasswordService
+  class NewsService
+  class LeaderboardService
+  class GameConclusionService
+
+  User *-- Collection
+  Collection *-- PlantCard
+  User *-- MiniGameProgress
+  User *-- QuestProgress
+  User *-- DailyShopState
+  User *-- News
+  UserRepository <|.. JsonUserRepository
+  JsonUserRepository --> SaveFile
+  JsonUserRepository *-- SaveFileMigrator
+  JsonUserRepository *-- SaveSerializer
+  SaveSerializer <|.. GsonSaveSerializer
+  JsonUserRepository *-- AtomicFileWriter
+  UserService *-- UserRepository
+  PasswordService <|.. Sha256PasswordService
+  RegisterMenuController --> PasswordService
+  LoginMenuController --> PasswordService
+  App *-- UserService
+  App *-- NewsService
+  App *-- LeaderboardService
+  App *-- GameConclusionService
+}
+
+package "Adventure and deterministic simulation" {
+  interface Level
+  class NormalLevel
+  class SpecialLevel
+  class BossLevel
+  enum SpecialLevelType
+  class LevelSelectionRules
+  class AdventureCatalog
+  class ChapterCatalog
+  class AdventureLevelConfig
+  class GameSession
+  class PlantSelection
+  class Simulation
+  interface SimulationSystem
+  class SimulationWorld
+  class Board
+  class Tile
+  class AdventureInitializer
+  class AdventureRuleSystem
+  class WaveSystem
+  class CooldownSystem
+  class FallingSunSystem
+  class ZombieCombatSystem
+  class ZombieSpecialSystem
+
+  Level <|.. NormalLevel
+  Level <|.. SpecialLevel
+  Level <|.. BossLevel
+  SpecialLevel --> SpecialLevelType
+  Level *-- LevelSelectionRules
+  AdventureCatalog o-- Level
+  ChapterCatalog ..> Level : unlock progression
+  Level --> AdventureLevelConfig
+  GameSession *-- Level
+  GameSession *-- PlantSelection
+  PlantSelectionController --> GameSession
+  PlantSelectionController --> AdventureInitializer
+  PlantSelectionController --> Simulation
+  Simulation *-- SimulationWorld
+  SimulationWorld *-- Board
+  Board *-- Tile
+  Simulation o-- SimulationSystem
+  SimulationSystem <|.. AdventureRuleSystem
+  SimulationSystem <|.. WaveSystem
+  SimulationSystem <|.. CooldownSystem
+  SimulationSystem <|.. FallingSunSystem
+  SimulationSystem <|.. ZombieCombatSystem
+  SimulationSystem <|.. ZombieSpecialSystem
+  BossLevel ..> GameConclusionService : deferred to Phase 2
+}
+
+package "Plants and zombies" {
+  interface PlantRepository
+  class PlantRegistry
+  class PlantDefinition
+  interface PlantBehavior
+  class PlantBehaviorFactory
+  class BonusPlantBehavior <<bonus>>
+  class PlantInstance
+  interface PlantSpecSource
+  class DefaultPlantSpecSource
+  interface ZombieRepository
+  class ZombieRegistry
+  class ZombieDefinition
+  class ZombieFactory
+  class ZombieBehaviorFactory
+  class CompositeZombieBehavior
+  class ZombieInstance
+  interface ZombieAttackComponent
+  interface ZombieMovementComponent
+  interface ZombieSpecialAbility
+  class ArmoredRamZombieAttack <<bonus>>
+  class FishermanAbility <<bonus>>
+  class JesterAbility <<bonus>>
+  class WizardAbility <<bonus>>
+  class KingAbility <<bonus>>
+  interface ZombieSpecSource
+  class DefaultZombieSpecSource
+
+  PlantRepository <|.. PlantRegistry
+  PlantRegistry o-- PlantDefinition
+  PlantBehaviorFactory o-- PlantBehavior
+  PlantBehavior <|.. BonusPlantBehavior
+  PlantBehaviorFactory --> BonusPlantBehavior
+  PlantSpecSource <|.. DefaultPlantSpecSource
+  DefaultPlantSpecSource --> PlantRepository
+  PlantInstance --> PlantDefinition
+  ZombieRepository <|.. ZombieRegistry
+  ZombieRegistry o-- ZombieDefinition
+  ZombieFactory --> ZombieDefinition
+  ZombieFactory --> ZombieBehaviorFactory
+  ZombieFactory --> ZombieInstance
+  ZombieBehaviorFactory --> CompositeZombieBehavior
+  CompositeZombieBehavior *-- ZombieAttackComponent
+  CompositeZombieBehavior *-- ZombieMovementComponent
+  CompositeZombieBehavior o-- ZombieSpecialAbility
+  ZombieAttackComponent <|.. ArmoredRamZombieAttack
+  ZombieSpecialAbility <|.. FishermanAbility
+  ZombieSpecialAbility <|.. JesterAbility
+  ZombieSpecialAbility <|.. WizardAbility
+  ZombieSpecialAbility <|.. KingAbility
+  ZombieInstance *-- ZombieAttackComponent
+  ZombieInstance *-- ZombieMovementComponent
+  ZombieSpecialSystem ..> FishermanAbility : mirrored tick rules
+  ZombieSpecialSystem ..> WizardAbility : mirrored tick rules
+  ZombieSpecialSystem ..> KingAbility : mirrored tick rules
+  ZombieSpecSource <|.. DefaultZombieSpecSource
+  DefaultZombieSpecSource --> ZombieRepository
+  Board o-- PlantInstance
+  SimulationWorld o-- ZombieInstance
+}
+
+package "Domain events, quests, and Travel Log" {
+  class DomainEvent
+  enum DomainEventType
+  interface DomainEventListener
+  class DomainEventBus
+  class DomainEventPublisher
+  class QuestCatalog
+  class Quest
+  class QuestInstance
+  class QuestService
+  class QuestRewardService
+  enum TravelLogPage
+
+  DomainEvent --> DomainEventType
+  DomainEventBus o-- DomainEventListener
+  DomainEventPublisher --> DomainEventBus
+  QuestService ..|> DomainEventListener
+  QuestService *-- QuestCatalog
+  QuestCatalog o-- Quest
+  QuestService --> QuestInstance
+  QuestService *-- QuestRewardService
+  TravelMenuController --> QuestService
+  TravelMenuController --> TravelLogPage
+  GameplayController --> DomainEventPublisher
+  BoardController --> DomainEventPublisher
+  ShopController --> DomainEventPublisher
+  MiniGameController --> DomainEventPublisher
+}
+
+package "Minigame strategy framework" {
+  class MiniGameCatalog
+  class MiniGameDefinition
+  class MiniGameLevelConfig
+  abstract class MiniGame
+  interface MiniGameCommandExtension
+  class MiniGameSession
+  class MiniGameService
+  enum MiniGameId
+  class VaseBreaker
+  class BowlingWallnut
+  class IZombie
+  class Beghouled <<bonus>>
+  class Zombotany <<bonus>>
+
+  MiniGameCatalog *-- MiniGameDefinition
+  MiniGameDefinition *-- MiniGameLevelConfig
+  MiniGameDefinition --> MiniGameId
+  MiniGame <|-- VaseBreaker
+  MiniGame <|-- BowlingWallnut
+  MiniGame <|-- IZombie
+  MiniGame <|-- Beghouled
+  MiniGame <|-- Zombotany
+  MiniGame ..|> MiniGameCommandExtension
+  MiniGameSession *-- MiniGameLevelConfig
+  MiniGameSession --> Simulation
+  MiniGameService *-- MiniGameCatalog
+  MiniGameService --> MiniGameSession
+  MiniGameController --> MiniGameService
+  note right of MiniGameId
+    Mandatory: Vase Breaker,
+    Bowling Wall-nut, I, Zombie
+    Bonus: Beghouled, Zombotany
+  end note
+}
+
+package "Scored game (bonus) and leaderboard" {
+  class ScoredGameService <<bonus>>
+  class ScoredGameSession <<bonus>>
+  class DailyZombieSequenceGenerator <<bonus>>
+  class ScoredGameScore <<bonus>>
+  enum ScorePattern <<bonus>>
+  class Leaderboard
+  class LeaderboardEntry
+  enum LeaderboardColumn
+
+  ScoredGameController --> ScoredGameService
+  ScoredGameService --> ScoredGameSession
+  ScoredGameService *-- DailyZombieSequenceGenerator
+  ScoredGameSession --> Simulation
+  ScoredGameSession --> ScoredGameScore
+  ScoredGameScore --> ScorePattern
+  LeaderboardService --> Leaderboard
+  Leaderboard *-- LeaderboardEntry
+  Leaderboard --> LeaderboardColumn
+  LeaderboardService --> UserService
+}
+
+note bottom of App
+  Composition root wires repositories, services,
+  controllers, deterministic RNG, and injected Clock.
+end note
 @enduml

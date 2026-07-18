@@ -95,7 +95,10 @@ public class ModifierBehavior extends AbstractTimedBehavior {
                         break;
                     }
                     try {
-                        engine.placePlantForFree(engine.getPlantFactory().create(PlantType.LILY_PAD, plant.getLevel()), position);
+                        engine.placePlantForFree(
+                                engine.getPlantFactory().create(
+                                        PlantType.LILY_PAD, plant.getLevel()),
+                                position);
                         spawned++;
                     } catch (IllegalStateException ignored) {
                         // Another layer or terrain rule rejected this tile.

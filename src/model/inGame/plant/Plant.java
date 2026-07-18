@@ -44,10 +44,10 @@ public class Plant {
     public Plant(PlantType type, int hp, int rechargeTime, int actionTime, int cost,
                  model.enums.PlantCategory category, SunProduceBehavior sunProduceBehavior,
                  AttackBehavior attackBehavior, SpecialAbility specialAbility) {
-        this(PlantRegistry.getDefault().requireMandatory(type),
-                PlantRegistry.getDefault().requireMandatory(type),
+        this(PlantRegistry.getDefault().require(type),
+                PlantRegistry.getDefault().require(type),
                 1,
-                PlantRegistry.getDefault().requireMandatory(type).statsAtLevel(1),
+                PlantRegistry.getDefault().require(type).statsAtLevel(1),
                 new PlantBehavior() {
                     @Override
                     public void tick(Plant plant, GameEngine engine, double deltaSeconds) {

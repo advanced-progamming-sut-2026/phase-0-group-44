@@ -1,0 +1,137 @@
+digraph Phase1Architecture {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.35", ranksep="0.8",
+         fontname="Helvetica", label="PVZ2 Phase-1 Final Architecture", labelloc="t", fontsize=22];
+  node [shape=box, style="rounded,filled", fillcolor="white", color="#4b5563",
+        fontname="Helvetica", fontsize=10, margin="0.12,0.08"];
+  edge [color="#6b7280", fontname="Helvetica", fontsize=8, arrowsize=0.7];
+
+  subgraph cluster_cli {
+    label="CLI / Navigation"; color="#93c5fd"; style="rounded";
+    Main; MenuRouter; MenuView; Command; MenuName;
+    Main -> MenuRouter [label="input"];
+    MenuRouter -> MenuView [label="owns"];
+    MenuView -> Command [style=dashed, label="matches"];
+    MenuRouter -> MenuName [style=dashed];
+  }
+
+  subgraph cluster_control {
+    label="Controllers / Composition"; color="#86efac"; style="rounded";
+    App; MenuController; GameMenuController; PlantSelectionController;
+    GameplayController; BoardController; TravelMenuController;
+    MiniGameController; ScoredGameController;
+    App -> MenuController;
+    App -> GameMenuController;
+    App -> PlantSelectionController;
+    App -> TravelMenuController;
+    App -> MiniGameController;
+    App -> ScoredGameController;
+    GameplayController -> BoardController;
+    GameMenuController -> PlantSelectionController [label="resolved level"];
+  }
+
+  subgraph cluster_persistence {
+    label="Profiles / Persistence"; color="#f9a8d4"; style="rounded";
+    User; Collection; UserService; UserRepository; JsonUserRepository;
+    SaveFile; SaveFileMigrator; AtomicFileWriter; PasswordService; Sha256PasswordService;
+    User -> Collection [label="composition"];
+    UserService -> UserRepository;
+    UserRepository -> JsonUserRepository [dir=back, arrowtail=empty];
+    JsonUserRepository -> SaveFile;
+    JsonUserRepository -> SaveFileMigrator;
+    JsonUserRepository -> AtomicFileWriter;
+    PasswordService -> Sha256PasswordService [dir=back, arrowtail=empty];
+  }
+
+  subgraph cluster_game {
+    label="Adventure / Shared Simulation"; color="#fde68a"; style="rounded";
+    Level; NormalLevel; SpecialLevel; BossLevel; LevelSelectionRules;
+    GameSession; PlantSelection; Simulation; SimulationWorld; SimulationSystem;
+    AdventureRuleSystem; WaveSystem; ZombieCombatSystem; Board;
+    Level -> NormalLevel [dir=back, arrowtail=empty];
+    Level -> SpecialLevel [dir=back, arrowtail=empty];
+    Level -> BossLevel [dir=back, arrowtail=empty];
+    Level -> LevelSelectionRules;
+    GameSession -> Level;
+    GameSession -> PlantSelection;
+    PlantSelectionController -> GameSession;
+    PlantSelectionController -> Simulation;
+    Simulation -> SimulationWorld;
+    SimulationWorld -> Board;
+    Simulation -> SimulationSystem [label="ordered systems"];
+    SimulationSystem -> AdventureRuleSystem [dir=back, arrowtail=empty];
+    SimulationSystem -> WaveSystem [dir=back, arrowtail=empty];
+    SimulationSystem -> ZombieCombatSystem [dir=back, arrowtail=empty];
+  }
+
+  subgraph cluster_content {
+    label="Canonical Content"; color="#c4b5fd"; style="rounded";
+    PlantRegistry; PlantDefinition; PlantBehavior; PlantBehaviorFactory;
+    BonusPlantBehavior; ZombieRegistry; ZombieDefinition; ZombieFactory;
+    ZombieBehaviorFactory; CompositeZombieBehavior; ZombieInstance;
+    ArmoredRamZombieAttack; FishermanAbility; JesterAbility; WizardAbility; KingAbility;
+    PlantRegistry -> PlantDefinition;
+    PlantBehaviorFactory -> PlantBehavior;
+    PlantBehavior -> BonusPlantBehavior [dir=back, arrowtail=empty, label="bonus"];
+    ZombieRegistry -> ZombieDefinition;
+    ZombieFactory -> ZombieDefinition;
+    ZombieFactory -> ZombieBehaviorFactory;
+    ZombieBehaviorFactory -> CompositeZombieBehavior;
+    CompositeZombieBehavior -> ArmoredRamZombieAttack [label="bonus attack"];
+    CompositeZombieBehavior -> FishermanAbility [label="bonus ability"];
+    CompositeZombieBehavior -> JesterAbility [label="bonus ability"];
+    CompositeZombieBehavior -> WizardAbility [label="bonus ability"];
+    CompositeZombieBehavior -> KingAbility [label="bonus ability"];
+    ZombieFactory -> ZombieInstance;
+    Board -> PlantDefinition [style=dashed];
+    SimulationWorld -> ZombieInstance;
+  }
+
+  subgraph cluster_events {
+    label="Events / Quests / Travel Log"; color="#67e8f9"; style="rounded";
+    DomainEventPublisher; DomainEventBus; DomainEventListener;
+    QuestService; QuestCatalog; QuestRewardService; TravelLogPage;
+    DomainEventPublisher -> DomainEventBus;
+    DomainEventBus -> DomainEventListener;
+    DomainEventListener -> QuestService [dir=back, arrowtail=empty];
+    QuestService -> QuestCatalog;
+    QuestService -> QuestRewardService;
+    TravelMenuController -> QuestService;
+    TravelMenuController -> TravelLogPage;
+  }
+
+  subgraph cluster_minigames {
+    label="Minigame Strategies"; color="#fdba74"; style="rounded";
+    MiniGameCatalog; MiniGameDefinition; MiniGameLevelConfig; MiniGame;
+    MiniGameCommandExtension; MiniGameSession; MiniGameService;
+    VaseBreaker; BowlingWallnut; IZombie; Beghouled; Zombotany;
+    MiniGameCatalog -> MiniGameDefinition;
+    MiniGameDefinition -> MiniGameLevelConfig;
+    MiniGameService -> MiniGameCatalog;
+    MiniGameService -> MiniGameSession;
+    MiniGameSession -> Simulation;
+    MiniGame -> VaseBreaker [dir=back, arrowtail=empty];
+    MiniGame -> BowlingWallnut [dir=back, arrowtail=empty];
+    MiniGame -> IZombie [dir=back, arrowtail=empty];
+    MiniGame -> Beghouled [dir=back, arrowtail=empty, label="bonus"];
+    MiniGame -> Zombotany [dir=back, arrowtail=empty, label="bonus"];
+    MiniGame -> MiniGameCommandExtension [style=dashed];
+    MiniGameController -> MiniGameService;
+  }
+
+  subgraph cluster_score {
+    label="Leaderboard / Scored Game (bonus)"; color="#d1d5db"; style="rounded";
+    LeaderboardService; Leaderboard; LeaderboardEntry;
+    ScoredGameService; ScoredGameSession; DailyZombieSequenceGenerator;
+    LeaderboardService -> Leaderboard;
+    Leaderboard -> LeaderboardEntry;
+    LeaderboardService -> UserService;
+    ScoredGameController -> ScoredGameService;
+    ScoredGameService -> ScoredGameSession;
+    ScoredGameService -> DailyZombieSequenceGenerator;
+    ScoredGameSession -> Simulation;
+  }
+
+  MenuRouter -> App;
+  App -> UserService;
+  App -> DomainEventPublisher;
+}

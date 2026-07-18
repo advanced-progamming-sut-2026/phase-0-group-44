@@ -13,7 +13,7 @@ import java.util.List;
  */
 public class SaveFile {
     /** Version written by the current code. */
-    public static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
 
     /** Version used by the pre-envelope format (a bare JSON array of users). */
     public static final int LEGACY_VERSION = 0;
@@ -21,6 +21,7 @@ public class SaveFile {
     private int version = CURRENT_VERSION;
     private List<User> users = new ArrayList<>();
     private String lastLoggedInUsername;
+    private transient boolean migrationApplied;
 
     public int getVersion() {
         return version;
@@ -48,5 +49,13 @@ public class SaveFile {
 
     public void setLastLoggedInUsername(String lastLoggedInUsername) {
         this.lastLoggedInUsername = lastLoggedInUsername;
+    }
+
+    public boolean isMigrationApplied() {
+        return migrationApplied;
+    }
+
+    public void markMigrationApplied() {
+        migrationApplied = true;
     }
 }

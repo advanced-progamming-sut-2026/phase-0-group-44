@@ -1,9 +1,14 @@
 package controller;
 
 import model.Result;
+import model.events.DomainEventType;
 import model.enums.PlantType;
+import model.enums.PlantCategory;
 import model.enums.TerrainType;
 import model.inGame.PlantSelection;
+import model.inGame.GameSession;
+import model.inGame.plant.PlantDefinition;
+import model.inGame.plant.PlantRegistry;
 import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureRuntimeState;
 import model.level.SpecialLevelType;
@@ -12,6 +17,11 @@ import model.sim.board.PlantInstance;
 import model.sim.board.PlantSpec;
 import model.sim.board.PlantSpecSource;
 import model.sim.board.Tile;
+import model.user.User;
+import service.DomainEventPublisher;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * The board commands: planting, plucking, the cooldown cheat, feeding plant
@@ -26,18 +36,36 @@ public class BoardController {
     private final SimulationWorld world;
     private final PlantSelection selection;
     private final PlantSpecSource specSource;
+    private final DomainEventPublisher events;
+    private final User user;
+    private final GameSession session;
 
     public BoardController(
             SimulationWorld world,
             PlantSelection selection,
             PlantSpecSource specSource
     ) {
+        this(world, selection, specSource, null, null, null);
+    }
+
+    public BoardController(
+            SimulationWorld world,
+            PlantSelection selection,
+            PlantSpecSource specSource,
+            DomainEventPublisher events,
+            User user,
+            GameSession session
+    ) {
         this.world = world;
         this.selection = selection;
         this.specSource = specSource;
+        this.events = events;
+        this.user = user;
+        this.session = session;
     }
 
     /** Handles {@code plant plant -t <type> -l (<x>, <y>)}. */
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public Result<String> plantPlant(PlantType type, int x, int y) {
         Result<String> result = new Result<>();
 
@@ -71,6 +99,11 @@ public class BoardController {
             return result;
         }
 
+        if (type == PlantType.PEA_POD && tile.getStackedPlant() != null
+                && tile.getStackedPlant().getType() == PlantType.PEA_POD) {
+            return stackPeaPod(result, tile.getStackedPlant(), spec, conveyor, type, x, y);
+        }
+
         Placement placement = placementFor(tile, spec);
 
         if (placement == Placement.REJECTED) {
@@ -100,6 +133,11 @@ public class BoardController {
         if (!conveyor && !isFreePreWavePlanting()) {
             world.startCooldown(type, spec.getRechargeTicks());
         }
+
+        if (session != null) {
+            session.recordPlantUsed(type);
+        }
+        publishPlantEvent(type, x, y);
 
         result.setStatus(true);
         result.setData(type.name());
@@ -310,6 +348,69 @@ public class BoardController {
         return result;
     }
 
+
+    private Result<String> stackPeaPod(
+            Result<String> result,
+            PlantInstance peaPod,
+            PlantSpec spec,
+            boolean conveyor,
+            PlantType type,
+            int x,
+            int y
+    ) {
+        if (peaPod.getStackCount() >= 5) {
+            result.appendToMessage("pea pod already has five heads");
+            return result;
+        }
+        if (!conveyor && world.isOnCooldown(type)) {
+            result.appendToMessage("this plant is still recharging");
+            return result;
+        }
+        if (!conveyor && world.getSunBalance() < spec.getSunCost()) {
+            result.appendToMessage("not enough sun");
+            return result;
+        }
+        if (conveyor) {
+            world.getAdventureState().consumeConveyorPacket(type);
+        } else {
+            world.addSun(-spec.getSunCost());
+        }
+        peaPod.addPeaPodHead();
+        if (!conveyor && !isFreePreWavePlanting()) {
+            world.startCooldown(type, spec.getRechargeTicks());
+        }
+        if (session != null) {
+            session.recordPlantUsed(type);
+        }
+        publishPlantEvent(type, x, y);
+        result.setStatus(true);
+        result.setData(type.name());
+        result.appendToMessage("stacked PEA_POD head " + peaPod.getStackCount()
+                + " at (" + x + ", " + y + ")");
+        return result;
+    }
+
+    private void publishPlantEvent(PlantType type, int x, int y) {
+        if (events == null || user == null) {
+            return;
+        }
+        PlantDefinition definition = PlantRegistry.getDefault().findByType(type);
+        Map<String, String> attributes = new LinkedHashMap<>();
+        attributes.put("plant", type.name());
+        attributes.put("column", String.valueOf(x));
+        attributes.put("row", String.valueOf(y));
+        if (definition != null) {
+            PlantCategory category = definition.getBehaviorCategory();
+            attributes.put("family", category == null ? "" : category.name());
+            attributes.put("explosive", String.valueOf(
+                    category == PlantCategory.EXPLOSIVE
+                            || definition.hasTag(model.enums.PlantTag.EXPLOSIVE)));
+            attributes.put("sunProducer", String.valueOf(
+                    category == PlantCategory.SUN_PRODUCER
+                            || definition.hasTag(model.enums.PlantTag.SUN)));
+        }
+        events.publish(DomainEventType.PLANT_PLANTED, user, attributes);
+    }
 
     private boolean isConveyorLevel() {
         AdventureRuntimeState state = world.getAdventureState();

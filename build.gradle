@@ -1,5 +1,8 @@
 plugins {
     id 'java'
+    id 'application'
+    id 'checkstyle'
+    id 'pmd'
 }
 
 repositories {
@@ -30,6 +33,43 @@ dependencies {
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'Main'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+}
+
+checkstyle {
+    toolVersion = '10.17.0'
+    configFile = file('config/checkstyle/checkstyle.xml')
+    showViolations = true
+}
+
+pmd {
+    toolVersion = '7.3.0'
+    ruleSets = []
+    ruleSetFiles = files('config/pmd/pmd-ruleset.xml')
+    consoleOutput = true
+}
+
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.withType(Pmd).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
     }
 }
 

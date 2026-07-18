@@ -121,10 +121,11 @@ public class ZombieCombatSystem implements SimulationSystem {
         if (tile == null) {
             return null;
         }
-        if (tile.getStackedPlant() != null) {
+        if (tile.getStackedPlant() != null && !tile.getStackedPlant().isTransformed()) {
             return tile.getStackedPlant();
         }
-        return tile.getSupportPlant();
+        return tile.getSupportPlant() != null && !tile.getSupportPlant().isTransformed()
+                ? tile.getSupportPlant() : null;
     }
 
     private void attack(
@@ -135,7 +136,16 @@ public class ZombieCombatSystem implements SimulationSystem {
     ) {
         zombie.setState(ZombieInstance.State.EATING);
         ZombieType type = zombie.getType();
-        boolean instant = type == ZombieType.GARGANTUAR
+        if (type == ZombieType.WIZARD) {
+            plant.transform(zombie.getId());
+            context.emit("Wizard transformed " + plant.getType() + " into a cat.");
+            return;
+        }
+        boolean ram = type == ZombieType.ARCADE_ZOMBIE
+                && zombie.hasActiveArmor("arcadeMachine")
+                || type == ZombieType.TROGLOBITE
+                && zombie.hasActiveArmor("groundIce");
+        boolean instant = ram || type == ZombieType.GARGANTUAR
                 || type == ZombieType.PIANIST
                 || type == ZombieType.EXPLORER && zombie.getBooleanState("TORCH_LIT")
                 || type == ZombieType.ALL_STAR && zombie.getBooleanState("CHARGING");
@@ -169,7 +179,7 @@ public class ZombieCombatSystem implements SimulationSystem {
                 + " at (" + plant.getTileX() + ", " + plant.getTileY() + ") is destroyed.");
     }
 
-    private void reachEndOfLane(TickContext context, SimulationWorld world, ZombieInstance zombie) {
+    protected void reachEndOfLane(TickContext context, SimulationWorld world, ZombieInstance zombie) {
         int row = zombie.getRow();
         if (!world.isLawnMowerUsed(row)) {
             triggerLawnMower(context, world, row);

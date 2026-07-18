@@ -21,15 +21,38 @@ public enum Command {
 
     // Main Menu
     MENU_LOGOUT("^menu\\s+logout$"),
+    MENU_SCORED_GAME("^menu\\s+scored-game$"),
 
     // Game Menu
     MENU_ENTER_CHAPTER("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)$"),
     MENU_GREENHOUSE("^menu\\s+greenhouse$"),
     MENU_TRAVEL_LOG("^menu\\s+travel-log$"),
+    MENU_LEADERBOARD_SORT(
+            "^menu\\s+leaderboard\\s+-s\\s+(\\S+)\\s+-o\\s+(\\S+)$"),
     MENU_LEADERBOARD("^menu\\s+leaderboard$"),
     MENU_COIN_WALLET("^menu\\s+coin-wallet$"),
     MENU_GEM_WALLET("^menu\\s+gem-wallet$"),
     MENU_CHEAT_ADD("^menu\\s+cheat\\s+add\\s+(-?\\d+)\\s+(\\S+)$"),
+
+    // Travel Log
+    TRAVEL_LOG_PAGE("^travel\\s+log\\s+page\\s+(.+)$"),
+    TRAVEL_LOG_CLAIM("^travel\\s+log\\s+claim\\s+(\\d+)$"),
+    MINIGAME_SELECT("^minigame\\s+select\\s+-n\\s+(.+?)\\s+-l\\s+([123])$"),
+    MINIGAME_START("^minigame\\s+start$"),
+
+    // Running minigame
+    MINIGAME_STATUS("^minigame\\s+status$"),
+    MINIGAME_ADVANCE("^minigame\\s+advance\\s+-t\\s+(\\d+)\\s+ticks$"),
+    MINIGAME_COMMAND("^minigame\\s+command\\s+(.+)$"),
+    MINIGAME_FORFEIT("^minigame\\s+forfeit$"),
+
+    // Daily scored game
+    SCORED_GAME_START("^scored\\s+game\\s+start$"),
+    SCORED_GAME_STATUS("^scored\\s+game\\s+status$"),
+    SCORED_GAME_ADVANCE("^scored\\s+game\\s+advance\\s+-t\\s+(\\d+)\\s+ticks$"),
+    SCORED_GAME_PLANT("^scored\\s+game\\s+plant\\s+-t\\s+(.+?)\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    SCORED_GAME_COLLECT_SUN("^scored\\s+game\\s+collect\\s+sun\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    SCORED_GAME_FORFEIT("^scored\\s+game\\s+forfeit$"),
 
     // Greenhouse
     SHOW_GREENHOUSE("^show\\s+greenhouse$"),
