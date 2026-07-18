@@ -35,10 +35,17 @@ public final class PlantBehaviorFactory {
         register(PlantType.THREEPEATER, d -> new ShooterBehavior(ShooterBehavior.Mode.THREE_LANES));
         register(PlantType.SNOW_PEA, d -> new ShooterBehavior(ShooterBehavior.Mode.FORWARD));
         register(PlantType.ROTOBAGA, d -> new ShooterBehavior(ShooterBehavior.Mode.DIAGONAL));
+        register(PlantType.PEA_POD, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.PEA_POD));
         register(PlantType.SPLIT_PEA, d -> new ShooterBehavior(ShooterBehavior.Mode.SPLIT));
         register(PlantType.CITRON, d -> new ShooterBehavior(ShooterBehavior.Mode.CHARGED));
+        register(PlantType.CAULIPOWER, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.CAULIPOWER));
+        register(PlantType.ELECTRIC_BLUEBERRY,
+                d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.ELECTRIC_BLUEBERRY));
         register(PlantType.BOWLING_BULB, d -> new ShooterBehavior(ShooterBehavior.Mode.BOWLING));
         register(PlantType.FIRE_PEASHOOTER, d -> new ShooterBehavior(ShooterBehavior.Mode.FORWARD));
+        register(PlantType.STARFRUIT, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.STARFRUIT));
+        register(PlantType.GOO_PEASHOOTER,
+                d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.GOO_PEASHOOTER));
         register(PlantType.MEGA_GATLING_PEA, d -> new ShooterBehavior(ShooterBehavior.Mode.GATLING));
         register(PlantType.SEA_SHROOM, d -> new ShooterBehavior(ShooterBehavior.Mode.SHORT_RANGE));
         register(PlantType.PUFF_SHROOM, d -> new ShooterBehavior(ShooterBehavior.Mode.SHORT_RANGE));
@@ -58,6 +65,7 @@ public final class PlantBehaviorFactory {
         register(PlantType.POTATO_MINE, d -> new ExplosiveBehavior(ExplosiveBehavior.Mode.POTATO_MINE));
         register(PlantType.PRIMAL_POTATO_MINE, d -> new ExplosiveBehavior(ExplosiveBehavior.Mode.PRIMAL_MINE));
         register(PlantType.CHERRY_BOMB, d -> new ExplosiveBehavior(ExplosiveBehavior.Mode.CHERRY));
+        register(PlantType.GRAPESHOT, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.GRAPESHOT));
         register(PlantType.SQUASH, d -> new ExplosiveBehavior(ExplosiveBehavior.Mode.SQUASH));
         register(PlantType.JALAPENO, d -> new ExplosiveBehavior(ExplosiveBehavior.Mode.JALAPENO));
         register(PlantType.DOOM_SHROOM, d -> new ExplosiveBehavior(ExplosiveBehavior.Mode.DOOM));
@@ -71,10 +79,15 @@ public final class PlantBehaviorFactory {
     private void registerMeleeAndDefenders() {
         register(PlantType.BONK_CHOY, d -> new MeleeBehavior(MeleeBehavior.Mode.BONK_CHOY));
         register(PlantType.PHAT_BEET, d -> new MeleeBehavior(MeleeBehavior.Mode.PHAT_BEET));
+        register(PlantType.CHOMPER, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.CHOMPER));
+        register(PlantType.WASABI_WHIP, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.WASABI_WHIP));
+        register(PlantType.KIWIBEAST, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.KIWIBEAST));
         register(PlantType.WALL_NUT, d -> new DefenderBehavior(DefenderBehavior.Mode.WALL_NUT));
         register(PlantType.TALL_NUT, d -> new DefenderBehavior(DefenderBehavior.Mode.TALL_NUT));
         register(PlantType.ENDURIAN, d -> new DefenderBehavior(DefenderBehavior.Mode.ENDURIAN));
         register(PlantType.GARLIC, d -> new DefenderBehavior(DefenderBehavior.Mode.GARLIC));
+        register(PlantType.SWEET_POTATO,
+                d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.SWEET_POTATO));
         register(PlantType.EXPLODE_O_NUT, d -> new DefenderBehavior(DefenderBehavior.Mode.EXPLODE_O_NUT));
         register(PlantType.PUMPKIN, d -> new DefenderBehavior(DefenderBehavior.Mode.PUMPKIN));
         register(PlantType.SUN_BEAN, d -> new DefenderBehavior(DefenderBehavior.Mode.SUN_BEAN));
@@ -83,6 +96,9 @@ public final class PlantBehaviorFactory {
     private void registerModifiers() {
         register(PlantType.TORCHWOOD, d -> new ModifierBehavior(ModifierBehavior.Mode.TORCHWOOD));
         register(PlantType.MAGNET_SHROOM, d -> new ModifierBehavior(ModifierBehavior.Mode.MAGNET_SHROOM));
+        register(PlantType.HYPNO_SHROOM,
+                d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.HYPNO_SHROOM));
+        register(PlantType.CAT_TAIL, d -> new BonusPlantBehavior(BonusPlantBehavior.Mode.CAT_TAIL));
         register(PlantType.LILY_PAD, d -> new ModifierBehavior(ModifierBehavior.Mode.LILY_PAD));
     }
 
@@ -107,7 +123,7 @@ public final class PlantBehaviorFactory {
     public PlantBehavior create(PlantDefinition definition) {
         Function<PlantDefinition, PlantBehavior> builder = builders.get(definition.getType());
         if (builder == null) {
-            throw new UnsupportedOperationException("No mandatory behavior registered for " + definition.getName());
+            throw new UnsupportedOperationException("No behavior registered for " + definition.getName());
         }
         return builder.apply(definition);
     }

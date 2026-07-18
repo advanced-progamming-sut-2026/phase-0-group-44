@@ -15,9 +15,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** A continuous-position zombie used by the command-driven simulation. */
 public class ZombieInstance implements Damageable {
+
+    private static final AtomicLong IDS = new AtomicLong();
 
     public enum State {
         MOVING,
@@ -25,6 +28,7 @@ public class ZombieInstance implements Damageable {
         DEAD
     }
 
+    private final long id = IDS.incrementAndGet();
     private final ZombieSpec spec;
     private final List<ZombieArmorPart> armorParts;
     private final Map<ZombieEffectType, ZombieEffectState> effects =
@@ -48,15 +52,19 @@ public class ZombieInstance implements Damageable {
         ZombieDefinition definition = spec.getDefinition();
         this.armorParts = definition == null
                 ? new ArrayList<>() : definition.createArmorParts();
-        if (getType() == ZombieType.ALL_STAR) {
+        if (spec.getType() == ZombieType.ALL_STAR) {
             runtimeState.put("CHARGING", true);
         }
-        if (getType() == ZombieType.EXPLORER) {
+        if (spec.getType() == ZombieType.EXPLORER) {
             runtimeState.put("TORCH_LIT", true);
         }
-        if (getType() == ZombieType.PROSPECTOR) {
+        if (spec.getType() == ZombieType.PROSPECTOR) {
             runtimeState.put("DYNAMITE_LIT", true);
         }
+    }
+
+    public long getId() {
+        return id;
     }
 
     public ZombieSpec getSpec() {
@@ -150,6 +158,7 @@ public class ZombieInstance implements Damageable {
         takeDamage(amount, DamageType.NORMAL);
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public int takeDamage(int amount, DamageType type) {
         if (amount <= 0 || isDead()) {
             return 0;
@@ -214,6 +223,23 @@ public class ZombieInstance implements Damageable {
         }
         return false;
     }
+
+    public boolean hasActiveArmor(String name) {
+        for (ZombieArmorPart part : armorParts) {
+            if (part.getName().equalsIgnoreCase(name) && !part.isBroken()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void addArmorPart(ZombieArmorPart part) {
+        if (part == null || hasActiveArmor(part.getName())) {
+            return;
+        }
+        armorParts.add(part.copy());
+    }
+
 
     public void applyEffect(ZombieEffectType type, double seconds, int magnitude) {
         if ((type == ZombieEffectType.CHILLED || type == ZombieEffectType.FROZEN)
@@ -333,6 +359,9 @@ public class ZombieInstance implements Damageable {
     }
 
     public double effectiveSpeed() {
+        if (getType() == ZombieType.FISHERMAN || getType() == ZombieType.KING) {
+            return 0.0;
+        }
         double speed = spec.getSpeedTilesPerSecond();
         if (getType() == ZombieType.IMP || getType() == ZombieType.DRAGON_IMP) {
             speed *= 1.5;
@@ -344,6 +373,9 @@ public class ZombieInstance implements Damageable {
             speed *= 5.0;
         } else if (getBooleanState("POST_CHARGE")) {
             speed *= 0.35;
+        }
+        if (getType() == ZombieType.JESTER && getBooleanState("SPINNING")) {
+            speed *= 1.8;
         }
         if (getType() == ZombieType.GARGANTUAR) {
             speed *= 0.35;

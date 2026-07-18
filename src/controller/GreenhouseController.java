@@ -239,8 +239,7 @@ public class GreenhouseController {
     private List<PlantDefinition> eligibleUnlockedPlants(User user) {
         List<PlantDefinition> eligible = new ArrayList<>();
         for (PlantDefinition definition : plantRepository.findAll()) {
-            if (!definition.isBonus()
-                    && user.getCollection().hasPlant(definition.getType())
+            if (user.getCollection().hasPlant(definition.getType())
                     && hasPlantFoodEffect(definition)) {
                 eligible.add(definition);
             }

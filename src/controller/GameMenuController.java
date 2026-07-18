@@ -15,9 +15,9 @@ import service.LeaderboardService;
 import service.UserService;
 
 /**
- * The game menu: navigation into worlds and the sub-screens, wallet queries and
- * the cheat command. No chapter gameplay lives here; entering a world is a
- * guarded navigation that ends at a stable placeholder.
+ * The game menu: navigation into worlds and sub-screens, wallet queries and
+ * the cheat command. Chapter lookup stays here while the plant-selection
+ * controller owns creation of the playable session.
  */
 public class GameMenuController {
 
@@ -96,6 +96,39 @@ public class GameMenuController {
         result.setStatus(true);
         result.setData(level);
         result.appendToMessage("entered " + level.getName());
+        return result;
+    }
+
+    /**
+     * Resolves the documented chapter-only command to a concrete Phase-1
+     * level. The most recently unlocked playable level is chosen so the same
+     * command advances a returning player without inventing another syntax.
+     * Deferred boss level 4 is deliberately skipped.
+     */
+    public Result<Level> enterLatestPlayableLevel(String chapterName) {
+        Result<Level> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+
+        GameWorld world = GameWorld.fromName(chapterName);
+        if (world == null) {
+            result.appendToMessage("no chapter named \"" + chapterName + "\"");
+            return result;
+        }
+        if (!ChapterCatalog.isUnlocked(user, world)) {
+            result.appendToMessage(world.getDisplayName() + " is locked");
+            return result;
+        }
+
+        for (int levelNumber = 3; levelNumber >= 1; levelNumber--) {
+            if (ChapterCatalog.isLevelUnlocked(user, world, levelNumber)) {
+                return enterLevel(chapterName, levelNumber);
+            }
+        }
+
+        result.appendToMessage("no playable level is unlocked in " + world.getDisplayName());
         return result;
     }
 

@@ -127,7 +127,7 @@ class MiniGameLifecycleTest {
         assertTrue(reloaded.loadUsers().getStatus());
         User restored = reloaded.findByUsername("player");
         MiniGameService restoredService = new MiniGameService(
-                MiniGameCatalog.mandatoryDefaults(),
+                MiniGameCatalog.phaseOneDefaults(),
                 new MiniGameSessionFactory(new SeededRandomSource()),
                 reloaded,
                 new NewsService(reloaded),
@@ -200,7 +200,7 @@ class MiniGameLifecycleTest {
     private MiniGameService serviceWith(MiniGameSessionFactory factory) {
         DomainEventPublisher events = new DomainEventPublisher(new DomainEventBus(), users);
         return new MiniGameService(
-                MiniGameCatalog.mandatoryDefaults(), factory, users,
+                MiniGameCatalog.phaseOneDefaults(), factory, users,
                 new NewsService(users), events);
     }
 

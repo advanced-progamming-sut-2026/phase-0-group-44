@@ -12,14 +12,17 @@ public class PlantInstance implements Damageable {
     public static final int ICE_HEALTH = 600;
 
     private final PlantSpec spec;
-    private final int tileX;
-    private final int tileY;
+    private int tileX;
+    private int tileY;
     private int hp;
     private boolean stackedOnSupport;
     private int freezeLevel;
     private int iceHealth;
     private boolean frozen;
     private boolean octopused;
+    private boolean transformed;
+    private long transformedBy = -1L;
+    private int stackCount = 1;
 
     public PlantInstance(PlantSpec spec, int tileX, int tileY) {
         this.spec = spec;
@@ -49,6 +52,19 @@ public class PlantInstance implements Damageable {
     public int getHp() {
         return hp;
     }
+
+    public int getStackCount() {
+        return stackCount;
+    }
+
+    public boolean addPeaPodHead() {
+        if (getType() != PlantType.PEA_POD || stackCount >= 5) {
+            return false;
+        }
+        stackCount++;
+        return true;
+    }
+
 
     public boolean isStackedOnSupport() {
         return stackedOnSupport;
@@ -124,8 +140,31 @@ public class PlantInstance implements Damageable {
         this.octopused = octopused;
     }
 
+    public boolean isTransformed() {
+        return transformed;
+    }
+
+    public long getTransformedBy() {
+        return transformedBy;
+    }
+
+    public void transform(long wizardId) {
+        transformed = true;
+        transformedBy = wizardId;
+    }
+
+    public void restoreFromTransformation() {
+        transformed = false;
+        transformedBy = -1L;
+    }
+
+    public void moveTo(int x, int y) {
+        tileX = x;
+        tileY = y;
+    }
+
     public boolean isActive() {
-        return !frozen && !octopused && !isDead();
+        return !frozen && !octopused && !transformed && !isDead();
     }
 
     @Override

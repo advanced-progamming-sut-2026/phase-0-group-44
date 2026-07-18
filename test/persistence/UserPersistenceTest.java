@@ -89,6 +89,7 @@ class UserPersistenceTest {
     // ---------- successful round trip ----------
 
     @Test
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     void savedUserIsReloadedWithEveryPersistentField() {
         UserService service = newService();
 

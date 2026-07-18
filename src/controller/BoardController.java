@@ -65,6 +65,7 @@ public class BoardController {
     }
 
     /** Handles {@code plant plant -t <type> -l (<x>, <y>)}. */
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public Result<String> plantPlant(PlantType type, int x, int y) {
         Result<String> result = new Result<>();
 
@@ -96,6 +97,11 @@ public class BoardController {
         if (tile == null) {
             result.appendToMessage("invalid tile");
             return result;
+        }
+
+        if (type == PlantType.PEA_POD && tile.getStackedPlant() != null
+                && tile.getStackedPlant().getType() == PlantType.PEA_POD) {
+            return stackPeaPod(result, tile.getStackedPlant(), spec, conveyor, type, x, y);
         }
 
         Placement placement = placementFor(tile, spec);
@@ -342,6 +348,47 @@ public class BoardController {
         return result;
     }
 
+
+    private Result<String> stackPeaPod(
+            Result<String> result,
+            PlantInstance peaPod,
+            PlantSpec spec,
+            boolean conveyor,
+            PlantType type,
+            int x,
+            int y
+    ) {
+        if (peaPod.getStackCount() >= 5) {
+            result.appendToMessage("pea pod already has five heads");
+            return result;
+        }
+        if (!conveyor && world.isOnCooldown(type)) {
+            result.appendToMessage("this plant is still recharging");
+            return result;
+        }
+        if (!conveyor && world.getSunBalance() < spec.getSunCost()) {
+            result.appendToMessage("not enough sun");
+            return result;
+        }
+        if (conveyor) {
+            world.getAdventureState().consumeConveyorPacket(type);
+        } else {
+            world.addSun(-spec.getSunCost());
+        }
+        peaPod.addPeaPodHead();
+        if (!conveyor && !isFreePreWavePlanting()) {
+            world.startCooldown(type, spec.getRechargeTicks());
+        }
+        if (session != null) {
+            session.recordPlantUsed(type);
+        }
+        publishPlantEvent(type, x, y);
+        result.setStatus(true);
+        result.setData(type.name());
+        result.appendToMessage("stacked PEA_POD head " + peaPod.getStackCount()
+                + " at (" + x + ", " + y + ")");
+        return result;
+    }
 
     private void publishPlantEvent(PlantType type, int x, int y) {
         if (events == null || user == null) {

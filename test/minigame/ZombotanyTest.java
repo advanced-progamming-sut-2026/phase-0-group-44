@@ -24,7 +24,7 @@ class ZombotanyTest {
 
     @Test
     void selectionIsRequiredAndWallnutVariantUsesCanonicalWallnutHealth() {
-        MiniGameDefinition definition = MiniGameCatalog.mandatoryDefaults().find(MiniGameId.ZOMBOTANY);
+        MiniGameDefinition definition = MiniGameCatalog.phaseOneDefaults().find(MiniGameId.ZOMBOTANY);
         MiniGameSession session = new MiniGameSessionFactory(new SeededRandomSource(4))
                 .create("player", definition, definition.getLevel(1));
         assertFalse(session.start().getStatus());
@@ -42,7 +42,7 @@ class ZombotanyTest {
     }
     @Test
     void peashooterJalapenoAndSquashTraitsResolveDeterministically() {
-        MiniGameDefinition definition = MiniGameCatalog.mandatoryDefaults().find(MiniGameId.ZOMBOTANY);
+        MiniGameDefinition definition = MiniGameCatalog.phaseOneDefaults().find(MiniGameId.ZOMBOTANY);
         MiniGameSession session = new MiniGameSessionFactory(new SeededRandomSource(3))
                 .create("player", definition, definition.getLevel(1));
         assertTrue(session.executeStrategyCommand("add plant -t sunflower").getStatus());

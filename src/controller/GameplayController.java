@@ -184,10 +184,6 @@ public class GameplayController {
             result.appendToMessage("unknown zombie type");
             return result;
         }
-        if (definition.isBonus()) {
-            result.appendToMessage("blue/bonus zombies are not available in the mandatory phase");
-            return result;
-        }
         SimulationWorld world = simulation.getWorld();
         if (!world.getBoard().isValidZombitePosition(x, y)) {
             result.appendToMessage("invalid zombie spawn tile");

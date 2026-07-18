@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/** Immutable definition of one mandatory minigame and its three levels. */
+/** Immutable definition of one Phase-1 minigame and its three levels. */
 public final class MiniGameDefinition {
     private final MiniGameId id;
     private final MiniGameId unlocksAfterCompletion;
@@ -16,7 +16,7 @@ public final class MiniGameDefinition {
             List<MiniGameLevelConfig> levels
     ) {
         if (id == null || levels == null || levels.size() != 3) {
-            throw new IllegalArgumentException("A mandatory minigame must define exactly three levels.");
+            throw new IllegalArgumentException("A Phase-1 minigame must define exactly three levels.");
         }
         List<MiniGameLevelConfig> sorted = new ArrayList<>(levels);
         sorted.sort(Comparator.comparingInt(MiniGameLevelConfig::getLevelNumber));

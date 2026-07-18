@@ -394,6 +394,18 @@ public class Zombie {
         return result;
     }
 
+    public void addArmorPart(ZombieArmorPart part) {
+        if (part == null) {
+            throw new IllegalArgumentException("Armor part is null.");
+        }
+        for (ZombieArmorPart current : armorParts) {
+            if (current.getName().equalsIgnoreCase(part.getName()) && !current.isBroken()) {
+                return;
+            }
+        }
+        armorParts.add(part.copy());
+    }
+
     public boolean hasMetalArmor() {
         for (ZombieArmorPart part : armorParts) {
             if (part.isMagnetic() && !part.isBroken()) {

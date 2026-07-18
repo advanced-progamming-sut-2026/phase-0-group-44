@@ -150,6 +150,7 @@ public final class Zombotany extends MiniGame {
         }
 
         @Override
+        @SuppressWarnings("PMD.ExcessiveMethodLength")
         public Result<String> execute(MiniGameSession session, String input) {
             ZombotanyState state = session.getStrategyState(ZombotanyState.class);
             if (state == null) {

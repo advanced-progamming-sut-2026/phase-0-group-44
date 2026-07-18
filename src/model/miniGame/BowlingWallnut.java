@@ -24,6 +24,7 @@ public final class BowlingWallnut extends MiniGame {
         return MiniGameId.BOWLING_WALLNUT;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public static WallNutBowlingLevelRules rulesFor(int level) {
         return switch (level) {
             case 1 -> new WallNutBowlingLevelRules(

@@ -12,8 +12,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlantRegistryTest {
@@ -44,20 +42,15 @@ class PlantRegistryTest {
     }
 
     @Test
-    void everyMandatoryRowHasAFactoryStrategyAndNoBonusRowDoes() {
+    void everyCanonicalRowHasAFactoryStrategy() {
         PlantFactory factory = new PlantFactory(registry);
-        for (PlantDefinition definition : registry.findMandatory()) {
+        for (PlantDefinition definition : registry.findAll()) {
             assertTrue(factory.supports(definition.getType()), definition.getName());
             if (definition.getType() == PlantType.IMITATER) {
                 factory.createImitater(PlantType.PEASHOOTER, 1);
             } else {
                 factory.create(definition.getType(), 1);
             }
-        }
-        for (PlantDefinition definition : registry.findBonus()) {
-            assertFalse(factory.supports(definition.getType()), definition.getName());
-            assertThrows(UnsupportedOperationException.class,
-                    () -> factory.create(definition.getType(), 1));
         }
     }
 

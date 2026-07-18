@@ -39,7 +39,7 @@ public class MiniGameController {
             NewsService news
     ) {
         this(new MiniGameService(
-                MiniGameCatalog.mandatoryDefaults(),
+                MiniGameCatalog.phaseOneDefaults(),
                 new MiniGameSessionFactory(new SeededRandomSource()),
                 users,
                 news,
@@ -134,7 +134,7 @@ public class MiniGameController {
         UserService users = new UserService(
                 new JsonUserRepository(), Clock.systemDefaultZone());
         return new MiniGameService(
-                MiniGameCatalog.mandatoryDefaults(),
+                MiniGameCatalog.phaseOneDefaults(),
                 new MiniGameSessionFactory(new SeededRandomSource()),
                 users,
                 new NewsService(users),

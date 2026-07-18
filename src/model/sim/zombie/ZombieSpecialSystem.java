@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Deterministic special-state transitions for mandatory zombies in the command
+ * Deterministic special-state transitions for canonical zombies in the command
  * simulation. The detailed projectile combat model uses the same canonical
  * registry through {@code model.inGame.zombie.ZombieBehaviorFactory}.
  */
@@ -49,6 +49,10 @@ public final class ZombieSpecialSystem implements SimulationSystem {
         abilities.put(ZombieType.HUNTER, this::hunter);
         abilities.put(ZombieType.SNORKEL, this::snorkel);
         abilities.put(ZombieType.OCTOPUS_ZOMBIE, this::octopus);
+        abilities.put(ZombieType.FISHERMAN, this::fisherman);
+        abilities.put(ZombieType.JESTER, this::jester);
+        abilities.put(ZombieType.WIZARD, this::wizard);
+        abilities.put(ZombieType.KING, this::king);
     }
 
     @Override
@@ -248,6 +252,108 @@ public final class ZombieSpecialSystem implements SimulationSystem {
         }
     }
 
+    private void fisherman(ZombieInstance zombie, TickContext context) {
+        int ticks = zombie.getIntState("FISHERMAN_TICKS", 0) + 1;
+        zombie.putState("FISHERMAN_TICKS", ticks);
+        if (ticks % (5 * TickContext.TICKS_PER_SECOND) != 0) {
+            return;
+        }
+        PlantInstance target = nearestPlantInLane(context.getWorld(), zombie.getRow(), zombie.getX());
+        if (target == null) {
+            return;
+        }
+        int destinationX = target.getTileX() + 1;
+        if (destinationX >= context.getWorld().getColumns()
+                || Math.abs(zombie.getX() - (target.getTileX() + 0.5)) <= 1.1) {
+            destroyPlant(context.getWorld(), target);
+            context.emit("Fisherman threw and destroyed " + target.getType() + ".");
+            return;
+        }
+        Tile source = context.getWorld().getBoard().tileAt(target.getTileX(), target.getTileY());
+        Tile destination = context.getWorld().getBoard().tileAt(destinationX, target.getTileY());
+        if (destination == null || destination.hasAnyPlant()
+                || !destination.getTerrain().isPlantableByDefault()) {
+            return;
+        }
+        if (source.getStackedPlant() == target) {
+            source.setStackedPlant(null);
+            destination.setStackedPlant(target);
+        } else if (source.getSupportPlant() == target) {
+            source.setSupportPlant(null);
+            destination.setSupportPlant(target);
+        }
+        target.moveTo(destinationX, target.getTileY());
+        context.emit("Fisherman hooked " + target.getType() + " one tile right.");
+    }
+
+    private void jester(ZombieInstance zombie, TickContext context) {
+        int grace = zombie.getIntState("JESTER_SPIN_TICKS", 0);
+        if (grace > 0) {
+            zombie.putState("JESTER_SPIN_TICKS", grace - 1);
+            zombie.putState("SPINNING", true);
+        } else {
+            zombie.putState("SPINNING", false);
+        }
+    }
+
+    private void wizard(ZombieInstance zombie, TickContext context) {
+        int ticks = zombie.getIntState("WIZARD_TICKS", 0) + 1;
+        zombie.putState("WIZARD_TICKS", ticks);
+        if (ticks % (5 * TickContext.TICKS_PER_SECOND) != 0) {
+            return;
+        }
+        List<PlantInstance> candidates = new ArrayList<>();
+        for (model.sim.Damageable damageable : context.getWorld().getPlants()) {
+            if (damageable instanceof PlantInstance plant
+                    && !plant.isDead() && !plant.isTransformed()) {
+                candidates.add(plant);
+            }
+        }
+        if (!candidates.isEmpty()) {
+            PlantInstance target = candidates.get(
+                    context.getRandom().nextInt(candidates.size()));
+            target.transform(zombie.getId());
+            context.emit("Wizard transformed " + target.getType() + " into a cat.");
+        }
+    }
+
+    private void king(ZombieInstance zombie, TickContext context) {
+        int ticks = zombie.getIntState("KING_TICKS", 0) + 1;
+        zombie.putState("KING_TICKS", ticks);
+        if (ticks % (5 * TickContext.TICKS_PER_SECOND) != 0) {
+            return;
+        }
+        List<ZombieInstance> candidates = new ArrayList<>();
+        for (ZombieInstance other : context.getWorld().getZombieInstances()) {
+            if (other != zombie && !other.isDead() && other.getType() == ZombieType.NORMAL
+                    && !other.getBooleanState("KING_PROMOTED")
+                    && Math.abs(other.getX() - zombie.getX()) <= 4.0
+                    && Math.abs(other.getRow() - zombie.getRow()) <= 1) {
+                candidates.add(other);
+            }
+        }
+        if (candidates.isEmpty()) {
+            return;
+        }
+        ZombieInstance target = candidates.get(context.getRandom().nextInt(candidates.size()));
+        target.addArmorPart(new ZombieArmorPart("helmet", 1600, true));
+        target.addArmorPart(new ZombieArmorPart("shoulderArmor", 1600, false));
+        target.putState("KING_PROMOTED", true);
+        context.emit("King promoted " + target.getSpec().getName() + " to Knight armor.");
+    }
+
+    private void destroyPlant(SimulationWorld world, PlantInstance plant) {
+        Tile tile = world.getBoard().tileAt(plant.getTileX(), plant.getTileY());
+        if (tile != null && tile.getStackedPlant() == plant) {
+            tile.setStackedPlant(null);
+        } else if (tile != null && tile.getSupportPlant() == plant) {
+            tile.setSupportPlant(null);
+        }
+        plant.takeDamage(Integer.MAX_VALUE);
+        world.getPlants().remove(plant);
+        world.recordPlantLost();
+    }
+
     private PlantInstance nearestPlantAhead(
             SimulationWorld world, ZombieInstance zombie, double range
     ) {
@@ -349,6 +455,14 @@ public final class ZombieSpecialSystem implements SimulationSystem {
                     eventSink.accept("Barrel Roller died; its barrel remained on the tile.");
                 }
             }
+        } else if (zombie.getType() == ZombieType.WIZARD) {
+            for (model.sim.Damageable damageable : world.getPlants()) {
+                if (damageable instanceof PlantInstance plant
+                        && plant.getTransformedBy() == zombie.getId()) {
+                    plant.restoreFromTransformation();
+                }
+            }
+            eventSink.accept("Wizard's transformed plants returned to normal.");
         }
     }
 }

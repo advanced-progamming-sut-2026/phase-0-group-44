@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 /** Attempt-local Beghouled match board, upgrades, endless spawning, and craters. */
+@SuppressWarnings("PMD.ExcessiveClassLength")
 public final class BeghouledState {
     public static final int SUN_UNIT = 50;
 
