@@ -169,7 +169,7 @@ public class ZombieCombatSystem implements SimulationSystem {
                 + " at (" + plant.getTileX() + ", " + plant.getTileY() + ") is destroyed.");
     }
 
-    private void reachEndOfLane(TickContext context, SimulationWorld world, ZombieInstance zombie) {
+    protected void reachEndOfLane(TickContext context, SimulationWorld world, ZombieInstance zombie) {
         int row = zombie.getRow();
         if (!world.isLawnMowerUsed(row)) {
             triggerLawnMower(context, world, row);

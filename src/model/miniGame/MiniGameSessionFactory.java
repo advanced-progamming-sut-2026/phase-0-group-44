@@ -19,6 +19,7 @@ public final class MiniGameSessionFactory {
         this.random = random;
         register(new VaseBreaker(random));
         register(new BowlingWallnut());
+        register(new IZombie(random));
     }
 
     public void register(MiniGame strategy) {

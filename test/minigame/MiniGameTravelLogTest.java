@@ -51,6 +51,7 @@ class MiniGameTravelLogTest {
         String page = app.getTravelController().page("minigame").getMessage();
         assertTrue(page.contains("Vase Breaker"));
         assertTrue(page.contains("Bowling Wall-nut"));
+        assertTrue(page.contains("I, Zombie"));
         assertFalse(page.contains("Beghouled"));
         assertFalse(page.contains("Zombotany"));
 

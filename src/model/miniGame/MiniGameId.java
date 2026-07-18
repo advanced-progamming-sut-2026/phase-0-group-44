@@ -2,10 +2,11 @@ package model.miniGame;
 
 import java.util.Locale;
 
-/** Canonical mandatory minigames present in the repository UML. */
+/** Mandatory minigames exposed through Travel Log. */
 public enum MiniGameId {
     VASE_BREAKER("vase-breaker", "Vase Breaker"),
-    BOWLING_WALLNUT("bowling-wallnut", "Bowling Wall-nut");
+    BOWLING_WALLNUT("bowling-wallnut", "Bowling Wall-nut"),
+    I_ZOMBIE("i-zombie", "I, Zombie");
 
     private final String token;
     private final String displayName;
@@ -40,8 +41,6 @@ public enum MiniGameId {
 
     private static String normalize(String input) {
         return input.trim().toLowerCase(Locale.ROOT)
-                .replace("-", "")
-                .replace("_", "")
-                .replace(" ", "");
+                .replaceAll("[^a-z0-9]", "");
     }
 }

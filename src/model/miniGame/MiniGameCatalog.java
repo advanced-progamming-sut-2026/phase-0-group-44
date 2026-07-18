@@ -41,16 +41,40 @@ public final class MiniGameCatalog {
         );
         MiniGameDefinition bowling = new MiniGameDefinition(
                 MiniGameId.BOWLING_WALLNUT,
-                null,
+                MiniGameId.I_ZOMBIE,
                 List.of(
                         bowlingConfig(1, rows, columns),
                         bowlingConfig(2, rows, columns),
                         bowlingConfig(3, rows, columns)
                 )
         );
-        return new MiniGameCatalog(List.of(vaseBreaker, bowling));
+        MiniGameDefinition iZombie = new MiniGameDefinition(
+                MiniGameId.I_ZOMBIE,
+                null,
+                List.of(
+                        iZombieConfig(1, rows, columns),
+                        iZombieConfig(2, rows, columns),
+                        iZombieConfig(3, rows, columns)
+                )
+        );
+        return new MiniGameCatalog(List.of(vaseBreaker, bowling, iZombie));
     }
 
+    private static MiniGameLevelConfig iZombieConfig(int level, int rows, int columns) {
+        IZombieLevelRules rules = IZombie.rulesFor(level);
+        return new MiniGameLevelConfig(
+                MiniGameId.I_ZOMBIE,
+                level,
+                level,
+                rules.getPreplacedPlantCount(),
+                rules.getPlantPressure(),
+                150,
+                rules.getTimeLimitTicks(),
+                rows,
+                columns,
+                false
+        );
+    }
 
     private static MiniGameLevelConfig bowlingConfig(int level, int rows, int columns) {
         WallNutBowlingLevelRules rules = BowlingWallnut.rulesFor(level);

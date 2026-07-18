@@ -111,6 +111,10 @@ class MiniGameLifecycleTest {
         win("bowling-wallnut", 2);
         win("bowling-wallnut", 3);
         assertEquals(2, user.getCompletedMiniGames());
+        assertTrue(progress(user, MiniGameId.I_ZOMBIE).isLevelUnlocked(1));
+        assertEquals(2, user.getNewsList().stream()
+                .filter(item -> item.getType() == NewsType.MINIGAME_UNLOCKED)
+                .count());
     }
 
     @Test
