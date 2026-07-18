@@ -13,6 +13,7 @@ public enum MenuName {
     GREENHOUSE("greenhouse"),
     TRAVEL_LOG("travel-log"),
     MINIGAME("minigame"),
+    SCORED_GAME("scored-game"),
     SHOP("shop"),
     PLANT_SELECTION("plant-selection"),
     GAMEPLAY("gameplay");

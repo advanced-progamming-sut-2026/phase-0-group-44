@@ -21,6 +21,7 @@ public enum Command {
 
     // Main Menu
     MENU_LOGOUT("^menu\\s+logout$"),
+    MENU_SCORED_GAME("^menu\\s+scored-game$"),
 
     // Game Menu
     MENU_ENTER_CHAPTER("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)$"),
@@ -44,6 +45,14 @@ public enum Command {
     MINIGAME_ADVANCE("^minigame\\s+advance\\s+-t\\s+(\\d+)\\s+ticks$"),
     MINIGAME_COMMAND("^minigame\\s+command\\s+(.+)$"),
     MINIGAME_FORFEIT("^minigame\\s+forfeit$"),
+
+    // Daily scored game
+    SCORED_GAME_START("^scored\\s+game\\s+start$"),
+    SCORED_GAME_STATUS("^scored\\s+game\\s+status$"),
+    SCORED_GAME_ADVANCE("^scored\\s+game\\s+advance\\s+-t\\s+(\\d+)\\s+ticks$"),
+    SCORED_GAME_PLANT("^scored\\s+game\\s+plant\\s+-t\\s+(.+?)\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    SCORED_GAME_COLLECT_SUN("^scored\\s+game\\s+collect\\s+sun\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    SCORED_GAME_FORFEIT("^scored\\s+game\\s+forfeit$"),
 
     // Greenhouse
     SHOW_GREENHOUSE("^show\\s+greenhouse$"),

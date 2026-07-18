@@ -35,9 +35,12 @@ public class SaveFileMigrator {
 
         if (saveFile.getVersion() < SaveFile.CURRENT_VERSION) {
             upgradeToCurrent(saveFile);
+            saveFile.markMigrationApplied();
         }
 
-        normalizeUsers(saveFile.getUsers());
+        if (normalizeUsers(saveFile.getUsers())) {
+            saveFile.markMigrationApplied();
+        }
         clearUnknownSession(saveFile);
 
         saveFile.setVersion(SaveFile.CURRENT_VERSION);
@@ -71,7 +74,8 @@ public class SaveFileMigrator {
      * Drops unusable rows and materializes the lazily-created defaults of every
      * user, so callers never see a null collection coming out of the save file.
      */
-    private void normalizeUsers(List<User> users) {
+    private boolean normalizeUsers(List<User> users) {
+        boolean changed = false;
         Iterator<User> iterator = users.iterator();
 
         while (iterator.hasNext()) {
@@ -79,17 +83,21 @@ public class SaveFileMigrator {
 
             if (user == null || user.getUsername() == null) {
                 iterator.remove();
+                changed = true;
                 continue;
             }
 
+            changed |= user.migrateLegacyPlaintextPassword();
             user.applyDefaults();
         }
 
-        removeDuplicateUsernames(users);
+        changed |= removeDuplicateUsernames(users);
+        return changed;
     }
 
-    private void removeDuplicateUsernames(List<User> users) {
+    private boolean removeDuplicateUsernames(List<User> users) {
         List<String> seen = new ArrayList<>();
+        boolean changed = false;
         Iterator<User> iterator = users.iterator();
 
         while (iterator.hasNext()) {
@@ -97,11 +105,13 @@ public class SaveFileMigrator {
 
             if (seen.contains(username)) {
                 iterator.remove();
+                changed = true;
                 continue;
             }
 
             seen.add(username);
         }
+        return changed;
     }
 
     /** A remembered session is only valid while the referenced user still exists. */

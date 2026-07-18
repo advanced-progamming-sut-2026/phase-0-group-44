@@ -89,6 +89,24 @@ public class TravelMenuController {
         return miniGames.start(user);
     }
 
+    /** Executes a strategy-owned pre-start command such as Zombotany plant selection. */
+    public Result<String> executeMiniGameCommand(String input) {
+        Result<String> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+        if (currentPage != TravelLogPage.MINIGAME) {
+            result.appendToMessage("open the minigame travel log page first");
+            return result;
+        }
+        if (miniGames == null) {
+            result.appendToMessage("minigame framework is unavailable");
+            return result;
+        }
+        return miniGames.executeStrategyCommand(user, input);
+    }
+
     /** Claims by the stable one-based position shown on the selected page. */
     public Result<String> claim(int position) {
         Result<String> result = new Result<>();

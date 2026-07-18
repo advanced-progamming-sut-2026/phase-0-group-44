@@ -52,8 +52,8 @@ class MiniGameTravelLogTest {
         assertTrue(page.contains("Vase Breaker"));
         assertTrue(page.contains("Bowling Wall-nut"));
         assertTrue(page.contains("I, Zombie"));
-        assertFalse(page.contains("Beghouled"));
-        assertFalse(page.contains("Zombotany"));
+        assertTrue(page.contains("Beghouled"));
+        assertTrue(page.contains("Zombotany"));
 
         assertFalse(app.getTravelController()
                 .selectMiniGame("Beghouled", 1).getStatus());

@@ -10,6 +10,14 @@ import model.user.User;
  */
 public class Sha256PasswordService implements PasswordService {
 
+    private static final java.util.regex.Pattern SHA_256_HEX =
+            java.util.regex.Pattern.compile("^[0-9a-fA-F]{64}$");
+
+    /** Whether a persisted value is already a SHA-256 hexadecimal digest. */
+    public static boolean isStoredHash(String value) {
+        return value != null && SHA_256_HEX.matcher(value).matches();
+    }
+
     @Override
     public String store(String rawPassword) {
         return User.hashPassword(rawPassword);
@@ -21,6 +29,9 @@ public class Sha256PasswordService implements PasswordService {
             return false;
         }
 
-        return storedPassword.equals(User.hashPassword(rawPassword));
+        if (!isStoredHash(storedPassword)) {
+            return false;
+        }
+        return storedPassword.equalsIgnoreCase(User.hashPassword(rawPassword));
     }
 }

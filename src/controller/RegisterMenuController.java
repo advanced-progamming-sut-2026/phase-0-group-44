@@ -175,6 +175,10 @@ public class RegisterMenuController {
             String email,
             String gender
     ) {
+        Collection collection = new Collection();
+        collection.purchasePlant(PlantType.SUNFLOWER);
+        collection.purchasePlant(PlantType.PEASHOOTER);
+        collection.purchasePlant(PlantType.WALL_NUT);
         return new User(
                 username,
                 passwordService.store(password),
@@ -183,7 +187,7 @@ public class RegisterMenuController {
                 Gender.fromToken(gender).getToken(),
                 0,
                 0,
-                new Collection(),
+                collection,
                 new ArrayList<PlantType>(),
                 new Settings(),
                 0,
