@@ -6,13 +6,13 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/** Catalog of the five implemented three-level minigames. */
+/** Catalog of all implemented Phase-1 three-level minigames. */
 public final class MiniGameCatalog {
     private final Map<MiniGameId, MiniGameDefinition> definitions;
 
     public MiniGameCatalog(List<MiniGameDefinition> definitions) {
         if (definitions == null || definitions.isEmpty()) {
-            throw new IllegalArgumentException("At least one mandatory minigame is required.");
+            throw new IllegalArgumentException("At least one minigame is required.");
         }
         Map<MiniGameId, MiniGameDefinition> indexed = new EnumMap<>(MiniGameId.class);
         for (MiniGameDefinition definition : definitions) {
@@ -23,7 +23,8 @@ public final class MiniGameCatalog {
         this.definitions = Map.copyOf(indexed);
     }
 
-    public static MiniGameCatalog mandatoryDefaults() {
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
+    public static MiniGameCatalog phaseOneDefaults() {
         int rows = SimulationWorld.DEFAULT_ROWS;
         int columns = SimulationWorld.DEFAULT_COLUMNS;
 
@@ -74,6 +75,12 @@ public final class MiniGameCatalog {
         );
         return new MiniGameCatalog(List.of(
                 vaseBreaker, bowling, iZombie, beghouled, zombotany));
+    }
+
+    /** Compatibility alias retained for callers created before bonus scope was reconciled. */
+    @Deprecated
+    public static MiniGameCatalog mandatoryDefaults() {
+        return phaseOneDefaults();
     }
 
 

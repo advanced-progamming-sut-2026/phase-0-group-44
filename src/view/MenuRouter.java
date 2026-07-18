@@ -38,7 +38,7 @@ public class MenuRouter {
                 app.getMenuController(), app.getLoginController());
         this.gameMenuView = new GameMenuView(
                 app.getMenuController(), app.getGameController(), app.getMainController(),
-                app.getScoredGameController());
+                app.getScoredGameController(), app.getPlantSelectionController());
         this.greenhouseView = new GreenhouseView(
                 app.getMenuController(), app.getGreenhouseController());
         this.travelMenuView = new TravelMenuView(

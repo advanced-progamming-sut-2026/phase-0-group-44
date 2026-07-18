@@ -121,6 +121,20 @@ class MenuCommandsTest {
         assertTrue(new GameMenuController(userService).enterChapter("Frostbite Caves").getStatus());
     }
 
+    @Test
+    void chapterOnlyCommandResolvesTheLatestUnlockedNonBossLevel() {
+        GameMenuController game = new GameMenuController(userService);
+        assertEquals(1, game.enterLatestPlayableLevel("Ancient Egypt")
+                .getData().getLevelNumber());
+
+        ChapterCatalog.unlockLevel(user, GameWorld.ANCIENT_EGYPT, 2);
+        ChapterCatalog.unlockLevel(user, GameWorld.ANCIENT_EGYPT, 3);
+        ChapterCatalog.unlockLevel(user, GameWorld.ANCIENT_EGYPT, 4);
+
+        assertEquals(3, game.enterLatestPlayableLevel("Ancient Egypt")
+                .getData().getLevelNumber());
+    }
+
     // ---------- game: wallets and cheat ----------
 
     @Test

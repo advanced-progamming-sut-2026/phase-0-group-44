@@ -63,7 +63,7 @@ class VaseBreakerTest {
         users = new UserService(
                 new JsonUserRepository(tempDir.resolve("users.json")), CLOCK);
         service = new MiniGameService(
-                MiniGameCatalog.mandatoryDefaults(),
+                MiniGameCatalog.phaseOneDefaults(),
                 new MiniGameSessionFactory(new ZeroRandom()),
                 users,
                 new NewsService(users),
@@ -85,9 +85,9 @@ class VaseBreakerTest {
         assertEquals(16, three.getVaseCount());
         assertTrue(two.isHarderThan(one));
         assertTrue(three.isHarderThan(two));
-        assertEquals(0, MiniGameCatalog.mandatoryDefaults()
+        assertEquals(0, MiniGameCatalog.phaseOneDefaults()
                 .find(MiniGameId.VASE_BREAKER).getLevel(1).getStartingResources());
-        assertFalse(MiniGameCatalog.mandatoryDefaults()
+        assertFalse(MiniGameCatalog.phaseOneDefaults()
                 .find(MiniGameId.VASE_BREAKER).getLevel(1).isSkySunEnabled());
     }
 

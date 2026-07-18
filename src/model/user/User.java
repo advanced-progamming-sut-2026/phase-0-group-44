@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings("PMD.ExcessiveClassLength")
 public class User {
     private String username;
     private String hashOfPassword;
@@ -275,7 +276,8 @@ public class User {
 
             String allowedSpecialChars = "?><,'\";:\\/|\\[\\]\\}{+=()*&^%$#!";
             if (!pass.matches("^[a-zA-Z0-9" + allowedSpecialChars + "]+$")) {
-                result.appendToMessage("Password contains invalid characters. Only letters, digits, and specific special characters are allowed.");
+                result.appendToMessage("Password contains invalid characters. Only letters, digits, "
+                        + "and specific special characters are allowed.");
                 return result;
             }
 
@@ -310,6 +312,7 @@ public class User {
             return name.matches("^.{3,30}$");
         }
 
+        @SuppressWarnings("PMD.ExcessiveMethodLength")
         public static Result<String> isEmailNameValid(String email) {
             Result<String> result = new Result<>();
             if (email == null || email.isEmpty()) {
@@ -341,7 +344,8 @@ public class User {
                 return result;
             }
             if (!localPart.matches("^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$")) {
-                result.appendToMessage("Local part must start and end with a letter/digit, and only contain letters, digits, dot (.), dash (-), or underscore (_).");
+                result.appendToMessage("Local part must start and end with a letter/digit, and only "
+                        + "contain letters, digits, dot (.), dash (-), or underscore (_).");
                 return result;
             }
             if (localPart.contains("..")) {
@@ -369,7 +373,8 @@ public class User {
                     return result;
                 }
                 if (!part.matches("^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$")) {
-                    result.appendToMessage("Each domain part must start and end with a letter/digit, and only contain letters, digits, or hyphens (-).");
+                    result.appendToMessage("Each domain part must start and end with a letter/digit, "
+                            + "and only contain letters, digits, or hyphens (-).");
                     return result;
                 }
             }

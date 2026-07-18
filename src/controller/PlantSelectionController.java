@@ -11,6 +11,8 @@ import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
 import model.sim.board.DefaultPlantSpecSource;
+import model.sim.zombie.ChapterZombieSpecSource;
+import model.sim.zombie.ZombieSpecSource;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRepository;
 import model.level.Level;
@@ -97,6 +99,44 @@ public class PlantSelectionController {
         result.setData(level.getName());
         result.appendToMessage("selecting plants for " + level.getName());
 
+        return result;
+    }
+
+    /**
+     * Opens a level from the chapter command and applies the documented
+     * automatic-start rule. If the player owns fewer allowed plants than the
+     * available slots, every such plant is selected and gameplay starts. A
+     * level that bypasses selection also starts immediately.
+     */
+    public Result<GameSession> beginForPlayer(Level requestedLevel) {
+        Result<GameSession> result = new Result<>();
+        User user = Store.getLoggedInUser();
+        if (user == null) {
+            result.appendToMessage("no user is logged in");
+            return result;
+        }
+
+        Result<String> beginResult = begin(requestedLevel);
+        if (!beginResult.getStatus()) {
+            result.appendToMessage(beginResult.getMessage());
+            return result;
+        }
+
+        LevelSelectionRules rules = requestedLevel.getSelectionRules();
+        if (rules.isSelectionBypassed()) {
+            return startGame();
+        }
+
+        List<PlantType> available = availablePlantTypes(user);
+        if (!available.isEmpty() && available.size() < rules.getCapacity()) {
+            for (PlantType type : available) {
+                selection.add(type);
+            }
+            return startGame();
+        }
+
+        result.setStatus(true);
+        result.appendToMessage(beginResult.getMessage());
         return result;
     }
 
@@ -273,85 +313,20 @@ public class PlantSelectionController {
     /** Handles {@code start game}: validate, snapshot a fresh session, enter gameplay. */
     public Result<GameSession> startGame() {
         Result<GameSession> result = new Result<>();
-
-        if (level == null) {
-            result.appendToMessage("plant selection has not been started");
-            return result;
-        }
-
-        User user = Store.getLoggedInUser();
-
+        User user = validateStart(result);
         if (user == null) {
-            result.appendToMessage("no user is logged in");
             return result;
         }
 
-        LevelSelectionRules rules = level.getSelectionRules();
-
-        if (!rules.isSelectionBypassed() && selection.isEmpty()) {
-            result.appendToMessage("select at least one plant");
-            return result;
-        }
-
-        if (selection.size() > rules.getCapacity()) {
-            result.appendToMessage("too many plants selected");
-            return result;
-        }
-
-        for (PlantType type : selection.getChosen()) {
-            if (!isSelectable(user, type)) {
-                result.appendToMessage("a selected plant is no longer available: " + type.name());
-                return result;
-            }
-        }
-
-        GameSession session = new GameSession(
-                level,
-                selection,
-                difficultyOf(user),
-                pendingGreenhouseBoosts(user)
-        );
-
+        GameSession session = createSession(user);
         Store.setActiveSession(session);
-
-        SimulationWorld world = new SimulationWorld();
-        DefaultPlantSpecSource plantSpecs = new DefaultPlantSpecSource(plantRepository);
-        AdventureInitializer.initialize(
-                world,
-                level.getAdventureConfig(),
-                plantSpecs,
-                zombieSpecSource,
-                user,
-                randomSource);
-        Simulation simulation = new Simulation(randomSource, world, skySunEnabled());
-
-        if (zombieSpecSource != null) {
-            simulation.register(new model.sim.wave.WaveSystem(
-                    level.getWaveConfig(), zombieSpecSource));
-        }
-        if (level.getAdventureConfig() != null) {
-            simulation.register(new AdventureRuleSystem(zombieSpecSource));
-        }
-        if (zombieSpecSource != null) {
-            simulation.register(new model.sim.zombie.ZombieSpecialSystem());
-            simulation.register(new model.sim.zombie.ZombieCombatSystem());
-        }
-
-        Store.setActiveSimulation(simulation);
-
+        Store.setActiveSimulation(createSimulation(user));
         Store.setCurrentMenu(model.enums.MenuName.GAMEPLAY);
-        if (events != null) {
-            events.publish(DomainEventType.LEVEL_STARTED, user, Map.of(
-                    "level", level.getName(),
-                    "difficulty", String.valueOf(session.getDifficulty()),
-                    "chapter", level.getWorld() == null ? "" : level.getWorld().getDisplayName()
-            ));
-        }
+        publishLevelStarted(user, session);
 
         result.setStatus(true);
         result.setData(session);
         result.appendToMessage("game started for " + level.getName());
-
         return result;
     }
 
@@ -370,6 +345,101 @@ public class PlantSelectionController {
     private boolean skySunEnabled() {
         return level == null || level.getAdventureConfig() == null
                 || level.getAdventureConfig().isSkySunEnabled();
+    }
+
+    private List<PlantType> availablePlantTypes(User user) {
+        List<PlantType> available = new ArrayList<>();
+        for (PlantDefinition definition : plantRepository.findAll()) {
+            PlantType type = definition.getType();
+            if (isSelectable(user, type)) {
+                available.add(type);
+            }
+        }
+        for (PlantType forced : level.getSelectionRules().getForcedPlants()) {
+            if (!available.contains(forced)) {
+                available.add(forced);
+            }
+        }
+        return available;
+    }
+
+    private User validateStart(Result<GameSession> result) {
+        if (level == null || selection == null) {
+            result.appendToMessage("plant selection has not been started");
+            return null;
+        }
+        User user = Store.getLoggedInUser();
+        if (user == null) {
+            result.appendToMessage("no user is logged in");
+            return null;
+        }
+        LevelSelectionRules rules = level.getSelectionRules();
+        if (!rules.isSelectionBypassed() && selection.isEmpty()) {
+            result.appendToMessage("select at least one plant");
+            return null;
+        }
+        if (selection.size() > rules.getCapacity()) {
+            result.appendToMessage("too many plants selected");
+            return null;
+        }
+        for (PlantType type : selection.getChosen()) {
+            if (!isSelectable(user, type)) {
+                result.appendToMessage("a selected plant is no longer available: " + type.name());
+                return null;
+            }
+        }
+        return user;
+    }
+
+    private GameSession createSession(User user) {
+        return new GameSession(
+                level,
+                selection,
+                difficultyOf(user),
+                pendingGreenhouseBoosts(user)
+        );
+    }
+
+    private Simulation createSimulation(User user) {
+        SimulationWorld world = new SimulationWorld();
+        DefaultPlantSpecSource plantSpecs = new DefaultPlantSpecSource(plantRepository);
+        AdventureInitializer.initialize(
+                world,
+                level.getAdventureConfig(),
+                plantSpecs,
+                zombieSpecSource,
+                user,
+                randomSource);
+        Simulation simulation = new Simulation(randomSource, world, skySunEnabled());
+        registerSystems(simulation);
+        return simulation;
+    }
+
+    private void registerSystems(Simulation simulation) {
+        ZombieSpecSource levelZombies = zombieSpecSource == null ? null
+                : new ChapterZombieSpecSource(zombieSpecSource, level.getName());
+        if (levelZombies != null) {
+            simulation.register(new model.sim.wave.WaveSystem(
+                    level.getWaveConfig(), levelZombies));
+        }
+        if (level.getAdventureConfig() != null) {
+            simulation.register(new AdventureRuleSystem(levelZombies));
+        }
+        if (levelZombies != null) {
+            simulation.register(new model.sim.zombie.ZombieSpecialSystem());
+            simulation.register(new model.sim.zombie.ZombieCombatSystem());
+        }
+    }
+
+    private void publishLevelStarted(User user, GameSession session) {
+        if (events == null) {
+            return;
+        }
+        events.publish(DomainEventType.LEVEL_STARTED, user, Map.of(
+                "level", level.getName(),
+                "difficulty", String.valueOf(session.getDifficulty()),
+                "chapter", level.getWorld() == null ? "" : level.getWorld().getDisplayName()
+        ));
     }
 
     private Set<PlantType> pendingGreenhouseBoosts(User user) {

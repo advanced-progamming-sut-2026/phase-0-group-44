@@ -89,7 +89,7 @@ class IZombieTest {
         assertFalse(first.getZombiePrices().keySet().equals(second.getZombiePrices().keySet()));
         assertFalse(second.getZombiePrices().keySet().equals(third.getZombiePrices().keySet()));
 
-        MiniGameDefinition definition = MiniGameCatalog.mandatoryDefaults()
+        MiniGameDefinition definition = MiniGameCatalog.phaseOneDefaults()
                 .find(MiniGameId.I_ZOMBIE);
         for (int level = 1; level <= 3; level++) {
             assertEquals(150, definition.getLevel(level).getStartingResources());
@@ -235,7 +235,7 @@ class IZombieTest {
         UserService users = new UserService(
                 new JsonUserRepository(tempDir.resolve("users.json")), CLOCK);
         MiniGameService service = new MiniGameService(
-                MiniGameCatalog.mandatoryDefaults(),
+                MiniGameCatalog.phaseOneDefaults(),
                 new MiniGameSessionFactory(new SeededRandomSource(5)),
                 users,
                 new NewsService(users),
@@ -271,7 +271,7 @@ class IZombieTest {
     }
 
     private MiniGameSession session(int level, RandomSource random) {
-        MiniGameDefinition definition = MiniGameCatalog.mandatoryDefaults()
+        MiniGameDefinition definition = MiniGameCatalog.phaseOneDefaults()
                 .find(MiniGameId.I_ZOMBIE);
         MiniGameSession session = new MiniGameSessionFactory(random)
                 .create("izombie", definition, definition.getLevel(level));

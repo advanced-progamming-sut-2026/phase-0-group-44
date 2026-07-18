@@ -148,6 +148,7 @@ public class CollectionMenuController {
         return result;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public Result<PlantCollectionView> purchasePlant(
             User user,
             String plantName
@@ -165,13 +166,6 @@ public class CollectionMenuController {
         if (definition == null) {
             return failure(result, "Plant does not exist.");
         }
-        if (definition.isBonus()) {
-            return failure(
-                    result,
-                    "Blue/bonus plants are not available in the mandatory phase."
-            );
-        }
-
         Collection collection = user.getCollection();
 
         if (collection.hasPlant(definition.getType())) {
@@ -205,6 +199,7 @@ public class CollectionMenuController {
         return result;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public Result<PlantCollectionView> upgradePlant(
             User user,
             String plantName

@@ -46,7 +46,7 @@ class WallNutBowlingTest {
         assertEquals(2, first.getRedLineColumn());
         assertEquals(1, third.getRedLineColumn());
 
-        MiniGameDefinition definition = MiniGameCatalog.mandatoryDefaults()
+        MiniGameDefinition definition = MiniGameCatalog.phaseOneDefaults()
                 .find(MiniGameId.BOWLING_WALLNUT);
         for (int level = 1; level <= 3; level++) {
             assertEquals(0, definition.getLevel(level).getStartingResources());
@@ -206,7 +206,7 @@ class WallNutBowlingTest {
     }
 
     private MiniGameSession session(int level) {
-        MiniGameDefinition definition = MiniGameCatalog.mandatoryDefaults()
+        MiniGameDefinition definition = MiniGameCatalog.phaseOneDefaults()
                 .find(MiniGameId.BOWLING_WALLNUT);
         MiniGameSession session = new MiniGameSessionFactory(new SeededRandomSource(7))
                 .create("bowler", definition, definition.getLevel(level));

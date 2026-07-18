@@ -131,8 +131,10 @@ public final class ScoredGameSession {
         }
         result.setStatus(true);
         result.setData(String.valueOf(simulation.getSunAmount()));
-        result.appendToMessage((outcome.isExploded() ? "radioactive sun exploded" : "collected " + outcome.getGained() + " sun")
-                + "; sun: " + simulation.getSunAmount());
+        String action = outcome.isExploded()
+                ? "radioactive sun exploded"
+                : "collected " + outcome.getGained() + " sun";
+        result.appendToMessage(action + "; sun: " + simulation.getSunAmount());
         return result;
     }
 

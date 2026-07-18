@@ -69,6 +69,7 @@ public class App {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public App(UserRepository userRepository, Clock clock) {
         plantRepository = PlantRegistry.getDefault();
         zombieRepository = ZombieRegistry.getDefault();

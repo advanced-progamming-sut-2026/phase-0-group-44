@@ -21,7 +21,7 @@ class BeghouledTest {
 
     @Test
     void boardStartsPlayableAndEatenPlantsBecomeCraters() {
-        MiniGameCatalog catalog = MiniGameCatalog.mandatoryDefaults();
+        MiniGameCatalog catalog = MiniGameCatalog.phaseOneDefaults();
         MiniGameDefinition definition = catalog.find(MiniGameId.BEGHOULED);
         MiniGameSession session = new MiniGameSessionFactory(new SeededRandomSource(7))
                 .create("player", definition, definition.getLevel(1));

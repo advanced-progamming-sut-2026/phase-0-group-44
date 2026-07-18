@@ -175,6 +175,7 @@ public final class QuestService implements DomainEventListener {
         }
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     private boolean evaluate(Quest quest, QuestProgress progress, DomainEvent event) {
         if (event.getType() == DomainEventType.LEVEL_STARTED) {
             resetLevelCounters(progress);

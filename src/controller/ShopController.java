@@ -386,8 +386,7 @@ public class ShopController {
     private List<PlantDefinition> unlockedPlants(User user) {
         List<PlantDefinition> unlocked = new ArrayList<>();
         for (PlantDefinition definition : plantRepository.findAll()) {
-            if (!definition.isBonus()
-                    && user.getCollection().hasPlant(definition.getType())) {
+            if (user.getCollection().hasPlant(definition.getType())) {
                 unlocked.add(definition);
             }
         }
