@@ -5,6 +5,8 @@ import model.config.ChapterCatalog;
 import model.Result;
 import model.enums.PlantType;
 import model.miniGame.GreenHouse;
+import model.miniGame.MiniGameProgress;
+import model.utility.QuestProgress;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings("PMD.ExcessiveClassLength")
 public class User {
     private String username;
     private String hashOfPassword;
@@ -50,6 +53,8 @@ public class User {
     private Map<Integer, Set<Integer>> unlockedLevels = new LinkedHashMap<>();
     private Map<PlantType, Integer> plantBoosts = new LinkedHashMap<>();
     private Map<String, Integer> inventory = new LinkedHashMap<>();
+    private Map<String, QuestProgress> questProgress = new LinkedHashMap<>();
+    private Map<String, MiniGameProgress> miniGameProgress = new LinkedHashMap<>();
     private ArrayList<News> news = new ArrayList<>();
     private DailyShopState dailyShop = new DailyShopState();
 
@@ -105,6 +110,22 @@ public class User {
 
     public void setHashOfPassword(String hashOfPassword) {
         this.hashOfPassword = hashOfPassword;
+    }
+
+
+    /**
+     * Converts a compatible legacy plaintext password field to SHA-256.
+     * Already-hashed values are never hashed a second time.
+     *
+     * @return true only when the in-memory value changed
+     */
+    public boolean migrateLegacyPlaintextPassword() {
+        if (hashOfPassword == null || hashOfPassword.isEmpty()
+                || service.Sha256PasswordService.isStoredHash(hashOfPassword)) {
+            return false;
+        }
+        hashOfPassword = hashPassword(hashOfPassword);
+        return true;
     }
 
     public String getNickname() {
@@ -255,7 +276,8 @@ public class User {
 
             String allowedSpecialChars = "?><,'\";:\\/|\\[\\]\\}{+=()*&^%$#!";
             if (!pass.matches("^[a-zA-Z0-9" + allowedSpecialChars + "]+$")) {
-                result.appendToMessage("Password contains invalid characters. Only letters, digits, and specific special characters are allowed.");
+                result.appendToMessage("Password contains invalid characters. Only letters, digits, "
+                        + "and specific special characters are allowed.");
                 return result;
             }
 
@@ -290,6 +312,7 @@ public class User {
             return name.matches("^.{3,30}$");
         }
 
+        @SuppressWarnings("PMD.ExcessiveMethodLength")
         public static Result<String> isEmailNameValid(String email) {
             Result<String> result = new Result<>();
             if (email == null || email.isEmpty()) {
@@ -321,7 +344,8 @@ public class User {
                 return result;
             }
             if (!localPart.matches("^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$")) {
-                result.appendToMessage("Local part must start and end with a letter/digit, and only contain letters, digits, dot (.), dash (-), or underscore (_).");
+                result.appendToMessage("Local part must start and end with a letter/digit, and only "
+                        + "contain letters, digits, dot (.), dash (-), or underscore (_).");
                 return result;
             }
             if (localPart.contains("..")) {
@@ -349,7 +373,8 @@ public class User {
                     return result;
                 }
                 if (!part.matches("^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$")) {
-                    result.appendToMessage("Each domain part must start and end with a letter/digit, and only contain letters, digits, or hyphens (-).");
+                    result.appendToMessage("Each domain part must start and end with a letter/digit, "
+                            + "and only contain letters, digits, or hyphens (-).");
                     return result;
                 }
             }
@@ -522,6 +547,21 @@ public class User {
         return inventory;
     }
 
+    public Map<String, QuestProgress> getQuestProgress() {
+        if (questProgress == null) {
+            questProgress = new LinkedHashMap<>();
+        }
+
+        return questProgress;
+    }
+
+    public Map<String, MiniGameProgress> getMiniGameProgress() {
+        if (miniGameProgress == null) {
+            miniGameProgress = new LinkedHashMap<>();
+        }
+        return miniGameProgress;
+    }
+
     public ArrayList<News> getNewsList() {
         if (news == null) {
             news = new ArrayList<>();
@@ -552,6 +592,11 @@ public class User {
         getUnlockedLevels();
         getPlantBoosts();
         getInventory();
+        getQuestProgress();
+        getMiniGameProgress().values().removeIf(value -> value == null);
+        for (MiniGameProgress progress : getMiniGameProgress().values()) {
+            progress.applyDefaults();
+        }
         getNewsList();
         getDailyShop();
         ChapterCatalog.applyDefaultUnlocks(this);

@@ -1,0 +1,52 @@
+# Phase-1 bonus-content diff stat
+
+Generated against the final Phase-1 audit baseline.
+
+```text
+ README.md                                          |   3 +-
+ UML.puml                                           |  27 +-
+ docs/bonus-plants-and-zombies.md                   |  52 +++
+ docs/phase1-audit/bonus-scope.md                   |  24 +-
+ docs/phase1-audit/known-limitations.md             |  14 +-
+ docs/phase1-audit/requirement-matrix.md            |   8 +-
+ docs/phase1-audit/reviewer-guide.md                |  21 +-
+ docs/phase1-audit/test-and-lint-results.md         |  15 +-
+ docs/plant-implementation-checklist.md             |  32 +-
+ docs/uml/final-architecture.dot                    |  16 +-
+ docs/uml/final.png                                 | Bin 511272 -> 506252 bytes
+ docs/uml/main-class-diagram.puml                   |  27 +-
+ docs/zombie-implementation-checklist.md            |  22 +-
+ src/controller/BoardController.java                |  46 +++
+ src/controller/CollectionMenuController.java       |   7 -
+ src/controller/GameplayController.java             |   4 -
+ src/controller/GreenhouseController.java           |   3 +-
+ src/controller/PlantSelectionController.java       |  12 +-
+ src/controller/ShopController.java                 |   3 +-
+ src/model/GameEngine.java                          |  65 ++++
+ src/model/inGame/plant/BonusPlantBehavior.java     | 357 +++++++++++++++++++++
+ src/model/inGame/plant/Plant.java                  |   6 +-
+ src/model/inGame/plant/PlantBehaviorFactory.java   |  18 +-
+ src/model/inGame/plant/PlantFactory.java           |  16 +-
+ src/model/inGame/plant/PlantSelection.java         |   2 +-
+ src/model/inGame/projectile/HypnosisEffect.java    |  19 ++
+ .../inGame/zombie/ArmoredRamZombieAttack.java      |  33 ++
+ src/model/inGame/zombie/BonusZombieAbilities.java  | 153 +++++++++
+ src/model/inGame/zombie/WizardZombieAttack.java    |  17 +
+ src/model/inGame/zombie/Zombie.java                |  12 +
+ src/model/inGame/zombie/ZombieBehaviorFactory.java |  25 +-
+ src/model/inGame/zombie/ZombieFactory.java         |   2 +-
+ src/model/sim/board/PlantInstance.java             |  45 ++-
+ src/model/sim/zombie/ChapterZombieSpecSource.java  |  29 ++
+ src/model/sim/zombie/DefaultZombieSpecSource.java  |   6 +-
+ src/model/sim/zombie/ZombieCombatSystem.java       |  16 +-
+ src/model/sim/zombie/ZombieInstance.java           |  31 ++
+ src/model/sim/zombie/ZombieSpecialSystem.java      | 116 ++++++-
+ src/model/user/Collection.java                     |   6 -
+ test/plant/BonusPlantBehaviorTest.java             | 156 +++++++++
+ test/plant/PlantCollectionIntegrationTest.java     |  72 ++++-
+ test/plant/PlantRegistryTest.java                  |  11 +-
+ test/zombie/BonusZombieBehaviorTest.java           |  94 ++++++
+ test/zombie/ZombieCommandTest.java                 |  23 +-
+ test/zombie/ZombieRegistryTest.java                |  11 +-
+ 45 files changed, 1539 insertions(+), 138 deletions(-)
+```

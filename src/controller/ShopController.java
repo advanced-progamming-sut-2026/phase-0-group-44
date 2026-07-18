@@ -1,6 +1,7 @@
 package controller;
 
 import model.Result;
+import model.events.DomainEventType;
 import model.Store;
 import model.enums.PlantType;
 import model.inGame.plant.PlantDefinition;
@@ -10,12 +11,14 @@ import model.shop.ShopItem;
 import model.user.DailyShopState;
 import model.user.PlantCard;
 import model.user.User;
+import service.DomainEventPublisher;
 import service.UserService;
 import util.RandomSource;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Handles the shop commands reachable from the greenhouse.
@@ -32,11 +35,21 @@ public class ShopController {
     private final PlantRepository plantRepository;
     private final UserService userService;
     private final RandomSource random;
+    private final DomainEventPublisher events;
 
     public ShopController(
             PlantRepository plantRepository,
             UserService userService,
             RandomSource random
+    ) {
+        this(plantRepository, userService, random, null);
+    }
+
+    public ShopController(
+            PlantRepository plantRepository,
+            UserService userService,
+            RandomSource random,
+            DomainEventPublisher events
     ) {
         if (plantRepository == null || userService == null || random == null) {
             throw new IllegalArgumentException(
@@ -46,6 +59,7 @@ public class ShopController {
         this.plantRepository = plantRepository;
         this.userService = userService;
         this.random = random;
+        this.events = events;
     }
 
     /** Handles {@code shop list}. */
@@ -372,8 +386,7 @@ public class ShopController {
     private List<PlantDefinition> unlockedPlants(User user) {
         List<PlantDefinition> unlocked = new ArrayList<>();
         for (PlantDefinition definition : plantRepository.findAll()) {
-            if (!definition.isBonus()
-                    && user.getCollection().hasPlant(definition.getType())) {
+            if (user.getCollection().hasPlant(definition.getType())) {
                 unlocked.add(definition);
             }
         }
@@ -404,6 +417,10 @@ public class ShopController {
         result.setStatus(true);
         result.setData(message);
         result.appendToMessage(message);
+        if (events != null && Store.getLoggedInUser() != null) {
+            events.publish(DomainEventType.PURCHASE_COMPLETED,
+                    Store.getLoggedInUser(), Map.of("description", message));
+        }
         return result;
     }
 

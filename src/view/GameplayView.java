@@ -16,6 +16,7 @@ public class GameplayView extends MenuView {
         this.controller = controller;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public void checkCommand(String input) {
         if (controller == null) {
             System.out.println("no game is running");
@@ -90,6 +91,7 @@ public class GameplayView extends MenuView {
         System.out.println("invalid command");
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     private boolean handleBoardCommand(String input) {
         controller.BoardController board = controller.getBoard();
 

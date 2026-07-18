@@ -17,6 +17,7 @@ public final class PlantUpgrade {
         this.effect = effect;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public static PlantUpgrade parse(int level, String description) {
         String text = description == null ? "" : description.trim();
         String normalized = text.toLowerCase(Locale.ROOT);

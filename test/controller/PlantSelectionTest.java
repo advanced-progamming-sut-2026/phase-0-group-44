@@ -184,6 +184,31 @@ class PlantSelectionTest {
         assertEquals(8, new NormalLevel("x").getSelectionRules().getCapacity());
     }
 
+    @Test
+    void chapterEntryAutoStartsWhenOwnedPlantsDoNotFillTheSlots() {
+        user.getCollection().purchasePlant(PlantType.SUNFLOWER);
+        user.getCollection().purchasePlant(PlantType.PEASHOOTER);
+        user.getCollection().purchasePlant(PlantType.WALL_NUT);
+
+        Result<GameSession> result = controller.beginForPlayer(normal());
+
+        assertTrue(result.getStatus());
+        assertEquals(MenuName.GAMEPLAY, Store.getCurrentMenu());
+        assertEquals(3, result.getData().getSelection().size());
+    }
+
+    @Test
+    void chapterEntryKeepsSelectionOpenWhenAvailablePlantsFillTheSlots() {
+        ownAllSixPlants();
+        Level small = new NormalLevel("tiny", LevelSelectionRules.withCapacity(2));
+
+        Result<GameSession> result = controller.beginForPlayer(small);
+
+        assertTrue(result.getStatus());
+        assertEquals(MenuName.PLANT_SELECTION, Store.getCurrentMenu());
+        assertEquals(0, controller.getSelection().size());
+    }
+
     // ---------- remove ----------
 
     @Test

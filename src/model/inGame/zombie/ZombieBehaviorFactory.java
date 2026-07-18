@@ -53,6 +53,27 @@ public final class ZombieBehaviorFactory {
         register(ZombieType.HUNTER, withAbility(new HunterAbility()));
         register(ZombieType.SNORKEL, withAbility(new SnorkelAbility()));
         register(ZombieType.OCTOPUS_ZOMBIE, withAbility(new OctopusAbility()));
+        register(ZombieType.ARCADE_ZOMBIE, () -> new CompositeZombieBehavior(
+                new NormalZombieMovement(),
+                new ArmoredRamZombieAttack("arcadeMachine"),
+                List.of()));
+        register(ZombieType.TROGLOBITE, () -> new CompositeZombieBehavior(
+                new NormalZombieMovement(),
+                new ArmoredRamZombieAttack("groundIce"),
+                List.of()));
+        register(ZombieType.FISHERMAN, () -> new CompositeZombieBehavior(
+                new StationaryZombieMovement(),
+                new NormalZombieAttack(),
+                List.of(new BonusZombieAbilities.FishermanAbility())));
+        register(ZombieType.JESTER, withAbility(new BonusZombieAbilities.JesterAbility()));
+        register(ZombieType.WIZARD, () -> new CompositeZombieBehavior(
+                new NormalZombieMovement(0.6),
+                new WizardZombieAttack(),
+                List.of(new BonusZombieAbilities.WizardAbility())));
+        register(ZombieType.KING, () -> new CompositeZombieBehavior(
+                new StationaryZombieMovement(),
+                new NormalZombieAttack(),
+                List.of(new BonusZombieAbilities.KingAbility())));
     }
 
     private Supplier<CompositeZombieBehavior> normal() {
@@ -79,10 +100,6 @@ public final class ZombieBehaviorFactory {
         }
         Supplier<CompositeZombieBehavior> supplier = registrations.get(definition.getType());
         if (supplier == null) {
-            if (definition.isBonus()) {
-                throw new UnsupportedOperationException(
-                        definition.getName() + " is a blue/bonus zombie and has no Phase-1 behavior.");
-            }
             throw new IllegalStateException("No zombie behavior registered for " + definition.getType());
         }
         return supplier.get();

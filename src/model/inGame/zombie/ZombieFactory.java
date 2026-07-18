@@ -16,7 +16,7 @@ public final class ZombieFactory {
     }
 
     public Zombie create(ZombieType type, int row, double x) {
-        ZombieDefinition definition = registry.requireMandatory(type);
+        ZombieDefinition definition = registry.require(type);
         return new Zombie(definition, row, x, behaviorFactory.create(definition));
     }
 

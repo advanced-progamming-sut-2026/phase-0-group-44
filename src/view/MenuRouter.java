@@ -7,7 +7,6 @@ import controller.GameplayController;
 import model.user.User;
 import model.sim.SimulationWorld;
 import model.sim.board.PlantSpecSource;
-import model.Store;
 import model.enums.MenuName;
 
 /** Sends one line of input to the view of the menu the player is currently in. */
@@ -18,6 +17,8 @@ public class MenuRouter {
     private final LoginMenuView loginMenuView;
     private final GameMenuView gameMenuView;
     private final GreenhouseView greenhouseView;
+    private final TravelMenuView travelMenuView;
+    private final MiniGameMenu miniGameMenu;
     private final ShopView shopView;
     private final SettingsMenuView settingsMenuView;
     private final NewsMenuView newsMenuView;
@@ -25,6 +26,7 @@ public class MenuRouter {
     private final CollectionMenuView collectionMenuView;
     private final PlantSelectionView plantSelectionView;
     private final CommonMenuView commonMenuView;
+    private final ScoredGameView scoredGameView;
     private final PlantSpecSource plantSpecSource;
     private final controller.App app;
 
@@ -35,9 +37,14 @@ public class MenuRouter {
         this.loginMenuView = new LoginMenuView(
                 app.getMenuController(), app.getLoginController());
         this.gameMenuView = new GameMenuView(
-                app.getMenuController(), app.getGameController(), app.getMainController());
+                app.getMenuController(), app.getGameController(), app.getMainController(),
+                app.getScoredGameController(), app.getPlantSelectionController());
         this.greenhouseView = new GreenhouseView(
                 app.getMenuController(), app.getGreenhouseController());
+        this.travelMenuView = new TravelMenuView(
+                app.getMenuController(), app.getTravelController());
+        this.miniGameMenu = new MiniGameMenu(
+                app.getMenuController(), app.getMiniGameController());
         this.shopView = new ShopView(
                 app.getMenuController(), app.getShopController());
         this.settingsMenuView = new SettingsMenuView(
@@ -50,7 +57,10 @@ public class MenuRouter {
                 app.getMenuController(), app.getCollectionController(), app.getMainController());
         this.plantSelectionView = new PlantSelectionView(
                 app.getMenuController(), app.getPlantSelectionController());
-        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
+        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController(),
+                app.getScoredGameController());
+        this.scoredGameView = new ScoredGameView(
+                app.getMenuController(), app.getScoredGameController());
         this.plantSpecSource = app.getPlantSpecSource();
         this.app = app;
     }
@@ -64,7 +74,10 @@ public class MenuRouter {
         BoardController board = new BoardController(
                 world,
                 Store.getActiveSession() == null ? null : Store.getActiveSession().getSelection(),
-                plantSpecSource);
+                plantSpecSource,
+                app.getDomainEvents(),
+                Store.getLoggedInUser(),
+                Store.getActiveSession());
         User user = Store.getLoggedInUser();
         GameplayController controller = new GameplayController(
                 Store.getActiveSimulation(),
@@ -72,7 +85,8 @@ public class MenuRouter {
                 app.getRewardService(),
                 app.getConclusionService(),
                 Store.getActiveSession(),
-                user);
+                user,
+                app.getDomainEvents());
 
         return new GameplayView(menuController, controller);
     }
@@ -92,6 +106,15 @@ public class MenuRouter {
                 return;
             case GREENHOUSE:
                 greenhouseView.checkCommand(input);
+                return;
+            case TRAVEL_LOG:
+                travelMenuView.checkCommand(input);
+                return;
+            case MINIGAME:
+                miniGameMenu.checkCommand(input);
+                return;
+            case SCORED_GAME:
+                scoredGameView.checkCommand(input);
                 return;
             case SHOP:
                 shopView.checkCommand(input);

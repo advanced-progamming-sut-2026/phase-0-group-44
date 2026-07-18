@@ -94,6 +94,7 @@ final class AdventureConfigLoader {
         return result;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     private Map<GameWorld, List<AdventureLevelConfig>> loadLevelConfigs(
             Map<GameWorld, ChapterRules> rules
     ) {

@@ -8,19 +8,35 @@ import model.level.Level;
 import model.config.GameWorld;
 import model.enums.MenuName;
 import model.user.User;
+import model.utility.Leaderboard;
+import model.utility.LeaderboardColumn;
+import model.utility.SortDirection;
+import service.LeaderboardService;
 import service.UserService;
 
 /**
- * The game menu: navigation into worlds and the sub-screens, wallet queries and
- * the cheat command. No chapter gameplay lives here; entering a world is a
- * guarded navigation that ends at a stable placeholder.
+ * The game menu: navigation into worlds and sub-screens, wallet queries and
+ * the cheat command. Chapter lookup stays here while the plant-selection
+ * controller owns creation of the playable session.
  */
 public class GameMenuController {
 
     private final UserService userService;
+    private final LeaderboardService leaderboardService;
 
     public GameMenuController(UserService userService) {
+        this(userService, new LeaderboardService(userService));
+    }
+
+    public GameMenuController(
+            UserService userService,
+            LeaderboardService leaderboardService
+    ) {
+        if (userService == null || leaderboardService == null) {
+            throw new IllegalArgumentException("User and leaderboard services are required.");
+        }
         this.userService = userService;
+        this.leaderboardService = leaderboardService;
     }
 
     /** Handles {@code menu enter chapter -c <chaptername>}. */
@@ -83,6 +99,39 @@ public class GameMenuController {
         return result;
     }
 
+    /**
+     * Resolves the documented chapter-only command to a concrete Phase-1
+     * level. The most recently unlocked playable level is chosen so the same
+     * command advances a returning player without inventing another syntax.
+     * Deferred boss level 4 is deliberately skipped.
+     */
+    public Result<Level> enterLatestPlayableLevel(String chapterName) {
+        Result<Level> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+
+        GameWorld world = GameWorld.fromName(chapterName);
+        if (world == null) {
+            result.appendToMessage("no chapter named \"" + chapterName + "\"");
+            return result;
+        }
+        if (!ChapterCatalog.isUnlocked(user, world)) {
+            result.appendToMessage(world.getDisplayName() + " is locked");
+            return result;
+        }
+
+        for (int levelNumber = 3; levelNumber >= 1; levelNumber--) {
+            if (ChapterCatalog.isLevelUnlocked(user, world, levelNumber)) {
+                return enterLevel(chapterName, levelNumber);
+            }
+        }
+
+        result.appendToMessage("no playable level is unlocked in " + world.getDisplayName());
+        return result;
+    }
+
     public Result<String> greenhouse() {
         Result<String> result = new Result<>();
         User user = requireUser(result);
@@ -98,11 +147,52 @@ public class GameMenuController {
     }
 
     public Result<String> travelLog() {
-        return placeholder("travel log");
+        Result<String> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+        Store.setCurrentMenu(MenuName.TRAVEL_LOG);
+        result.setStatus(true);
+        result.setData("travel log");
+        result.appendToMessage("entered travel log; use travel log page <main|epic|daily|minigame>");
+        return result;
     }
 
-    public Result<String> leaderboard() {
-        return placeholder("leaderboard");
+    public Result<Leaderboard> leaderboard() {
+        return leaderboard(LeaderboardColumn.PROGRESS, SortDirection.DESCENDING);
+    }
+
+    public Result<Leaderboard> leaderboard(String columnToken, String directionToken) {
+        Result<Leaderboard> result = new Result<>();
+        LeaderboardColumn column = LeaderboardColumn.fromToken(columnToken);
+        if (column == null) {
+            result.appendToMessage("unknown leaderboard column; use username, progress, "
+                    + "minigames, daily-quests, non-daily-quests, or highest-score");
+            return result;
+        }
+        SortDirection direction = SortDirection.fromToken(directionToken);
+        if (direction == null) {
+            result.appendToMessage("leaderboard direction must be asc or desc");
+            return result;
+        }
+        return leaderboard(column, direction);
+    }
+
+    public Result<Leaderboard> leaderboard(
+            LeaderboardColumn column,
+            SortDirection direction
+    ) {
+        Result<Leaderboard> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+        Leaderboard leaderboard = leaderboardService.getLeaderboard(column, direction);
+        result.setStatus(true);
+        result.setData(leaderboard);
+        result.appendToMessage(leaderboard.format());
+        return result;
     }
 
     public Result<Integer> showCoinWallet() {

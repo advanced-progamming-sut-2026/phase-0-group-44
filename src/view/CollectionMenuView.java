@@ -25,6 +25,7 @@ public class CollectionMenuView extends MenuView {
         this.mainController = mainController;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public void checkCommand(String input) {
         User user = Store.getLoggedInUser();
 

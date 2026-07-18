@@ -3,7 +3,12 @@ package view;
 import controller.GameMenuController;
 import controller.MainMenuController;
 import controller.MenuController;
+import controller.PlantSelectionController;
+import controller.ScoredGameController;
+import model.Result;
 import model.enums.Command;
+import model.inGame.GameSession;
+import model.level.Level;
 
 import java.util.regex.Matcher;
 
@@ -12,22 +17,51 @@ public class GameMenuView extends MenuView {
 
     private final GameMenuController controller;
     private final MainMenuController mainController;
+    private final ScoredGameController scoredController;
+    private final PlantSelectionController plantSelectionController;
 
     public GameMenuView(
             MenuController menuController,
             GameMenuController controller,
             MainMenuController mainController
     ) {
+        this(menuController, controller, mainController, null, null);
+    }
+
+    public GameMenuView(
+            MenuController menuController,
+            GameMenuController controller,
+            MainMenuController mainController,
+            ScoredGameController scoredController
+    ) {
+        this(menuController, controller, mainController, scoredController, null);
+    }
+
+    public GameMenuView(
+            MenuController menuController,
+            GameMenuController controller,
+            MainMenuController mainController,
+            ScoredGameController scoredController,
+            PlantSelectionController plantSelectionController
+    ) {
         super(menuController);
         this.controller = controller;
         this.mainController = mainController;
+        this.scoredController = scoredController;
+        this.plantSelectionController = plantSelectionController;
     }
 
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public void checkCommand(String input) {
+        if (scoredController != null && Command.MENU_SCORED_GAME.matches(input)) {
+            print(scoredController.open());
+            return;
+        }
+
         if (Command.MENU_ENTER_CHAPTER.matches(input)) {
             Matcher matcher = Command.MENU_ENTER_CHAPTER.getMatcher(input);
             matcher.matches();
-            print(controller.enterChapter(matcher.group(1)));
+            openChapter(matcher.group(1));
 
             return;
         }
@@ -39,6 +73,13 @@ public class GameMenuView extends MenuView {
 
         if (Command.MENU_TRAVEL_LOG.matches(input)) {
             print(controller.travelLog());
+            return;
+        }
+
+        if (Command.MENU_LEADERBOARD_SORT.matches(input)) {
+            Matcher matcher = Command.MENU_LEADERBOARD_SORT.getMatcher(input);
+            matcher.matches();
+            print(controller.leaderboard(matcher.group(1), matcher.group(2)));
             return;
         }
 
@@ -75,5 +116,22 @@ public class GameMenuView extends MenuView {
         }
 
         System.out.println("invalid command");
+    }
+
+    private void openChapter(String chapterName) {
+        if (plantSelectionController == null) {
+            print(controller.enterChapter(chapterName));
+            return;
+        }
+
+        Result<Level> levelResult = controller.enterLatestPlayableLevel(chapterName);
+        if (!levelResult.getStatus()) {
+            print(levelResult);
+            return;
+        }
+
+        Result<GameSession> startResult =
+                plantSelectionController.beginForPlayer(levelResult.getData());
+        print(startResult);
     }
 }

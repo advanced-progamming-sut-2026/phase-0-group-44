@@ -23,7 +23,7 @@ public final class PlantSelection {
     }
 
     public void select(PlantType type, Collection collection) {
-        PlantDefinition definition = registry.requireMandatory(type);
+        PlantDefinition definition = registry.require(type);
         if (collection == null || !collection.hasPlant(type)) {
             throw new IllegalStateException(definition.getName() + " is not unlocked.");
         }

@@ -166,6 +166,7 @@ public class ShooterBehavior extends AbstractTimedBehavior {
     }
 
     @Override
+    @SuppressWarnings("PMD.ExcessiveMethodLength")
     public void onPlantFood(Plant plant, GameEngine engine) {
         if (mode == Mode.CHARGED) {
             engine.damageLane(plant.getPosition().getRow(), 2000, model.enums.DamageType.NORMAL);

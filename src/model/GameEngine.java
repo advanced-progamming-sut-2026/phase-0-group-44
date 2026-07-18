@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+@SuppressWarnings("PMD.ExcessiveClassLength")
 public class GameEngine {
     private final PlantRegistry plantRegistry;
     private final PlantFactory plantFactory;
@@ -62,9 +63,32 @@ public class GameEngine {
         if (sun < plant.getCost()) {
             throw new IllegalStateException("Not enough sun.");
         }
+        Plant stacked = stackPeaPod(type, position, plant);
+        if (stacked != null) {
+            return stacked;
+        }
         sun -= plant.getCost();
         placePlantInternal(plant, position, true);
         return plant;
+    }
+
+    private Plant stackPeaPod(PlantType type, Position position, Plant newHead) {
+        if (type != PlantType.PEA_POD || !gameMap.isInside(position)) {
+            return null;
+        }
+        Plant existing = gameMap.getTile(position).getPrimaryPlant();
+        if (existing == null || existing.getEffectiveType() != PlantType.PEA_POD) {
+            return null;
+        }
+        int heads = existing.getState("PEA_POD_HEADS", Integer.class, 1);
+        if (heads >= 5) {
+            throw new IllegalStateException("Pea Pod already has five heads.");
+        }
+        sun -= newHead.getCost();
+        existing.putState("PEA_POD_HEADS", heads + 1);
+        seedCooldowns.put(type, newHead.getStats().getRecharge());
+        recordEvent("Stacked Pea Pod head " + (heads + 1) + " at " + position + ".");
+        return existing;
     }
 
     public Plant plantImitater(PlantType copiedType, int imitaterLevel, Position position) {
@@ -565,6 +589,48 @@ public class GameEngine {
             cleanupDeadPlants();
         }
     }
+
+    public boolean movePlant(Plant plant, Position destination) {
+        if (plant == null || plant.getPosition() == null || !gameMap.isInside(destination)) {
+            return false;
+        }
+        Position original = plant.getPosition();
+        if (gameMap.getTile(destination).getPrimaryPlant() != null
+                || gameMap.getTile(destination).blocksPlanting()) {
+            return false;
+        }
+        gameMap.removePlant(plant);
+        try {
+            gameMap.placePlant(plant, destination);
+            return true;
+        } catch (IllegalStateException exception) {
+            gameMap.placePlant(plant, original);
+            return false;
+        }
+    }
+
+    public boolean transformPlantToCat(Plant plant, Zombie wizard) {
+        if (plant == null || wizard == null || plant.isDead()
+                || plant.getBooleanState("TRANSFORMED")) {
+            return false;
+        }
+        plant.putState("TRANSFORMED", true);
+        plant.putState("TRANSFORMED_BY", wizard.getId());
+        recordEvent("Wizard transformed " + plant.getEffectiveType() + " into a cat.");
+        return true;
+    }
+
+    public void restoreWizardTransformations(long wizardId) {
+        for (Plant plant : gameMap.getPlants()) {
+            Long transformedBy = plant.getState("TRANSFORMED_BY", Long.class, -1L);
+            if (transformedBy == wizardId) {
+                plant.putState("TRANSFORMED", false);
+                plant.putState("TRANSFORMED_BY", null);
+                recordEvent(plant.getEffectiveType() + " returned from cat form.");
+            }
+        }
+    }
+
 
     public void addFamilyBoost(PlantCategory category, double durationSeconds) {
         familyBoosts.put(category, Math.max(familyBoosts.getOrDefault(category, 0.0), durationSeconds));

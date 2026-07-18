@@ -50,13 +50,32 @@ class ZombieCommandTest {
     }
 
     @Test
-    void spawnCheatRejectsUnknownBonusInvalidAndWrongChapterTypes() {
+    void spawnCheatAllowsCommonBonusAndRejectsUnknownInvalidAndWrongChapterTypes() {
         GameplayController controller = new GameplayController(simulation());
 
         assertFalse(controller.spawnZombie("not-a-zombie", 8, 0).getStatus());
-        assertFalse(controller.spawnZombie("Arcade Zombie", 8, 0).getStatus());
+        assertTrue(controller.spawnZombie("Arcade Zombie", 8, 0).getStatus());
         assertFalse(controller.spawnZombie("Normal", 9, 0).getStatus());
         assertFalse(controller.spawnZombie("Hunter", 8, 0).getStatus());
+    }
+
+
+    @Test
+    void spawnCheatAllowsBonusChapterZombieInMatchingLevel() {
+        Simulation simulation = simulation();
+        GameSession session = new GameSession(
+                new NormalLevel("Big Wave Beach 1-1"),
+                new PlantSelection(),
+                3,
+                Set.of()
+        );
+        GameplayController controller = new GameplayController(
+                simulation, null, null, null, session, null);
+
+        Result<ZombieInstance> result = controller.spawnZombie("Fisherman", 8, 0);
+
+        assertTrue(result.getStatus());
+        assertTrue(result.getData().getType() == ZombieType.FISHERMAN);
     }
 
     @Test
