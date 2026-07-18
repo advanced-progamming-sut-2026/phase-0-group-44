@@ -54,10 +54,12 @@ public final class MenuGraph {
                 MenuName.SETTINGS,
                 MenuName.NETWORK,
                 MenuName.NEWS,
-                MenuName.PROFILE
+                MenuName.PROFILE,
+                MenuName.SCORED_GAME
         ));
         entries.put(MenuName.GAME, EnumSet.of(
-                MenuName.COLLECTION, MenuName.GREENHOUSE, MenuName.TRAVEL_LOG
+                MenuName.COLLECTION, MenuName.GREENHOUSE, MenuName.TRAVEL_LOG,
+                MenuName.SCORED_GAME
         ));
         entries.put(MenuName.SETTINGS, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.NETWORK, EnumSet.noneOf(MenuName.class));
@@ -67,6 +69,7 @@ public final class MenuGraph {
         entries.put(MenuName.GREENHOUSE, EnumSet.of(MenuName.SHOP));
         entries.put(MenuName.TRAVEL_LOG, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.MINIGAME, EnumSet.noneOf(MenuName.class));
+        entries.put(MenuName.SCORED_GAME, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.SHOP, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.PLANT_SELECTION, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.GAMEPLAY, EnumSet.noneOf(MenuName.class));
@@ -89,6 +92,7 @@ public final class MenuGraph {
         exits.put(MenuName.GREENHOUSE, MenuExit.returnTo(MenuName.GAME));
         exits.put(MenuName.TRAVEL_LOG, MenuExit.returnTo(MenuName.GAME));
         exits.put(MenuName.MINIGAME, MenuExit.returnTo(MenuName.TRAVEL_LOG));
+        exits.put(MenuName.SCORED_GAME, MenuExit.returnTo(MenuName.MAIN));
         exits.put(MenuName.SHOP, MenuExit.returnTo(MenuName.GREENHOUSE));
         exits.put(MenuName.PLANT_SELECTION, MenuExit.returnTo(MenuName.GAME));
         exits.put(MenuName.GAMEPLAY, MenuExit.returnTo(MenuName.GAME));

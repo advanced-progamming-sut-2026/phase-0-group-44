@@ -6,7 +6,9 @@ import java.util.Locale;
 public enum MiniGameId {
     VASE_BREAKER("vase-breaker", "Vase Breaker"),
     BOWLING_WALLNUT("bowling-wallnut", "Bowling Wall-nut"),
-    I_ZOMBIE("i-zombie", "I, Zombie");
+    I_ZOMBIE("i-zombie", "I, Zombie"),
+    BEGHOULED("beghouled", "Beghouled"),
+    ZOMBOTANY("zombotany", "Zombotany");
 
     private final String token;
     private final String displayName;

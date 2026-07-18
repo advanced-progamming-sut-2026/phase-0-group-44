@@ -1,5 +1,6 @@
 package model.miniGame;
 
+import model.Result;
 import model.sim.GameOutcome;
 import model.sim.Simulation;
 import model.sim.SimulationWorld;
@@ -12,6 +13,18 @@ import java.util.List;
  */
 public abstract class MiniGame {
     public abstract MiniGameId getId();
+
+    /** Optional pre-start state setup, used by modes with a selection phase. */
+    public void prepare(MiniGameSession session) {
+    }
+
+    /** Validates any strategy-owned selection immediately before start. */
+    public Result<String> validateStart(MiniGameSession session) {
+        Result<String> result = new Result<>();
+        result.setStatus(true);
+        result.setData("ready");
+        return result;
+    }
 
     /** Called once before the common simulation enters RUNNING. */
     public void configure(

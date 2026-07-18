@@ -3,6 +3,7 @@ package view;
 import controller.GameMenuController;
 import controller.MainMenuController;
 import controller.MenuController;
+import controller.ScoredGameController;
 import model.enums.Command;
 
 import java.util.regex.Matcher;
@@ -12,18 +13,34 @@ public class GameMenuView extends MenuView {
 
     private final GameMenuController controller;
     private final MainMenuController mainController;
+    private final ScoredGameController scoredController;
 
     public GameMenuView(
             MenuController menuController,
             GameMenuController controller,
             MainMenuController mainController
     ) {
+        this(menuController, controller, mainController, null);
+    }
+
+    public GameMenuView(
+            MenuController menuController,
+            GameMenuController controller,
+            MainMenuController mainController,
+            ScoredGameController scoredController
+    ) {
         super(menuController);
         this.controller = controller;
         this.mainController = mainController;
+        this.scoredController = scoredController;
     }
 
     public void checkCommand(String input) {
+        if (scoredController != null && Command.MENU_SCORED_GAME.matches(input)) {
+            print(scoredController.open());
+            return;
+        }
+
         if (Command.MENU_ENTER_CHAPTER.matches(input)) {
             Matcher matcher = Command.MENU_ENTER_CHAPTER.getMatcher(input);
             matcher.matches();

@@ -6,5 +6,10 @@ import model.Result;
 public interface MiniGameCommandExtension {
     boolean supports(String input);
 
+    /** Whether this command may run while the attempt is selected but not started. */
+    default boolean availableBeforeStart() {
+        return false;
+    }
+
     Result<String> execute(MiniGameSession session, String input);
 }

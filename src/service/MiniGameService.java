@@ -3,6 +3,7 @@ package service;
 import model.Result;
 import model.Store;
 import model.enums.MenuName;
+import model.enums.PlantType;
 import model.events.DomainEventType;
 import model.miniGame.MiniGameCatalog;
 import model.miniGame.MiniGameDefinition;
@@ -17,6 +18,8 @@ import model.user.User;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.Map;
 
 /**
@@ -100,6 +103,13 @@ public final class MiniGameService {
 
         MiniGameSession session = sessions.create(
                 user.getUsername(), definition, definition.getLevel(level));
+        if (session.getStrategyState() instanceof model.miniGame.ZombotanyState zombotany) {
+            Set<PlantType> owned = new LinkedHashSet<>();
+            for (PlantType type : user.getCollection().getOwnedPlants().keySet()) {
+                if (user.getCollection().hasPlant(type)) owned.add(type);
+            }
+            zombotany.restrictAvailablePlants(owned);
+        }
         Store.setActiveMiniGameSession(session);
         result.setStatus(true);
         result.setData(session);
@@ -145,7 +155,7 @@ public final class MiniGameService {
 
     public Result<String> executeStrategyCommand(User user, String input) {
         Result<String> result = new Result<>();
-        MiniGameSession session = runningSession(user, result);
+        MiniGameSession session = ownedSelectedOrRunningSession(user, result);
         if (session == null) {
             return result;
         }
@@ -194,6 +204,25 @@ public final class MiniGameService {
         }
         if (!session.getOwnerUsername().equals(user.getUsername())) {
             result.appendToMessage("the running minigame belongs to another user");
+            return null;
+        }
+        return session;
+    }
+
+
+    private <T> MiniGameSession ownedSelectedOrRunningSession(User user, Result<T> result) {
+        if (user == null) {
+            result.appendToMessage("no user is logged in");
+            return null;
+        }
+        MiniGameSession session = Store.getActiveMiniGameSession();
+        if (session == null || (session.getState() != MiniGameLifecycleState.SELECTED
+                && session.getState() != MiniGameLifecycleState.RUNNING)) {
+            result.appendToMessage("no minigame is selected or running");
+            return null;
+        }
+        if (!session.getOwnerUsername().equals(user.getUsername())) {
+            result.appendToMessage("the selected minigame belongs to another user");
             return null;
         }
         return session;
@@ -253,7 +282,20 @@ public final class MiniGameService {
 
     private void ensureDefaults(User user) {
         user.applyDefaults();
-        progressFor(user, MiniGameId.VASE_BREAKER).unlockMiniGame();
+        boolean changed = progressFor(user, MiniGameId.VASE_BREAKER).unlockMiniGame();
+        for (MiniGameDefinition definition : catalog.getDefinitions()) {
+            MiniGameProgress progress = progressFor(user, definition.getId());
+            MiniGameId unlocked = definition.getUnlocksAfterCompletion();
+            if (progress.isFullyCompleted() && unlocked != null) {
+                MiniGameProgress next = progressFor(user, unlocked);
+                if (next.unlockMiniGame()) {
+                    changed = true;
+                    MiniGameDefinition nextDefinition = catalog.find(unlocked);
+                    news.miniGameUnlocked(user, nextDefinition.getDisplayName());
+                }
+            }
+        }
+        if (changed) users.updateUser(user);
     }
 
     private MiniGameProgress progressFor(User user, MiniGameId id) {

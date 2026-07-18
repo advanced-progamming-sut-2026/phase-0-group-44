@@ -7,7 +7,6 @@ import controller.GameplayController;
 import model.user.User;
 import model.sim.SimulationWorld;
 import model.sim.board.PlantSpecSource;
-import model.Store;
 import model.enums.MenuName;
 
 /** Sends one line of input to the view of the menu the player is currently in. */
@@ -27,6 +26,7 @@ public class MenuRouter {
     private final CollectionMenuView collectionMenuView;
     private final PlantSelectionView plantSelectionView;
     private final CommonMenuView commonMenuView;
+    private final ScoredGameView scoredGameView;
     private final PlantSpecSource plantSpecSource;
     private final controller.App app;
 
@@ -37,7 +37,8 @@ public class MenuRouter {
         this.loginMenuView = new LoginMenuView(
                 app.getMenuController(), app.getLoginController());
         this.gameMenuView = new GameMenuView(
-                app.getMenuController(), app.getGameController(), app.getMainController());
+                app.getMenuController(), app.getGameController(), app.getMainController(),
+                app.getScoredGameController());
         this.greenhouseView = new GreenhouseView(
                 app.getMenuController(), app.getGreenhouseController());
         this.travelMenuView = new TravelMenuView(
@@ -56,7 +57,10 @@ public class MenuRouter {
                 app.getMenuController(), app.getCollectionController(), app.getMainController());
         this.plantSelectionView = new PlantSelectionView(
                 app.getMenuController(), app.getPlantSelectionController());
-        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController());
+        this.commonMenuView = new CommonMenuView(app.getMenuController(), app.getMainController(),
+                app.getScoredGameController());
+        this.scoredGameView = new ScoredGameView(
+                app.getMenuController(), app.getScoredGameController());
         this.plantSpecSource = app.getPlantSpecSource();
         this.app = app;
     }
@@ -108,6 +112,9 @@ public class MenuRouter {
                 return;
             case MINIGAME:
                 miniGameMenu.checkCommand(input);
+                return;
+            case SCORED_GAME:
+                scoredGameView.checkCommand(input);
                 return;
             case SHOP:
                 shopView.checkCommand(input);

@@ -111,6 +111,22 @@ public class User {
         this.hashOfPassword = hashOfPassword;
     }
 
+
+    /**
+     * Converts a compatible legacy plaintext password field to SHA-256.
+     * Already-hashed values are never hashed a second time.
+     *
+     * @return true only when the in-memory value changed
+     */
+    public boolean migrateLegacyPlaintextPassword() {
+        if (hashOfPassword == null || hashOfPassword.isEmpty()
+                || service.Sha256PasswordService.isStoredHash(hashOfPassword)) {
+            return false;
+        }
+        hashOfPassword = hashPassword(hashOfPassword);
+        return true;
+    }
+
     public String getNickname() {
         return nickname;
     }

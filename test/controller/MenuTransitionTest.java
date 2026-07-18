@@ -68,10 +68,11 @@ class MenuTransitionTest {
         entries.put(MenuName.LOGIN, EnumSet.of(MenuName.MAIN));
         entries.put(MenuName.MAIN, EnumSet.of(
                 MenuName.GAME, MenuName.SETTINGS, MenuName.NETWORK,
-                MenuName.NEWS, MenuName.PROFILE
+                MenuName.NEWS, MenuName.PROFILE, MenuName.SCORED_GAME
         ));
         entries.put(MenuName.GAME, EnumSet.of(
-                MenuName.COLLECTION, MenuName.GREENHOUSE, MenuName.TRAVEL_LOG
+                MenuName.COLLECTION, MenuName.GREENHOUSE, MenuName.TRAVEL_LOG,
+                MenuName.SCORED_GAME
         ));
         entries.put(MenuName.SETTINGS, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.NETWORK, EnumSet.noneOf(MenuName.class));
@@ -81,6 +82,7 @@ class MenuTransitionTest {
         entries.put(MenuName.GREENHOUSE, EnumSet.of(MenuName.SHOP));
         entries.put(MenuName.TRAVEL_LOG, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.MINIGAME, EnumSet.noneOf(MenuName.class));
+        entries.put(MenuName.SCORED_GAME, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.SHOP, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.PLANT_SELECTION, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.GAMEPLAY, EnumSet.noneOf(MenuName.class));
@@ -101,6 +103,7 @@ class MenuTransitionTest {
         exits.put(MenuName.GREENHOUSE, MenuName.GAME);
         exits.put(MenuName.TRAVEL_LOG, MenuName.GAME);
         exits.put(MenuName.MINIGAME, MenuName.TRAVEL_LOG);
+        exits.put(MenuName.SCORED_GAME, MenuName.MAIN);
         exits.put(MenuName.SHOP, MenuName.GREENHOUSE);
         exits.put(MenuName.PLANT_SELECTION, MenuName.GAME);
         exits.put(MenuName.GAMEPLAY, MenuName.GAME);

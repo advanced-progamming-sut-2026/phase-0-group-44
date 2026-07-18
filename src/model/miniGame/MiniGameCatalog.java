@@ -6,10 +6,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Mandatory minigame catalog. Beghouled and Zombotany are intentionally not
- * registered because they are bonus modes outside this implementation.
- */
+/** Catalog of the five implemented three-level minigames. */
 public final class MiniGameCatalog {
     private final Map<MiniGameId, MiniGameDefinition> definitions;
 
@@ -50,14 +47,67 @@ public final class MiniGameCatalog {
         );
         MiniGameDefinition iZombie = new MiniGameDefinition(
                 MiniGameId.I_ZOMBIE,
-                null,
+                MiniGameId.BEGHOULED,
                 List.of(
                         iZombieConfig(1, rows, columns),
                         iZombieConfig(2, rows, columns),
                         iZombieConfig(3, rows, columns)
                 )
         );
-        return new MiniGameCatalog(List.of(vaseBreaker, bowling, iZombie));
+        MiniGameDefinition beghouled = new MiniGameDefinition(
+                MiniGameId.BEGHOULED,
+                MiniGameId.ZOMBOTANY,
+                List.of(
+                        beghouledConfig(1, rows, columns),
+                        beghouledConfig(2, rows, columns),
+                        beghouledConfig(3, rows, columns)
+                )
+        );
+        MiniGameDefinition zombotany = new MiniGameDefinition(
+                MiniGameId.ZOMBOTANY,
+                null,
+                List.of(
+                        zombotanyConfig(1, rows, columns),
+                        zombotanyConfig(2, rows, columns),
+                        zombotanyConfig(3, rows, columns)
+                )
+        );
+        return new MiniGameCatalog(List.of(
+                vaseBreaker, bowling, iZombie, beghouled, zombotany));
+    }
+
+
+
+    private static MiniGameLevelConfig zombotanyConfig(int level, int rows, int columns) {
+        ZombotanyLevelRules rules = Zombotany.rulesFor(level);
+        return new MiniGameLevelConfig(
+                MiniGameId.ZOMBOTANY,
+                level,
+                level,
+                rules.getZombieCount(),
+                rules.getDangerScore(),
+                50,
+                rules.getTimeLimitTicks(),
+                rows,
+                columns,
+                true
+        );
+    }
+
+    private static MiniGameLevelConfig beghouledConfig(int level, int rows, int columns) {
+        BeghouledLevelRules rules = Beghouled.rulesFor(level);
+        return new MiniGameLevelConfig(
+                MiniGameId.BEGHOULED,
+                level,
+                level,
+                rules.getTargetMatches(),
+                rules.getDangerScore(),
+                0,
+                rules.getTimeLimitTicks(),
+                rows,
+                columns,
+                false
+        );
     }
 
     private static MiniGameLevelConfig iZombieConfig(int level, int rows, int columns) {

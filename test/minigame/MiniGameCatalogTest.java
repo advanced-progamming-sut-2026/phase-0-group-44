@@ -6,7 +6,6 @@ import model.miniGame.MiniGameLevelConfig;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MiniGameCatalogTest {
@@ -15,12 +14,12 @@ class MiniGameCatalogTest {
     void onlyMandatoryRepositoryMinigamesAreRegistered() {
         MiniGameCatalog catalog = MiniGameCatalog.mandatoryDefaults();
 
-        assertEquals(3, catalog.getDefinitions().size());
+        assertEquals(5, catalog.getDefinitions().size());
         assertEquals("Vase Breaker", catalog.getDefinitions().get(0).getDisplayName());
         assertEquals("Bowling Wall-nut", catalog.getDefinitions().get(1).getDisplayName());
         assertEquals("I, Zombie", catalog.getDefinitions().get(2).getDisplayName());
-        assertNull(catalog.find("Beghouled"));
-        assertNull(catalog.find("Zombotany"));
+        assertEquals("Beghouled", catalog.getDefinitions().get(3).getDisplayName());
+        assertEquals("Zombotany", catalog.getDefinitions().get(4).getDisplayName());
     }
 
     @Test

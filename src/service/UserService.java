@@ -64,6 +64,10 @@ public class UserService {
         Store.setUsers(new ArrayList<>(saveFile.getUsers()));
         Store.setLoggedInUser(resolveSession(saveFile.getLastLoggedInUsername()));
 
+        if (saveFile.isMigrationApplied()) {
+            repository.save(saveFile);
+        }
+
         result.setStatus(true);
         result.setData(Store.getUsers().size());
         result.appendToMessage("loaded " + Store.getUsers().size() + " user(s)");

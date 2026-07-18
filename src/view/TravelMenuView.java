@@ -38,6 +38,12 @@ public class TravelMenuView extends MenuView {
             print(controller.startMiniGame());
             return;
         }
+        if (Command.MINIGAME_COMMAND.matches(input)) {
+            Matcher matcher = Command.MINIGAME_COMMAND.getMatcher(input);
+            matcher.matches();
+            print(controller.executeMiniGameCommand(matcher.group(1)));
+            return;
+        }
         if (handleCommonCommand(input)) {
             return;
         }

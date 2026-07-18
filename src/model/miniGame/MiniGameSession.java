@@ -97,6 +97,12 @@ public final class MiniGameSession {
             result.appendToMessage("the selected minigame has already started or finished");
             return result;
         }
+        Result<String> validation = rules.validateStart(this);
+        if (validation == null || !validation.getStatus()) {
+            result.appendToMessage(validation == null || validation.getMessage().isBlank()
+                    ? "minigame is not ready to start" : validation.getMessage());
+            return result;
+        }
         rules.configure(this);
         state = MiniGameLifecycleState.RUNNING;
         result.setStatus(true);
@@ -138,18 +144,26 @@ public final class MiniGameSession {
 
     public Result<String> executeStrategyCommand(String input) {
         Result<String> result = new Result<>();
-        if (state != MiniGameLifecycleState.RUNNING) {
-            result.appendToMessage("no minigame is currently running");
+        if (state != MiniGameLifecycleState.RUNNING
+                && state != MiniGameLifecycleState.SELECTED) {
+            result.appendToMessage("no minigame is selected or running");
             return result;
         }
         for (MiniGameCommandExtension extension : rules.commandExtensions()) {
             if (extension.supports(input)) {
+                if (state == MiniGameLifecycleState.SELECTED
+                        && !extension.availableBeforeStart()) {
+                    result.appendToMessage("this command is available only after the minigame starts");
+                    return result;
+                }
                 Result<String> executed = extension.execute(this, input);
-                GameOutcome outcome = rules.evaluate(this);
-                if (outcome == GameOutcome.WON) {
-                    state = MiniGameLifecycleState.WON;
-                } else if (outcome == GameOutcome.LOST) {
-                    state = MiniGameLifecycleState.LOST;
+                if (state == MiniGameLifecycleState.RUNNING) {
+                    GameOutcome outcome = rules.evaluate(this);
+                    if (outcome == GameOutcome.WON) {
+                        state = MiniGameLifecycleState.WON;
+                    } else if (outcome == GameOutcome.LOST) {
+                        state = MiniGameLifecycleState.LOST;
+                    }
                 }
                 return executed;
             }

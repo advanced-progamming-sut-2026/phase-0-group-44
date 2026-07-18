@@ -20,6 +20,8 @@ public final class MiniGameSessionFactory {
         register(new VaseBreaker(random));
         register(new BowlingWallnut());
         register(new IZombie(random));
+        register(new Beghouled(random));
+        register(new Zombotany(random));
     }
 
     public void register(MiniGame strategy) {
@@ -40,6 +42,9 @@ public final class MiniGameSessionFactory {
         }
         SimulationWorld world = new SimulationWorld(config.getRows(), config.getColumns());
         Simulation simulation = new Simulation(random, world, config.isSkySunEnabled());
-        return new MiniGameSession(ownerUsername, definition, config, strategy, simulation);
+        MiniGameSession session = new MiniGameSession(
+                ownerUsername, definition, config, strategy, simulation);
+        strategy.prepare(session);
+        return session;
     }
 }

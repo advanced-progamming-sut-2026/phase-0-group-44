@@ -25,6 +25,7 @@ import service.GreenhouseBoostService;
 import service.LeaderboardService;
 import service.NewsService;
 import service.SecurityQuestionCatalog;
+import service.ScoredGameService;
 import service.Sha256PasswordService;
 import service.UserService;
 import model.inGame.plant.PlantRegistry;
@@ -61,6 +62,8 @@ public class App {
     private final TravelMenuController travelController;
     private final MiniGameController miniGameController;
     private final LeaderboardService leaderboardService;
+    private final ScoredGameService scoredGameService;
+    private final ScoredGameController scoredGameController;
 
     public App() {
         this(new JsonUserRepository(), Clock.systemDefaultZone());
@@ -92,6 +95,8 @@ public class App {
                 new RegisterMenuController(userService, passwordService, questionCatalog);
         loginController = new LoginMenuController(userService, passwordService);
         leaderboardService = new LeaderboardService(userService);
+        scoredGameService = new ScoredGameService(userService, clock);
+        scoredGameController = new ScoredGameController(scoredGameService);
         mainController = new MainMenuController(userService, leaderboardService);
         gameController = new GameMenuController(userService, leaderboardService);
         newsService = new NewsService(userService);
@@ -240,6 +245,14 @@ public class App {
     }
     public LeaderboardService getLeaderboardService() {
         return leaderboardService;
+    }
+
+    public ScoredGameService getScoredGameService() {
+        return scoredGameService;
+    }
+
+    public ScoredGameController getScoredGameController() {
+        return scoredGameController;
     }
 
 }
