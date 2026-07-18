@@ -15,9 +15,10 @@ class MiniGameCatalogTest {
     void onlyMandatoryRepositoryMinigamesAreRegistered() {
         MiniGameCatalog catalog = MiniGameCatalog.mandatoryDefaults();
 
-        assertEquals(2, catalog.getDefinitions().size());
+        assertEquals(3, catalog.getDefinitions().size());
         assertEquals("Vase Breaker", catalog.getDefinitions().get(0).getDisplayName());
         assertEquals("Bowling Wall-nut", catalog.getDefinitions().get(1).getDisplayName());
+        assertEquals("I, Zombie", catalog.getDefinitions().get(2).getDisplayName());
         assertNull(catalog.find("Beghouled"));
         assertNull(catalog.find("Zombotany"));
     }
