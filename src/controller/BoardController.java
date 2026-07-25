@@ -1,14 +1,19 @@
 package controller;
 
+import model.GameEngine;
+import model.Position;
 import model.Result;
 import model.events.DomainEventType;
 import model.enums.PlantType;
 import model.enums.PlantCategory;
 import model.enums.TerrainType;
+import model.inGame.GameMap;
 import model.inGame.PlantSelection;
 import model.inGame.GameSession;
+import model.inGame.plant.Plant;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRegistry;
+import model.inGame.zombie.Zombie;
 import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureRuntimeState;
 import model.level.SpecialLevelType;
@@ -17,10 +22,12 @@ import model.sim.board.PlantInstance;
 import model.sim.board.PlantSpec;
 import model.sim.board.PlantSpecSource;
 import model.sim.board.Tile;
+import model.sim.sun.SunProducer;
 import model.user.User;
 import service.DomainEventPublisher;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,38 +40,29 @@ import java.util.Map;
  */
 public class BoardController {
 
-    private final SimulationWorld world;
+    private final GameEngine engine;
     private final PlantSelection selection;
-    private final PlantSpecSource specSource;
+    private final AdventureRuntimeState adventureState;
     private final DomainEventPublisher events;
     private final User user;
     private final GameSession session;
 
-    public BoardController(
-            SimulationWorld world,
-            PlantSelection selection,
-            PlantSpecSource specSource
-    ) {
-        this(world, selection, specSource, null, null, null);
+    public BoardController(GameEngine engine, PlantSelection selection,
+                           AdventureRuntimeState adventureState) {
+        this(engine, selection, adventureState, null, null, null);
     }
 
-    public BoardController(
-            SimulationWorld world,
-            PlantSelection selection,
-            PlantSpecSource specSource,
-            DomainEventPublisher events,
-            User user,
-            GameSession session
-    ) {
-        this.world = world;
+    public BoardController(GameEngine engine, PlantSelection selection,
+                           AdventureRuntimeState adventureState,
+                           DomainEventPublisher events, User user, GameSession session) {
+        this.engine = engine;
         this.selection = selection;
-        this.specSource = specSource;
+        this.adventureState = adventureState;
         this.events = events;
         this.user = user;
         this.session = session;
     }
 
-    /** Handles {@code plant plant -t <type> -l (<x>, <y>)}. */
     @SuppressWarnings("PMD.ExcessiveMethodLength")
     public Result<String> plantPlant(PlantType type, int x, int y) {
         Result<String> result = new Result<>();
@@ -79,61 +77,42 @@ public class BoardController {
             result.appendToMessage("this plant is not selected for the level");
             return result;
         }
-        if (conveyor && world.getAdventureState().getConveyorPacketCount(type) <= 0) {
+        if (conveyor && adventureState.getConveyorPacketCount(type) <= 0) {
             result.appendToMessage("no conveyor packet for this plant");
             return result;
         }
 
-        PlantSpec spec = specSource.specOf(type);
-
-        if (spec == null) {
-            result.appendToMessage("no data for this plant");
+        Position position;
+        try {
+            position = new Position(y, x); // (x,y) ورودی = (column,row) → Position(row, column)
+        } catch (IllegalArgumentException e) {
+            result.appendToMessage("invalid tile");
             return result;
         }
-
-        Board board = world.getBoard();
-        Tile tile = board.tileAt(x, y);
-
-        if (tile == null) {
+        if (!engine.getGameMap().isInside(position)) {
             result.appendToMessage("invalid tile");
             return result;
         }
 
-        if (type == PlantType.PEA_POD && tile.getStackedPlant() != null
-                && tile.getStackedPlant().getType() == PlantType.PEA_POD) {
-            return stackPeaPod(result, tile.getStackedPlant(), spec, conveyor, type, x, y);
+        // Pea Pod stacking: چک کن آیا از قبل یک Pea Pod روی این تایل هست
+        Plant existingPrimary = engine.getGameMap().getTile(position).getPrimaryPlant();
+        if (type == PlantType.PEA_POD && existingPrimary != null
+                && existingPrimary.getEffectiveType() == PlantType.PEA_POD) {
+            return stackPeaPod(result, existingPrimary, conveyor, type, x, y, position);
         }
 
-        Placement placement = placementFor(tile, spec);
-
-        if (placement == Placement.REJECTED) {
-            result.appendToMessage("this tile does not permit that plant");
+        boolean freePreWave = isFreePreWavePlanting();
+        Plant plant;
+        try {
+            plant = engine.plant(type, 1, position, !conveyor, !conveyor && !freePreWave);
+        } catch (IllegalStateException e) {
+            result.appendToMessage(translatePlantError(e.getMessage()));
             return result;
         }
 
-        if (!conveyor && world.isOnCooldown(type)) {
-            result.appendToMessage("this plant is still recharging");
-            return result;
-        }
-
-        if (!conveyor && world.getSunBalance() < spec.getSunCost()) {
-            result.appendToMessage("not enough sun");
-            return result;
-        }
-
-        // All validation passed: only now are the packet/resources consumed.
         if (conveyor) {
-            world.getAdventureState().consumeConveyorPacket(type);
-        } else {
-            world.addSun(-spec.getSunCost());
+            adventureState.consumeConveyorPacket(type);
         }
-        PlantInstance plant = new PlantInstance(spec, x, y);
-        place(tile, plant, placement);
-        world.addPlant(plant);
-        if (!conveyor && !isFreePreWavePlanting()) {
-            world.startCooldown(type, spec.getRechargeTicks());
-        }
-
         if (session != null) {
             session.recordPlantUsed(type);
         }
@@ -142,258 +121,225 @@ public class BoardController {
         result.setStatus(true);
         result.setData(type.name());
         result.appendToMessage("planted " + type.name() + " at (" + x + ", " + y + ")");
-
         return result;
     }
 
-    /** Handles {@code pluck plant -l (<x>, <y>)}. */
-    public Result<String> pluckPlant(int x, int y) {
-        Result<String> result = new Result<>();
-        Tile tile = world.getBoard().tileAt(x, y);
-
-        if (tile == null) {
-            result.appendToMessage("invalid tile");
-            return result;
-        }
-
-        if (!tile.hasAnyPlant()) {
-            result.appendToMessage("no plant to pluck here");
-            return result;
-        }
-        if (world.getAdventureState() != null
-                && world.getAdventureState().isProtected(x, y)) {
-            result.appendToMessage("protected plants cannot be plucked");
-            return result;
-        }
-
-        // Remove the stacked plant first, then the support, matching placement order.
-        PlantInstance removed = tile.getStackedPlant() != null
-                ? tile.getStackedPlant() : tile.getSupportPlant();
-
-        if (tile.getStackedPlant() != null) {
-            tile.setStackedPlant(null);
-        } else {
-            tile.clearPlants();
-        }
-
-        world.getPlants().remove(removed);
-
-        result.setStatus(true);
-        result.setData(removed.getType().name());
-        result.appendToMessage("plucked " + removed.getType().name() + " at (" + x + ", " + y + ")");
-
-        return result;
-    }
-
-    /** Handles {@code cheat remove-cooldown}. */
-    public Result<String> cheatRemoveCooldown() {
-        Result<String> result = new Result<>();
-        world.disableCooldowns();
-
-        result.setStatus(true);
-        result.appendToMessage("plant cooldowns disabled for this game");
-
-        return result;
-    }
-
-    /** Handles {@code feed plant -l (<x>, <y>)}. */
-    public Result<String> feedPlant(int x, int y) {
-        Result<String> result = new Result<>();
-        Tile tile = world.getBoard().tileAt(x, y);
-
-        if (tile == null) {
-            result.appendToMessage("invalid tile");
-            return result;
-        }
-
-        PlantInstance plant = tile.getStackedPlant() != null
-                ? tile.getStackedPlant() : tile.getSupportPlant();
-
-        if (plant == null) {
-            result.appendToMessage("no plant to feed here");
-            return result;
-        }
-
-        if (!plant.getSpec().hasPlantFoodEffect()) {
-            result.appendToMessage("this plant has no plant-food effect");
-            return result;
-        }
-
-        if (world.getPlantFood() <= 0) {
-            result.appendToMessage("you have no plant food");
-            return result;
-        }
-
-        world.spendPlantFood();
-        // Applying the plant's specific plant-food effect belongs to the plant
-        // behaviour layer; this records that it fires.
-
-        result.setStatus(true);
-        result.setData(plant.getType().name());
-        result.appendToMessage("fed " + plant.getType().name() + " at (" + x + ", " + y + ")");
-
-        return result;
-    }
-
-    /** Handles {@code cheat add-plant-food}. */
-    public Result<String> cheatAddPlantFood() {
-        Result<String> result = new Result<>();
-        boolean added = world.addPlantFood();
-
-        result.setStatus(true);
-        result.setData(String.valueOf(world.getPlantFood()));
-
-        if (!added) {
-            result.appendToMessage("plant food is already at the maximum ("
-                    + SimulationWorld.MAX_PLANT_FOOD + ")");
-            return result;
-        }
-
-        result.appendToMessage("plant food: " + world.getPlantFood());
-
-        return result;
-    }
-
-    /** Handles {@code show map}. */
-    public Result<String> showMap() {
-        Result<String> result = new Result<>();
-        Board board = world.getBoard();
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("wave: ").append(world.getCurrentWave()).append('\n');
-        builder.append("plant food: ").append(world.getPlantFood()).append('\n');
-        builder.append("sun: ").append(world.getSunBalance()).append('\n');
-
-        for (int row = 0; row < board.getRows(); row++) {
-            builder.append("row ").append(row)
-                    .append(" [mower ")
-                    .append(world.isLawnMowerUsed(row) ? "used" : "ready")
-                    .append("]: ");
-
-            for (int column = 0; column < board.getColumns(); column++) {
-                builder.append(cellSymbol(board.tileAt(column, row))).append(' ');
-            }
-
-            builder.append('\n');
-        }
-
-        appendZombiePositions(builder);
-
-        result.setStatus(true);
-        result.setData(builder.toString());
-        result.appendToMessage(builder.toString().trim());
-
-        return result;
-    }
-
-    /** Handles {@code show plants status}. */
-    public Result<String> showPlantsStatus() {
-        Result<String> result = new Result<>();
-        Board board = world.getBoard();
-        StringBuilder builder = new StringBuilder();
-
-        for (int row = 0; row < board.getRows(); row++) {
-            for (int column = 0; column < board.getColumns(); column++) {
-                Tile tile = board.tileAt(column, row);
-                appendPlantStatus(builder, tile.getSupportPlant());
-                appendPlantStatus(builder, tile.getStackedPlant());
-            }
-        }
-
-        result.setStatus(true);
-
-        if (builder.length() == 0) {
-            result.setData("");
-            result.appendToMessage("no plants on the board");
-            return result;
-        }
-
-        result.setData(builder.toString());
-        result.appendToMessage(builder.toString().trim());
-
-        return result;
-    }
-
-    /** Handles {@code show tile status -l (<x>, <y>)}. */
-    public Result<String> showTileStatus(int x, int y) {
-        Result<String> result = new Result<>();
-        Tile tile = world.getBoard().tileAt(x, y);
-
-        if (tile == null) {
-            result.appendToMessage("invalid tile");
-            return result;
-        }
-
-        StringBuilder builder = new StringBuilder();
-        builder.append("tile (").append(x).append(", ").append(y).append(")\n");
-        builder.append("terrain: ").append(tile.getTerrain());
-
-        if (tile.isGravestone()) {
-            builder.append(" (health ").append(tile.getTerrainHealth())
-                    .append(", reward ").append(tile.getGraveReward()).append(')');
-        }
-
-        if (tile.isFrozen()) {
-            builder.append(" [frozen, ice ").append(tile.getIceHealth()).append(']');
-        }
-
-        builder.append('\n');
-        appendTilePlant(builder, "support", tile.getSupportPlant());
-        appendTilePlant(builder, "stacked", tile.getStackedPlant());
-
-        result.setStatus(true);
-        result.setData(builder.toString());
-        result.appendToMessage(builder.toString().trim());
-
-        return result;
-    }
-
-
-    private Result<String> stackPeaPod(
-            Result<String> result,
-            PlantInstance peaPod,
-            PlantSpec spec,
-            boolean conveyor,
-            PlantType type,
-            int x,
-            int y
-    ) {
-        if (peaPod.getStackCount() >= 5) {
+    private Result<String> stackPeaPod(Result<String> result, Plant existing, boolean conveyor,
+                                       PlantType type, int x, int y, Position position) {
+        int heads = existing.getState("PEA_POD_HEADS", Integer.class, 1);
+        if (heads >= 5) {
             result.appendToMessage("pea pod already has five heads");
             return result;
         }
-        if (!conveyor && world.isOnCooldown(type)) {
+        if (!conveyor && engine.isOnCooldown(type)) {
             result.appendToMessage("this plant is still recharging");
             return result;
         }
-        if (!conveyor && world.getSunBalance() < spec.getSunCost()) {
+        int cost = PlantRegistry.getDefault().require(type).statsAtLevel(1).getCost();
+        if (!conveyor && engine.getSun() < cost) {
             result.appendToMessage("not enough sun");
             return result;
         }
         if (conveyor) {
-            world.getAdventureState().consumeConveyorPacket(type);
+            adventureState.consumeConveyorPacket(type);
         } else {
-            world.addSun(-spec.getSunCost());
+            engine.removeSun(cost);
         }
-        peaPod.addPeaPodHead();
-        if (!conveyor && !isFreePreWavePlanting()) {
-            world.startCooldown(type, spec.getRechargeTicks());
-        }
+        existing.putState("PEA_POD_HEADS", heads + 1);
         if (session != null) {
             session.recordPlantUsed(type);
         }
         publishPlantEvent(type, x, y);
         result.setStatus(true);
         result.setData(type.name());
-        result.appendToMessage("stacked PEA_POD head " + peaPod.getStackCount()
-                + " at (" + x + ", " + y + ")");
+        result.appendToMessage("stacked PEA_POD head " + (heads + 1) + " at (" + x + ", " + y + ")");
+        return result;
+    }
+
+    private String translatePlantError(String message) {
+        if (message == null) return "this tile does not permit that plant";
+        if (message.contains("recharging")) return "this plant is still recharging";
+        if (message.contains("sun")) return "not enough sun";
+        if (message.contains("five heads")) return "pea pod already has five heads";
+        return "this tile does not permit that plant";
+    }
+
+    public Result<String> pluckPlant(int x, int y) {
+        Result<String> result = new Result<>();
+        Position position;
+        try {
+            position = new Position(y, x);
+        } catch (IllegalArgumentException e) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+        if (!engine.getGameMap().isInside(position)) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+        Tile tile = engine.getGameMap().getTile(position);
+        if (!hasAnyPlant(tile)) {
+            result.appendToMessage("no plant to pluck here");
+            return result;
+        }
+        if (adventureState != null && adventureState.isProtected(x, y)) {
+            result.appendToMessage("protected plants cannot be plucked");
+            return result;
+        }
+
+        Plant removed = tile.getArmorPlant() != null ? tile.getArmorPlant()
+                : tile.getPrimaryPlant() != null ? tile.getPrimaryPlant() : tile.getSupportPlant();
+        engine.getGameMap().removePlant(removed);
+
+        result.setStatus(true);
+        result.setData(removed.getType().name());
+        result.appendToMessage("plucked " + removed.getType().name() + " at (" + x + ", " + y + ")");
+        return result;
+    }
+
+    public Result<String> cheatRemoveCooldown() {
+        Result<String> result = new Result<>();
+        engine.disableCooldowns();
+        result.setStatus(true);
+        result.appendToMessage("plant cooldowns disabled for this game");
+        return result;
+    }
+
+    public Result<String> feedPlant(int x, int y) {
+        Result<String> result = new Result<>();
+        Position position;
+        try {
+            position = new Position(y, x);
+        } catch (IllegalArgumentException e) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+        if (!engine.getGameMap().isInside(position)) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+        Tile tile = engine.getGameMap().getTile(position);
+        Plant plant = tile.getPrimaryPlant() != null ? tile.getPrimaryPlant() : tile.getSupportPlant();
+
+        if (plant == null) {
+            result.appendToMessage("no plant to feed here");
+            return result;
+        }
+        String effect = plant.getEffectiveDefinition().getPlantFoodEffect();
+        if (effect == null || effect.isBlank() || effect.equalsIgnoreCase("none")) {
+            result.appendToMessage("this plant has no plant-food effect");
+            return result;
+        }
+        if (engine.getPlantFood() <= 0) {
+            result.appendToMessage("you have no plant food");
+            return result;
+        }
+
+        engine.spendPlantFood();
+        plant.usePlantFood(engine); // ← حالا واقعاً اثر گیاه اجرا می‌شه، نه فقط ثبتش
+
+        result.setStatus(true);
+        result.setData(plant.getType().name());
+        result.appendToMessage("fed " + plant.getType().name() + " at (" + x + ", " + y + ")");
+        return result;
+    }
+
+    public Result<String> cheatAddPlantFood() {
+        Result<String> result = new Result<>();
+        boolean added = engine.addPlantFood();
+        result.setStatus(true);
+        result.setData(String.valueOf(engine.getPlantFood()));
+        if (!added) {
+            result.appendToMessage("plant food is already at the maximum (" + GameEngine.MAX_PLANT_FOOD + ")");
+            return result;
+        }
+        result.appendToMessage("plant food: " + engine.getPlantFood());
+        return result;
+    }
+
+    public Result<String> showMap() {
+        Result<String> result = new Result<>();
+        GameMap map = engine.getGameMap();
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("wave: ").append(engine.getCurrentWave()).append('\n');
+        builder.append("plant food: ").append(engine.getPlantFood()).append('\n');
+        builder.append("sun: ").append(engine.getSun()).append('\n');
+
+        for (int row = 0; row < map.getRows(); row++) {
+            builder.append("row ").append(row)
+                    .append(" [mower ").append(engine.isLawnMowerUsed(row) ? "used" : "ready").append("]: ");
+            for (int column = 0; column < map.getColumns(); column++) {
+                builder.append(cellSymbol(map.getTile(row, column))).append(' ');
+            }
+            builder.append('\n');
+        }
+        appendZombiePositions(builder);
+
+        result.setStatus(true);
+        result.setData(builder.toString());
+        result.appendToMessage(builder.toString().trim());
+        return result;
+    }
+
+    public Result<String> showPlantsStatus() {
+        Result<String> result = new Result<>();
+        StringBuilder builder = new StringBuilder();
+        GameMap map = engine.getGameMap();
+        for (int row = 0; row < map.getRows(); row++) {
+            for (int column = 0; column < map.getColumns(); column++) {
+                Tile tile = map.getTile(row, column);
+                appendPlantStatus(builder, tile.getSupportPlant(), column, row);
+                appendPlantStatus(builder, tile.getPrimaryPlant(), column, row);
+                appendPlantStatus(builder, tile.getArmorPlant(), column, row);
+            }
+        }
+        result.setStatus(true);
+        if (builder.length() == 0) {
+            result.setData("");
+            result.appendToMessage("no plants on the board");
+            return result;
+        }
+        result.setData(builder.toString());
+        result.appendToMessage(builder.toString().trim());
+        return result;
+    }
+
+    public Result<String> showTileStatus(int x, int y) {
+        Result<String> result = new Result<>();
+        Position position;
+        try {
+            position = new Position(y, x);
+        } catch (IllegalArgumentException e) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+        if (!engine.getGameMap().isInside(position)) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+        Tile tile = engine.getGameMap().getTile(position);
+        StringBuilder builder = new StringBuilder();
+        builder.append("tile (").append(x).append(", ").append(y).append(")\n");
+        builder.append("terrain: ").append(tile.getTerrain());
+        if (tile.getObstacle() == ObstacleType.GRAVE) {
+            builder.append(" (health ").append(tile.getObstacleHealth()).append(')');
+        }
+        if (tile.getObstacle() == ObstacleType.ICE) {
+            builder.append(" [frozen, ice ").append(tile.getObstacleHealth()).append(']');
+        }
+        builder.append('\n');
+        appendTilePlant(builder, "support", tile.getSupportPlant());
+        appendTilePlant(builder, "primary", tile.getPrimaryPlant());
+        appendTilePlant(builder, "armor", tile.getArmorPlant());
+        result.setStatus(true);
+        result.setData(builder.toString());
+        result.appendToMessage(builder.toString().trim());
         return result;
     }
 
     private void publishPlantEvent(PlantType type, int x, int y) {
-        if (events == null || user == null) {
-            return;
-        }
+        if (events == null || user == null) return;
         PlantDefinition definition = PlantRegistry.getDefault().findByType(type);
         Map<String, String> attributes = new LinkedHashMap<>();
         attributes.put("plant", type.name());
@@ -403,161 +349,68 @@ public class BoardController {
             PlantCategory category = definition.getBehaviorCategory();
             attributes.put("family", category == null ? "" : category.name());
             attributes.put("explosive", String.valueOf(
-                    category == PlantCategory.EXPLOSIVE
-                            || definition.hasTag(model.enums.PlantTag.EXPLOSIVE)));
+                    category == PlantCategory.EXPLOSIVE || definition.hasTag(PlantTag.EXPLOSIVE)));
             attributes.put("sunProducer", String.valueOf(
-                    category == PlantCategory.SUN_PRODUCER
-                            || definition.hasTag(model.enums.PlantTag.SUN)));
+                    category == PlantCategory.SUN_PRODUCER || definition.hasTag(PlantTag.SUN)));
         }
         events.publish(DomainEventType.PLANT_PLANTED, user, attributes);
     }
 
     private boolean isConveyorLevel() {
-        AdventureRuntimeState state = world.getAdventureState();
-        return state != null
-                && state.getConfig().getSpecialType() == SpecialLevelType.CONVEYOR_BELT;
+        return adventureState != null
+                && adventureState.getConfig().getSpecialType() == SpecialLevelType.CONVEYOR_BELT;
     }
 
     private boolean isFreePreWavePlanting() {
-        AdventureRuntimeState state = world.getAdventureState();
-        return state != null
-                && state.getConfig().getSpecialType() == SpecialLevelType.PLANT_WHAT_YOU_GET
-                && !world.areWavesStarted();
+        return adventureState != null
+                && adventureState.getConfig().getSpecialType() == SpecialLevelType.PLANT_WHAT_YOU_GET
+                && !engine.areWavesStarted();
     }
 
-    private enum Placement {
-        AS_SUPPORT,
-        ON_SUPPORT,
-        REJECTED
-    }
-
-    private Placement placementFor(Tile tile, PlantSpec spec) {
-        if (tile.isFrozen()) {
-            return Placement.REJECTED;
-        }
-
-        TerrainType terrain = tile.getTerrain();
-
-        if (terrain.requiresWaterCapablePlant()) {
-            return waterPlacement(tile, spec);
-        }
-
-        if (!terrain.isPlantableByDefault()) {
-            return Placement.REJECTED;
-        }
-
-        return landPlacement(tile, spec);
-    }
-
-    private Placement waterPlacement(Tile tile, PlantSpec spec) {
-        if (tile.getSupportPlant() != null) {
-            if (tile.getSupportPlant().getSpec().providesSupport()
-                    && spec.stacksOnSupport()
-                    && tile.getStackedPlant() == null) {
-                return Placement.ON_SUPPORT;
-            }
-
-            return Placement.REJECTED;
-        }
-
-        if (spec.isWaterCapable() || spec.providesSupport()) {
-            return Placement.AS_SUPPORT;
-        }
-
-        return Placement.REJECTED;
-    }
-
-    private Placement landPlacement(Tile tile, PlantSpec spec) {
-        if (tile.getSupportPlant() == null) {
-            return Placement.AS_SUPPORT;
-        }
-
-        if (tile.getSupportPlant().getSpec().providesSupport()
-                && spec.stacksOnSupport()
-                && tile.getStackedPlant() == null) {
-            return Placement.ON_SUPPORT;
-        }
-
-        return Placement.REJECTED;
-    }
-
-    private void place(Tile tile, PlantInstance plant, Placement placement) {
-        if (placement == Placement.ON_SUPPORT) {
-            plant.setStackedOnSupport(true);
-            tile.setStackedPlant(plant);
-        } else {
-            tile.setSupportPlant(plant);
-        }
+    private boolean hasAnyPlant(Tile tile) {
+        return tile.getSupportPlant() != null || tile.getPrimaryPlant() != null || tile.getArmorPlant() != null;
     }
 
     private String cellSymbol(Tile tile) {
-        if (tile.hasAnyPlant()) {
+        if (hasAnyPlant(tile)) {
             return "P";
         }
-
-        if (tile.isFrozen()) {
+        if (tile.getObstacle() == ObstacleType.ICE) {
             return "*";
         }
-
-        switch (tile.getTerrain()) {
-            case WATER:
-                return "~";
-            case GRAVESTONE:
-                return "#";
-            case DARK_AGES_GRAVESTONE:
-                return switch (tile.getGraveReward()) {
-                    case SUN_50 -> "$";
-                    case PLANT_FOOD -> "F";
-                    default -> "#";
-                };
-            case SLIPPERY_UP:
-                return "^";
-            case SLIPPERY_DOWN:
-                return "v";
-            case LOW_TIDE:
-                return "_";
-            default:
-                return ".";
+        if (tile.getObstacle() == ObstacleType.GRAVE) {
+            return "#"; // TODO: پاداش قبر (SUN_50/PLANT_FOOD) در دنیای A هنوز تعریف نشده — گام ۲ رو ببین
         }
+        if (tile.getTerrain() == TerrainType.WATER) {
+            return "~";
+        }
+        return ".";
+        // TODO: SLIPPERY_UP / SLIPPERY_DOWN / LOW_TIDE اگه در TerrainType دنیای A وجود دارن، اضافه کن
     }
 
     private void appendZombiePositions(StringBuilder builder) {
-        if (world.getZombies().isEmpty()) {
-            return;
-        }
-
+        List<Zombie> zombies = engine.getZombies();
+        if (zombies.isEmpty()) return;
         builder.append("zombies:");
-
-        for (var zombie : world.getZombies()) {
-            builder.append(" (").append(zombie.getTileX())
-                    .append(", ").append(zombie.getTileY()).append(')');
+        for (Zombie zombie : zombies) {
+            builder.append(" (").append(zombie.getColumn()).append(", ").append(zombie.getRow()).append(')');
         }
-
         builder.append('\n');
     }
 
-    private void appendPlantStatus(StringBuilder builder, PlantInstance plant) {
-        if (plant == null) {
-            return;
-        }
-
-        PlantSpec spec = plant.getSpec();
-        int cooldown = world.getCooldownRemaining(spec.getType());
-
-        builder.append(spec.getType().name())
-                .append(" at (").append(plant.getTileX()).append(", ")
-                .append(plant.getTileY()).append(")")
-                .append(" | sun cost ").append(spec.getSunCost())
-                .append(" | ").append(world.isOnCooldown(spec.getType())
-                        ? "recharging, " + cooldown + " ticks left" : "plantable")
+    private void appendPlantStatus(StringBuilder builder, Plant plant, int column, int row) {
+        if (plant == null) return;
+        double cooldown = engine.getCooldown(plant.getType());
+        builder.append(plant.getType().name())
+                .append(" at (").append(column).append(", ").append(row).append(")")
+                .append(" | sun cost ").append(plant.getCost())
+                .append(" | ").append(engine.isOnCooldown(plant.getType())
+                        ? "recharging, " + cooldown + "s left" : "plantable")
                 .append('\n');
     }
 
-    private void appendTilePlant(StringBuilder builder, String slot, PlantInstance plant) {
-        if (plant == null) {
-            return;
-        }
-
+    private void appendTilePlant(StringBuilder builder, String slot, Plant plant) {
+        if (plant == null) return;
         builder.append(slot).append(" plant: ").append(plant.getType().name())
                 .append(" (health ").append(plant.getHp()).append(")\n");
     }

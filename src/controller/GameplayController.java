@@ -1,5 +1,6 @@
 package controller;
 
+import model.GameEngine;
 import model.Result;
 import model.events.DomainEventType;
 import model.Store;
@@ -8,10 +9,11 @@ import model.enums.PlantCategory;
 import model.enums.PlantTag;
 import model.enums.PlantType;
 import model.enums.ZombieType;
+import model.inGame.GameOutcome;
 import model.inGame.GameSession;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRegistry;
-import model.sim.GameOutcome;
+import model.inGame.zombie.Zombie;
 import model.sim.Simulation;
 import model.sim.SimulationWorld;
 import model.sim.sun.SunCollector;
@@ -140,10 +142,9 @@ public class GameplayController {
     /** Handles {@code start zombie waves} for Plant What You Get levels. */
     public Result<String> startZombieWaves() {
         Result<String> result = new Result<>();
-        SimulationWorld world = simulation.getWorld();
+        GameEngine world = simulation.getWorld(); // ← فقط تایپ
         if (world.getAdventureState() == null
-                || world.getAdventureState().getConfig().getSpecialType()
-                != SpecialLevelType.PLANT_WHAT_YOU_GET) {
+                || world.getAdventureState().getConfig().getSpecialType() != SpecialLevelType.PLANT_WHAT_YOU_GET) {
             result.appendToMessage("this level does not use delayed zombie waves");
             return result;
         }
@@ -158,11 +159,10 @@ public class GameplayController {
         return result;
     }
 
-    /** Handles {@code zombies info}. */
     public Result<List<String>> zombiesInfo() {
         Result<List<String>> result = new Result<>();
         List<String> lines = new ArrayList<>();
-        for (ZombieInstance zombie : simulation.getWorld().getZombieInstances()) {
+        for (Zombie zombie : simulation.getWorld().getZombies()) {
             if (!zombie.isDead()) {
                 lines.add(zombie.infoText());
             }
@@ -173,31 +173,30 @@ public class GameplayController {
         return result;
     }
 
-    /** Handles {@code cheat spawn-zombie -t <type> -l <x, y>}. */
-    public Result<ZombieInstance> spawnZombie(String typeToken, int x, int y) {
-        Result<ZombieInstance> result = new Result<>();
+    public Result<Zombie> spawnZombie(String typeToken, int x, int y) {
+        Result<Zombie> result = new Result<>();
         ZombieType type = ZombieType.fromToken(typeToken);
         ZombieRegistry registry = ZombieRegistry.getDefault();
-        ZombieDefinition definition = type == null ? registry.findByName(typeToken)
-                : registry.findByType(type);
+        ZombieDefinition definition = type == null ? registry.findByName(typeToken) : registry.findByType(type);
         if (definition == null) {
             result.appendToMessage("unknown zombie type");
             return result;
         }
-        SimulationWorld world = simulation.getWorld();
-        if (!world.getBoard().isValidZombitePosition(x, y)) {
+        GameEngine world = simulation.getWorld();
+        if (y < 0 || y >= world.getGameMap().getRows() || x < 0 || x > world.getGameMap().getColumns()) {
             result.appendToMessage("invalid zombie spawn tile");
             return result;
         }
-        String levelName = session == null || session.getLevel() == null
-                ? null : session.getLevel().getName();
+        String levelName = session == null || session.getLevel() == null ? null : session.getLevel().getName();
         if (definition.getChapter() != model.inGame.zombie.ZombieChapter.COMMON
                 && (levelName == null || !definition.getChapter().isAllowedIn(levelName))) {
             result.appendToMessage("this zombie is restricted to " + definition.getChapter());
             return result;
         }
-        ZombieInstance zombie = new ZombieInstance(ZombieSpec.fromDefinition(definition), x, y);
-        world.addZombie(zombie);
+        Zombie zombie = world.spawnZombie(definition.getType(), y, x);// (row, x)
+        if (rewardService != null && rewardService.rollGlowing()) {
+            zombie.putState("GLOWING", true);
+        }
         if (user != null) {
             user.getCollection().markZombieAsSeen(definition.getType());
         }
@@ -207,47 +206,19 @@ public class GameplayController {
         return result;
     }
 
-    /** Handles {@code release the nuke}: kill every zombie, with normal cleanup. */
     public Result<List<String>> releaseNuke() {
         Result<List<String>> result = new Result<>();
-        SimulationWorld world = simulation.getWorld();
-        List<String> messages = new ArrayList<>();
-
-        for (ZombieInstance zombie : world.getZombieInstances()) {
-            if (zombie.isDead()) {
-                continue;
-            }
-
-            zombie.kill();
-            model.sim.zombie.ZombieSpecialSystem.onDeath(zombie, world, messages::add);
-            messages.add("Zombie of type " + zombie.getSpec().getName()
-                    + " is dead at (" + zombie.getTileX() + ", " + zombie.getRow() + ")");
-            world.recordDeath(new ZombieDeath(
-                    zombie.getSpec(), zombie.getTileX(), zombie.getRow(),
-                    zombie.isGlowing(), true));
-        }
-
-        world.getZombies().removeIf(z -> z instanceof ZombieInstance && ((ZombieInstance) z).isDead());
-
+        List<String> messages = simulation.getWorld().killAllZombies();
         messages.addAll(drainRewards());
-
         result.setStatus(true);
         result.setData(messages);
-        result.appendToMessage(messages.isEmpty()
-                ? "no zombies to nuke" : String.join("\n", messages));
-
+        result.appendToMessage(messages.isEmpty() ? "no zombies to nuke" : String.join("\n", messages));
         return result;
     }
 
-    /**
-     * Applies rewards for zombies that died. Cheat kills (the nuke) are cleaned
-     * up like any death but grant no rewards — a deliberate choice, since no
-     * repository test or asset says a cheat should farm drops, and letting a
-     * cheat produce coins/diamonds/plant food would be exploitable.
-     */
     private List<String> drainRewards() {
         List<String> messages = new ArrayList<>();
-        SimulationWorld world = simulation.getWorld();
+        GameEngine world = simulation.getWorld(); // ← SimulationWorld بود، حالا GameEngine
 
         for (ZombieDeath death : world.getPendingDeaths()) {
             if (death.isCheatKill() || user == null) {
@@ -270,7 +241,6 @@ public class GameplayController {
         }
 
         world.getPendingDeaths().clear();
-
         return messages;
     }
 
@@ -283,7 +253,6 @@ public class GameplayController {
             if (conclusionService != null) {
                 messages.addAll(conclusionService.onWin(user, session));
             }
-
             Store.setCurrentMenu(MenuName.GAME);
             Store.setActiveSimulation(null);
         } else if (outcome == GameOutcome.LOST) {
@@ -291,11 +260,9 @@ public class GameplayController {
             if (conclusionService != null) {
                 conclusionService.onLoss(user, session);
             }
-
             Store.setCurrentMenu(MenuName.GAME);
             Store.setActiveSimulation(null);
         }
-
         return messages;
     }
 
@@ -303,7 +270,7 @@ public class GameplayController {
         if (events == null || user == null) {
             return;
         }
-        SimulationWorld world = simulation.getWorld();
+        GameEngine world = simulation.getWorld(); // ← SimulationWorld بود
         Map<String, String> attributes = new LinkedHashMap<>();
         attributes.put("won", String.valueOf(won));
         attributes.put("sunBalance", String.valueOf(world.getSunBalance()));
@@ -347,12 +314,12 @@ public class GameplayController {
         attributes.put("allUsedPlantsSunProducers", String.valueOf(allSun));
     }
 
-    private String emptyRows(SimulationWorld world) {
+    private String emptyRows(GameEngine world) {
         StringJoiner rows = new StringJoiner(",");
-        for (int row = 0; row < world.getRows(); row++) {
+        for (int row = 0; row < world.getGameMap().getRows(); row++) {
             boolean empty = true;
-            for (int column = 0; column < world.getColumns(); column++) {
-                if (world.getBoard().tileAt(column, row).hasAnyPlant()) {
+            for (int column = 0; column < world.getGameMap().getColumns(); column++) {
+                if (world.getGameMap().getTile(row, column).hasAnyPlant()) {
                     empty = false;
                     break;
                 }
@@ -364,12 +331,12 @@ public class GameplayController {
         return rows.toString();
     }
 
-    private String emptyColumns(SimulationWorld world) {
+    private String emptyColumns(GameEngine world) {
         StringJoiner columns = new StringJoiner(",");
-        for (int column = 0; column < world.getColumns(); column++) {
+        for (int column = 0; column < world.getGameMap().getColumns(); column++) {
             boolean empty = true;
-            for (int row = 0; row < world.getRows(); row++) {
-                if (world.getBoard().tileAt(column, row).hasAnyPlant()) {
+            for (int row = 0; row < world.getGameMap().getRows(); row++) {
+                if (world.getGameMap().getTile(row, column).hasAnyPlant()) {
                     empty = false;
                     break;
                 }
@@ -384,25 +351,20 @@ public class GameplayController {
     /** Handles {@code collect sun -l (<x>, <y>)}. */
     public Result<Integer> collectSun(int x, int y) {
         Result<Integer> result = new Result<>();
-        SunCollector.Outcome outcome = simulation.collectSun(x, y);
+        GameEngine.SunCollectionOutcome outcome = simulation.collectSun(x, y); // ← فقط این خط تغییر کرد
 
         if (!outcome.isCollected()) {
             result.appendToMessage("no sun at (" + x + ", " + y + ")");
             result.setData(simulation.getSunAmount());
             return result;
         }
-
         result.setStatus(true);
         result.setData(simulation.getSunAmount());
-
         if (outcome.isExploded()) {
             result.appendToMessage("radioactive sun exploded at (" + x + ", " + y + ")");
             return result;
         }
-
-        result.appendToMessage("collected " + outcome.getGained()
-                + " sun; total " + simulation.getSunAmount());
-
+        result.appendToMessage("collected " + outcome.getGained() + " sun; total " + simulation.getSunAmount());
         return result;
     }
 

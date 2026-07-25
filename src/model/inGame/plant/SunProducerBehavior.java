@@ -34,6 +34,9 @@ public class SunProducerBehavior extends AbstractTimedBehavior {
         if (mode == Mode.INSTANT) {
             return;
         }
+        if (engine.plantHasUncollectedSun(plant)) {
+            return; // طبق SunProducer دنیای B: تا جمع نشه، چرخه‌ی بعدی شروع نمی‌شه (تایمر هم پیش نمی‌ره)
+        }
         double interval = plant.getStats().getActionInterval();
         if (!ready(plant, deltaSeconds, interval)) {
             return;
@@ -49,9 +52,9 @@ public class SunProducerBehavior extends AbstractTimedBehavior {
         if (engine.hasFamilyBoost(plant.getCategory())) {
             amount = (int) Math.round(amount * 1.5);
         }
-        engine.addSun(amount);
+        engine.spawnPlantSun(plant, amount);
         if (plant.getStats().hasFlag("DOUBLE_SUN_CHANCE") && engine.getRandom().nextDouble() < 0.25) {
-            engine.addSun(amount);
+            engine.spawnPlantSun(plant, amount);
         }
     }
 

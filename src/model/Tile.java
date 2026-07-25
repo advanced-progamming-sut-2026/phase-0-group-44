@@ -142,6 +142,10 @@ public class Tile {
         }
     }
 
+    public boolean hasAnyPlant() {
+        return supportPlant != null || primaryPlant != null || armorPlant != null;
+    }
+
     public boolean hasLilyPad() {
         return supportPlant != null && supportPlant.getType() == PlantType.LILY_PAD;
     }

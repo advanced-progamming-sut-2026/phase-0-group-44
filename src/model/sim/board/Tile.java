@@ -1,6 +1,7 @@
 package model.sim.board;
 
 import model.enums.TerrainType;
+import model.inGame.plant.Plant;
 import model.sim.adventure.GraveReward;
 
 /**
@@ -26,8 +27,9 @@ public class Tile {
     private String projectileBlockerKind = "";
     private GraveReward graveReward = GraveReward.NONE;
 
-    private PlantInstance supportPlant;
-    private PlantInstance stackedPlant;
+    private Plant supportPlant;
+    private Plant stackedPlant;
+
 
     public Tile(int row, int column, TerrainType terrain) {
         this.row = row;
@@ -157,28 +159,18 @@ public class Tile {
         return dealt;
     }
 
-    public PlantInstance getSupportPlant() {
-        return supportPlant;
-    }
-
-    public PlantInstance getStackedPlant() {
-        return stackedPlant;
-    }
-
     public boolean hasAnyPlant() {
         return supportPlant != null || stackedPlant != null;
     }
 
-    public void setSupportPlant(PlantInstance plant) {
-        this.supportPlant = plant;
-    }
-
-    public void setStackedPlant(PlantInstance plant) {
-        this.stackedPlant = plant;
-    }
 
     public void clearPlants() {
         this.supportPlant = null;
         this.stackedPlant = null;
     }
+
+    public Plant getSupportPlant() { return supportPlant; }
+    public Plant getStackedPlant() { return stackedPlant; }
+    public void setSupportPlant(Plant plant) { this.supportPlant = plant; }
+    public void setStackedPlant(Plant plant) { this.stackedPlant = plant; }
 }

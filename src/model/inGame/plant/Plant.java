@@ -6,13 +6,14 @@ import model.enums.PlantCategory;
 import model.enums.PlantTag;
 import model.enums.PlantType;
 import model.inGame.zombie.Zombie;
+import model.sim.Damageable;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class Plant {
+public class Plant implements Damageable {
     private final PlantDefinition definition;
     private final PlantDefinition effectiveDefinition;
     private final int level;
@@ -113,13 +114,6 @@ public class Plant {
             handleDeath(engine);
         }
         return total;
-    }
-
-    public void takeDamage(int amount) {
-        if (amount <= 0 || isDead()) {
-            return;
-        }
-        hp = Math.max(0, hp - amount);
     }
 
     public void usePlantFood(GameEngine engine) {
@@ -266,5 +260,22 @@ public class Plant {
 
     public boolean isDead() {
         return expired || hp <= 0 && !getBooleanState("ACTIVE_ZERO_HP");
+    }
+
+    @Override
+    public int getTileX() {
+        return position == null ? -1 : position.getColumn();
+    }
+
+    @Override
+    public int getTileY() {
+        return position == null ? -1 : position.getRow();
+    }
+
+    @Override
+    public void takeDamage(int amount) {
+        // این متد از قبل وجود داره؛ فقط باید override اضافه بشه
+        if (amount <= 0 || isDead()) return;
+        hp = Math.max(0, hp - amount);
     }
 }

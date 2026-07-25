@@ -1,5 +1,6 @@
 package service;
 
+import model.GameEngine;
 import model.miniGame.GreenHouse;
 import model.sim.SimulationWorld;
 import model.user.User;
@@ -52,7 +53,7 @@ public class RewardService {
      * and every death has a 10% chance to drop an item. Returns the exact
      * messages, in order, and persists any change to the user.
      */
-    public List<String> onZombieDeath(boolean glowing, User user, SimulationWorld world) {
+    public List<String> onZombieDeath(boolean glowing, User user, GameEngine world) {
         List<String> messages = new ArrayList<>();
 
         if (glowing && world.addPlantFood()) {

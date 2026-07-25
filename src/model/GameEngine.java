@@ -7,6 +7,8 @@ import model.enums.PlantType;
 import model.enums.TerrainType;
 import model.enums.ZombieType;
 import model.inGame.GameMap;
+import model.inGame.GameOutcome;
+import model.inGame.Sun;
 import model.inGame.plant.Plant;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantFactory;
@@ -15,6 +17,9 @@ import model.inGame.projectile.FireEffect;
 import model.inGame.projectile.Projectile;
 import model.inGame.zombie.Zombie;
 import model.inGame.zombie.ZombieFactory;
+import model.sim.adventure.AdventureRuntimeState;
+import model.sim.sun.SunDropSchedule;
+import model.sim.sun.SunType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,6 +47,26 @@ public class GameEngine {
     private final Random random;
     private int sun = 50;
     private double elapsedSeconds;
+    private int currentWave;
+    private boolean wavesStarted = true;
+    private boolean[] lawnMowerUsed;
+    private int plantFood;
+    public static final int MAX_PLANT_FOOD = 3;
+    private boolean cooldownsDisabled;
+    public static final int TICKS_PER_SECOND = 10;
+
+    private GameOutcome outcome = GameOutcome.RUNNING;
+   // private final List<ZombieDeath> pendingDeaths = new ArrayList<>();
+    private AdventureRuntimeState adventureState;
+    private int zombieKillCount;
+    private int producedSunTotal;
+    private int plantLossCount;
+    private long currentTick;
+    // فیلد pendingDeaths رو به نوع واقعی تغییر بده:
+    private final List<model.sim.zombie.ZombieDeath> pendingDeaths = new ArrayList<>();
+    public List<model.sim.zombie.ZombieDeath> getPendingDeaths() {
+        return pendingDeaths;
+    }
 
     public GameEngine() {
         this(PlantRegistry.getDefault(), new GameMap(), new Random(0));
@@ -53,23 +78,161 @@ public class GameEngine {
         this.random = random == null ? new Random(0) : random;
         this.plantFactory = new PlantFactory(registry);
         this.zombieFactory = new ZombieFactory();
+        this.lawnMowerUsed = new boolean[gameMap.getRows()];
     }
 
-    public Plant plant(PlantType type, int level, Position position) {
+    private final List<Sun> suns = new ArrayList<>();
+    private boolean skySunEnabled;
+    private double secondsSinceSkySunSpawn;
+
+    public static final int RADIOACTIVE_ZOMBIE_DAMAGE = 150;
+    public static final int RADIOACTIVE_ZOMBIE_RADIUS = 2;
+    public static final int RADIOACTIVE_PLANT_DAMAGE = 80;
+    public static final int RADIOACTIVE_PLANT_RADIUS = 1;
+
+    public void setSkySunEnabled(boolean enabled) {
+        this.skySunEnabled = enabled;
+    }
+
+    public List<Sun> getSuns() {
+        return List.copyOf(suns);
+    }
+
+    public List<String> advance(int ticks) {
+        if (ticks <= 0) {
+            throw new IllegalArgumentException("Tick count must be a positive integer.");
+        }
+        int before = events.size();
+        for (int i = 0; i < ticks; i++) {
+            tick(1.0 / TICKS_PER_SECOND);
+            currentTick++;
+        }
+        return events.subList(before, events.size());
+    }
+
+    public GameOutcome getOutcome() {
+        return outcome;
+    }
+
+    public void setOutcome(GameOutcome outcome) {
+        this.outcome = outcome;
+    }
+
+    public boolean isRunning() {
+        return outcome == GameOutcome.RUNNING;
+    }
+
+   // public List<ZombieDeath> getPendingDeaths(){   return pendingDeaths;}
+
+    public AdventureRuntimeState getAdventureState() {
+        return adventureState;
+    }
+
+    public void setAdventureState(AdventureRuntimeState adventureState) {
+        this.adventureState = adventureState;
+    }
+
+    public int getZombieKillCount() {
+        return zombieKillCount;
+    }
+
+    public int getProducedSunTotal() {
+        return producedSunTotal;
+    }
+
+    public int getPlantLossCount() {
+        return plantLossCount;
+    }
+
+    public long getCurrentTick() {
+        return currentTick;
+    }
+
+
+    public enum GraveReward {
+        NONE, SUN_50, PLANT_FOOD
+    }
+
+    /** یک رکورد ساده برای صف مرگ‌های زامبی که کنترلرهای بیرونی مصرف می‌کنن. */
+    public record ZombieDeath(long zombieId, ZombieType type, int row, double x) {}
+
+    public int getCurrentWave() {
+        return currentWave;
+    }
+
+    public void setCurrentWave(int currentWave) {
+        this.currentWave = currentWave;
+    }
+
+    public boolean areWavesStarted() {
+        return wavesStarted;
+    }
+
+    public void setWavesStarted(boolean wavesStarted) {
+        this.wavesStarted = wavesStarted;
+    }
+
+    public boolean isLawnMowerUsed(int row) {
+        return row >= 0 && row < lawnMowerUsed.length && lawnMowerUsed[row];
+    }
+
+    public void useLawnMower(int row) {
+        if (row >= 0 && row < lawnMowerUsed.length) {
+            lawnMowerUsed[row] = true;
+        }
+    }
+
+    public int getPlantFood() {
+        return plantFood;
+    }
+
+    public boolean addPlantFood() {
+        if (plantFood >= MAX_PLANT_FOOD) {
+            return false;
+        }
+        plantFood++;
+        return true;
+    }
+
+    public boolean spendPlantFood() {
+        if (plantFood <= 0) {
+            return false;
+        }
+        plantFood--;
+        return true;
+    }
+
+    public void disableCooldowns() {
+        cooldownsDisabled = true;
+        seedCooldowns.clear();
+    }
+
+    public boolean isOnCooldown(PlantType type) {
+        return !cooldownsDisabled && getCooldown(type) > 0.0;
+    }
+
+
+    public Plant plant(PlantType type, int level, Position position, boolean chargeSun, boolean startCooldown) {
         Plant plant = plantFactory.create(type, level);
-        if (getCooldown(type) > 0.0) {
+        if (startCooldown && !cooldownsDisabled && getCooldown(type) > 0.0) {
             throw new IllegalStateException(type + " is recharging for " + getCooldown(type) + " more seconds.");
         }
-        if (sun < plant.getCost()) {
+        if (chargeSun && sun < plant.getCost()) {
             throw new IllegalStateException("Not enough sun.");
         }
         Plant stacked = stackPeaPod(type, position, plant);
         if (stacked != null) {
             return stacked;
         }
-        sun -= plant.getCost();
-        placePlantInternal(plant, position, true);
+        if (chargeSun) {
+            sun -= plant.getCost();
+        }
+        placePlantInternal(plant, position, startCooldown && !cooldownsDisabled);
         return plant;
+    }
+
+    public Plant plant(PlantType type, int level, Position position) {
+        return plant(type, level, position, true, true);
     }
 
     private Plant stackPeaPod(PlantType type, Position position, Plant newHead) {
@@ -143,9 +306,147 @@ public class GameEngine {
         for (Projectile projectile : new ArrayList<>(projectiles)) {
             projectile.tick(this, deltaSeconds);
         }
+        tickFallingSuns(deltaSeconds);
         projectiles.removeIf(projectile -> !projectile.isActive());
         cleanupDeadZombies();
         cleanupDeadPlants();
+    }
+
+    private void tickFallingSuns(double deltaSeconds) {
+        if (skySunEnabled) {
+            secondsSinceSkySunSpawn += deltaSeconds;
+            double interval = SunDropSchedule.intervalSeconds(elapsedSeconds);
+            if (secondsSinceSkySunSpawn >= interval) {
+                spawnSkySun();
+                secondsSinceSkySunSpawn -= interval;
+            }
+        }
+        List<Sun> landed = new ArrayList<>();
+        for (Sun sun : suns) {
+            if (sun.isFalling() && sun.tickFall(deltaSeconds)) {
+                landed.add(sun);
+            }
+        }
+        for (Sun sun : landed) {
+            recordEvent("Sun reached the ground at position (" + sun.getTileX() + ", " + sun.getTileY() + ")");
+        }
+    }
+
+    private void spawnSkySun() {
+        SunType type = rollSunType();
+        int x = random.nextInt(gameMap.getColumns());
+        int y = random.nextInt(gameMap.getRows());
+        Sun sun = Sun.falling(type, x, y, 5.0); // ۵ ثانیه تا زمین، طبق مشخصات
+        suns.add(sun);
+        recordEvent("New " + type.getLabel() + " sun is dropping at position (" + x + ", " + y + ")");
+    }
+
+    private SunType rollSunType() {
+        double r = random.nextDouble();
+        if (r < 0.80) return SunType.NORMAL;
+        if (r < 0.95) return SunType.SPECIAL;
+        return SunType.RADIOACTIVE;
+    }
+
+    /** برای SunProducerBehavior: یک خورشید روی گیاه می‌ذاره که منتظرِ جمع‌شدنه. */
+    @SuppressWarnings("unchecked")
+    public void spawnPlantSun(Plant plant, int amount) {
+        if (plant.getPosition() == null) {
+            addSun(amount); // بدون موقعیت، مستقیم اضافه کن
+            return;
+        }
+        Sun sun = Sun.onPlant(plant.getPosition().getColumn(), plant.getPosition().getRow(), amount);
+        suns.add(sun);
+        List<Sun> pending = (List<Sun>) plant.getState("UNCOLLECTED_SUNS", List.class, null);
+        if (pending == null) {
+            pending = new ArrayList<>();
+            plant.putState("UNCOLLECTED_SUNS", pending);
+        }
+        pending.add(sun);
+        recordEvent("plant " + plant.getType() + " produced a sun at ("
+                + plant.getPosition().getColumn() + ", " + plant.getPosition().getRow() + ")");
+    }
+
+    public boolean plantHasUncollectedSun(Plant plant) {
+        List<?> pending = plant.getState("UNCOLLECTED_SUNS", List.class, null);
+        return pending != null && !pending.isEmpty();
+    }
+
+    public SunCollectionOutcome collectSunAt(int x, int y) {
+        Sun target = null;
+        for (Sun sun : suns) {
+            if (sun.isAt(x, y)) {
+                target = sun;
+                break;
+            }
+        }
+        if (target == null) {
+            return SunCollectionOutcome.nothing();
+        }
+        if (target.getType() == SunType.RADIOACTIVE && target.isFalling()) {
+            suns.remove(target);
+            detachFromProducerPlant(target);
+            explodeRadioactive(x, y);
+            return SunCollectionOutcome.explosion();
+        }
+        int gained = target.getValue();
+        addSun(gained);
+        suns.remove(target);
+        detachFromProducerPlant(target);
+        return SunCollectionOutcome.value(gained);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void detachFromProducerPlant(Sun sun) {
+        for (Plant plant : gameMap.getPlants()) {
+            List<Sun> pending = (List<Sun>) plant.getState("UNCOLLECTED_SUNS", List.class, null);
+            if (pending != null) {
+                pending.remove(sun);
+            }
+        }
+    }
+
+    private void explodeRadioactive(int x, int y) {
+        for (Zombie zombie : new ArrayList<>(zombies)) {
+            if (Math.abs(zombie.getColumn() - x) <= RADIOACTIVE_ZOMBIE_RADIUS
+                    && Math.abs(zombie.getRow() - y) <= RADIOACTIVE_ZOMBIE_RADIUS) {
+                zombie.receiveDamage(RADIOACTIVE_ZOMBIE_DAMAGE, DamageType.TRUE, this);
+            }
+        }
+        for (Plant plant : new ArrayList<>(gameMap.getPlants())) {
+            Position pos = plant.getPosition();
+            if (pos != null
+                    && Math.abs(pos.getColumn() - x) <= RADIOACTIVE_PLANT_RADIUS
+                    && Math.abs(pos.getRow() - y) <= RADIOACTIVE_PLANT_RADIUS) {
+                plant.takeDamage(RADIOACTIVE_PLANT_DAMAGE);
+            }
+        }
+        cleanupDeadZombies();
+        cleanupDeadPlants();
+    }
+
+    public static final class SunCollectionOutcome {
+        private final boolean collected;
+        private final boolean exploded;
+        private final int gained;
+
+        private SunCollectionOutcome(boolean collected, boolean exploded, int gained) {
+            this.collected = collected;
+            this.exploded = exploded;
+            this.gained = gained;
+        }
+
+        public boolean isCollected() { return collected; }
+        public boolean isExploded() { return exploded; }
+        public int getGained() { return gained; }
+
+        static SunCollectionOutcome nothing() { return new SunCollectionOutcome(false, false, 0); }
+        static SunCollectionOutcome value(int gained) { return new SunCollectionOutcome(true, false, gained); }
+        static SunCollectionOutcome explosion() { return new SunCollectionOutcome(true, true, 0); }
+    }
+
+    public int getSunBalance() {
+        return sun;
     }
 
     private <K> void updateDurations(Map<K, Double> durations, double deltaSeconds) {
@@ -159,19 +460,42 @@ public class GameEngine {
         }
     }
 
-
     private void cleanupDeadZombies() {
         for (Zombie zombie : new ArrayList<>(zombies)) {
             if (zombie.isDead()) {
+                recordDeath(zombie, false);
                 zombie.handleDeath(this);
                 zombies.remove(zombie);
             }
         }
     }
 
+    public List<String> killAllZombies() {
+        List<String> messages = new ArrayList<>();
+        for (Zombie zombie : new ArrayList<>(zombies)) {
+            if (zombie.isDead()) continue;
+            zombie.takeDamage(Integer.MAX_VALUE, DamageType.TRUE);
+            recordDeath(zombie, true);
+            messages.add("Zombie of type " + zombie.getType()
+                    + " is dead at (" + zombie.getColumn() + ", " + zombie.getRow() + ")");
+            zombie.handleDeath(this);
+        }
+        zombies.removeIf(Zombie::isDead);
+        return messages;
+    }
+
+    private void recordDeath(Zombie zombie, boolean cheatKill) {
+        model.sim.zombie.ZombieSpec spec = model.sim.zombie.ZombieSpec.fromDefinition(zombie.getDefinition());
+        pendingDeaths.add(new model.sim.zombie.ZombieDeath(
+                spec, zombie.getColumn(), zombie.getRow(),
+                zombie.getBooleanState("GLOWING"), cheatKill));
+        zombieKillCount++;
+    }
+
     private void cleanupDeadPlants() {
         for (Plant plant : new ArrayList<>(gameMap.getPlants())) {
             if (plant.isDead()) {
+                plantLossCount++;
                 gameMap.removePlant(plant);
             }
         }
@@ -578,6 +902,14 @@ public class GameEngine {
                     addZombie(zombieFactory.create(ZombieType.IMP, row, column + 0.2 + i * 0.1));
                 }
             }
+            // --- جدید ---
+            if ("SUN_50".equals(payload)) {
+                addSun(50);
+                recordEvent("Grave destroyed, granted 50 sun.");
+            } else if ("PLANT_FOOD".equals(payload)) {
+                addPlantFood();
+                recordEvent("Grave destroyed, granted a plant food.");
+            }
         }
         return dealt;
     }
@@ -703,6 +1035,7 @@ public class GameEngine {
     public void addSun(int amount) {
         if (amount > 0) {
             sun += amount;
+            producedSunTotal += amount;
             recordEvent("Produced " + amount + " sun.");
         }
     }

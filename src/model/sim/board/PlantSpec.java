@@ -21,6 +21,8 @@ public final class PlantSpec {
     private final boolean stacksOnSupport;
     private final boolean fire;
     private final boolean hasPlantFoodEffect;
+    private int sunProductionAmount;      // 0 means "not a sun producer"
+    private int productionIntervalTicks;
 
     private PlantSpec(Builder builder) {
         this.type = builder.type;
@@ -32,6 +34,20 @@ public final class PlantSpec {
         this.stacksOnSupport = builder.stacksOnSupport;
         this.fire = builder.fire;
         this.hasPlantFoodEffect = builder.hasPlantFoodEffect;
+        this.sunProductionAmount = builder.sunProductionAmount;
+        this.productionIntervalTicks = builder.productionIntervalTicks;
+    }
+
+    public int getSunProductionAmount() {
+        return sunProductionAmount;
+    }
+
+    public int getProductionIntervalTicks() {
+        return productionIntervalTicks;
+    }
+
+    public boolean isSunProducer() {
+        return sunProductionAmount > 0 && productionIntervalTicks > 0;
     }
 
     public PlantType getType() {
@@ -89,9 +105,21 @@ public final class PlantSpec {
         private boolean stacksOnSupport;
         private boolean fire;
         private boolean hasPlantFoodEffect;
+        private int sunProductionAmount;      // 0 means "not a sun producer"
+        private int productionIntervalTicks;
 
         private Builder(PlantType type) {
             this.type = type;
+        }
+
+        public Builder sunProductionAmount(int amount) {
+            this.sunProductionAmount = amount;
+            return this;
+        }
+
+        public Builder productionIntervalTicks(int ticks) {
+            this.productionIntervalTicks = ticks;
+            return this;
         }
 
         public Builder sunCost(int sunCost) {
