@@ -3,10 +3,9 @@ package controller;
 import model.GameEngine;
 import model.Position;
 import model.Result;
+import model.Tile;
+import model.enums.*;
 import model.events.DomainEventType;
-import model.enums.PlantType;
-import model.enums.PlantCategory;
-import model.enums.TerrainType;
 import model.inGame.GameMap;
 import model.inGame.PlantSelection;
 import model.inGame.GameSession;
@@ -21,7 +20,6 @@ import model.sim.board.Board;
 import model.sim.board.PlantInstance;
 import model.sim.board.PlantSpec;
 import model.sim.board.PlantSpecSource;
-import model.sim.board.Tile;
 import model.sim.sun.SunProducer;
 import model.user.User;
 import service.DomainEventPublisher;
@@ -323,7 +321,9 @@ public class BoardController {
         builder.append("tile (").append(x).append(", ").append(y).append(")\n");
         builder.append("terrain: ").append(tile.getTerrain());
         if (tile.getObstacle() == ObstacleType.GRAVE) {
+            String payload = tile.getObstaclePayload();
             builder.append(" (health ").append(tile.getObstacleHealth()).append(')');
+            if (!payload.isBlank()) builder.append(" [reward: ").append(payload).append(']');
         }
         if (tile.getObstacle() == ObstacleType.ICE) {
             builder.append(" [frozen, ice ").append(tile.getObstacleHealth()).append(']');
@@ -379,13 +379,15 @@ public class BoardController {
             return "*";
         }
         if (tile.getObstacle() == ObstacleType.GRAVE) {
-            return "#"; // TODO: پاداش قبر (SUN_50/PLANT_FOOD) در دنیای A هنوز تعریف نشده — گام ۲ رو ببین
+            return "#"; // پاداش (SUN_50/PLANT_FOOD) در payload نگه‌داری می‌شه، نه در نماد
         }
-        if (tile.getTerrain() == TerrainType.WATER) {
-            return "~";
-        }
-        return ".";
-        // TODO: SLIPPERY_UP / SLIPPERY_DOWN / LOW_TIDE اگه در TerrainType دنیای A وجود دارن، اضافه کن
+        return switch (tile.getTerrain()) {
+            case WATER -> "~";
+            case SLIPPERY_UP -> "^";
+            case SLIPPERY_DOWN -> "v";
+            case LOW_TIDE -> "_";
+            default -> ".";
+        };
     }
 
     private void appendZombiePositions(StringBuilder builder) {

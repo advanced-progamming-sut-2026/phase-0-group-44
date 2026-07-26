@@ -1,5 +1,6 @@
 package controller;
 
+import model.GameEngine;
 import model.Result;
 import model.events.DomainEventType;
 import model.Store;
@@ -11,6 +12,7 @@ import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
 import model.sim.board.DefaultPlantSpecSource;
+import model.sim.wave.WaveSystem;
 import model.sim.zombie.ChapterZombieSpecSource;
 import model.sim.zombie.ZombieSpecSource;
 import model.inGame.plant.PlantDefinition;
@@ -320,7 +322,7 @@ public class PlantSelectionController {
 
         GameSession session = createSession(user);
         Store.setActiveSession(session);
-        Store.setActiveSimulation(createSimulation(user));
+        Store.setActiveSimulation(new Simulation(createSimulation(user)));
         Store.setCurrentMenu(model.enums.MenuName.GAMEPLAY);
         publishLevelStarted(user, session);
 
@@ -400,37 +402,26 @@ public class PlantSelectionController {
         );
     }
 
-    private Simulation createSimulation(User user) {
-        SimulationWorld world = new SimulationWorld();
-        DefaultPlantSpecSource plantSpecs = new DefaultPlantSpecSource(plantRepository);
-        AdventureInitializer.initialize(
-                world,
-                level.getAdventureConfig(),
-                plantSpecs,
-                zombieSpecSource,
-                user,
-                randomSource);
-        Simulation simulation = new Simulation(randomSource, world, skySunEnabled());
-        registerSystems(simulation);
-        return simulation;
+    private GameEngine createSimulation(User user) {
+        GameEngine engine = new GameEngine(); // یا سازنده‌ای که random/seed می‌گیره، اگه لازمه
+        AdventureInitializer.initialize(engine, level.getAdventureConfig(), user, randomSource);
+        engine.setSkySunEnabled(skySunEnabled());
+        registerSystems(engine);
+        return engine;
     }
 
-    private void registerSystems(Simulation simulation) {
+    private void registerSystems(GameEngine engine) {
         ZombieSpecSource levelZombies = zombieSpecSource == null ? null
                 : new ChapterZombieSpecSource(zombieSpecSource, level.getName());
         if (levelZombies != null) {
-            simulation.register(new model.sim.wave.WaveSystem(
-                    level.getWaveConfig(), levelZombies));
+            engine.setWaveSystem(new WaveSystem(level.getWaveConfig(), levelZombies));
         }
         if (level.getAdventureConfig() != null) {
-            simulation.register(new AdventureRuleSystem(levelZombies));
+            engine.setAdventureRuleSystem(new AdventureRuleSystem());
         }
-        if (levelZombies != null) {
-            simulation.register(new model.sim.zombie.ZombieSpecialSystem());
-            simulation.register(new model.sim.zombie.ZombieCombatSystem());
-        }
+        // ZombieSpecialSystem و ZombieCombatSystem دیگر لازم نیستند:
+        // در دنیای A، حرکت/حمله/مرگ‌های ویژه از قبل داخل CompositeZombieBehavior هستند.
     }
-
     private void publishLevelStarted(User user, GameSession session) {
         if (events == null) {
             return;

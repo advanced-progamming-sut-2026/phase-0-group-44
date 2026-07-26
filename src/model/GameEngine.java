@@ -17,9 +17,11 @@ import model.inGame.projectile.FireEffect;
 import model.inGame.projectile.Projectile;
 import model.inGame.zombie.Zombie;
 import model.inGame.zombie.ZombieFactory;
+import model.sim.adventure.AdventureRuleSystem;
 import model.sim.adventure.AdventureRuntimeState;
 import model.sim.sun.SunDropSchedule;
 import model.sim.sun.SunType;
+import model.sim.wave.WaveSystem;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -90,6 +92,45 @@ public class GameEngine {
     public static final int RADIOACTIVE_PLANT_DAMAGE = 80;
     public static final int RADIOACTIVE_PLANT_RADIUS = 1;
 
+    private AdventureRuleSystem adventureRuleSystem;
+
+    private WaveSystem waveSystem;
+
+    public void setWaveSystem(WaveSystem waveSystem) {
+        this.waveSystem = waveSystem;
+    }
+
+
+    public void setAdventureRuleSystem(AdventureRuleSystem system) {
+        this.adventureRuleSystem = system; // فراخوانیِ اضافیِ tick(this) رو حذف کن
+    }
+
+    // همسایه‌های یک موقعیت (برای meltIceNearFire) — با استفاده از چیزی که از قبل داریم
+    public List<Tile> neighboursOf(Position position) {
+        List<Tile> result = new ArrayList<>();
+        for (Position neighbour : gameMap.positionsInArea(position, 1, 1)) {
+            if (!neighbour.equals(position)) {
+                result.add(gameMap.getTile(neighbour));
+            }
+        }
+        return result;
+    }
+
+    public boolean isGrave(Tile tile) {
+        return tile.getObstacle() == ObstacleType.GRAVE;
+    }
+
+    public void destroyPlant(Plant plant, String reasonSuffix) {
+        if (plant == null || plant.getPosition() == null) {
+            return;
+        }
+        int row = plant.getPosition().getRow();
+        int column = plant.getPosition().getColumn();
+        gameMap.removePlant(plant);
+        plantLossCount++;
+        recordEvent("Plant " + plant.getType().name() + " at (" + column + ", " + row + ") " + reasonSuffix);
+    }
+
     public void setSkySunEnabled(boolean enabled) {
         this.skySunEnabled = enabled;
     }
@@ -105,6 +146,12 @@ public class GameEngine {
         int before = events.size();
         for (int i = 0; i < ticks; i++) {
             tick(1.0 / TICKS_PER_SECOND);
+            if (waveSystem != null) {
+                waveSystem.tick(this);
+            }
+            if (adventureRuleSystem != null) {
+                adventureRuleSystem.tick(this);
+            }
             currentTick++;
         }
         return events.subList(before, events.size());

@@ -1,208 +1,167 @@
 package model.sim.adventure;
 
+import model.GameEngine;
+import model.Tile;
+import model.inGame.GameOutcome;
+import model.Position;
 import model.config.GameWorld;
+import model.enums.DamageType;
+import model.enums.ObstacleType;
+import model.enums.PlantTag;
 import model.enums.PlantType;
 import model.enums.TerrainType;
 import model.enums.ZombieType;
+import model.inGame.GameMap;
+import model.inGame.plant.Plant;
+import model.inGame.zombie.Zombie;
 import model.level.AdventureLevelConfig;
 import model.level.ChapterRules;
 import model.level.SpecialLevelType;
 import model.level.TileCoordinate;
 import model.level.TimedWarObjective;
-import model.sim.GameOutcome;
-import model.sim.SimulationSystem;
-import model.sim.SimulationWorld;
-import model.sim.TickContext;
-import model.sim.board.PlantInstance;
-import model.sim.board.Tile;
-import model.sim.zombie.ZombieInstance;
-import model.sim.zombie.ZombieSpec;
-import model.sim.zombie.ZombieSpecSource;
+import util.RandomSourceAdapter;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
-/** Runs every chapter and special-level transition on the shared simulation clock. */
-public final class AdventureRuleSystem implements SimulationSystem {
+/** Runs every chapter and special-level transition on GameEngine's tick clock. */
+public final class AdventureRuleSystem {
     private static final int ADJACENT_FIRE_MELT_PER_TICK = 6;
 
-    private final ZombieSpecSource zombieSpecs;
-
-    public AdventureRuleSystem(ZombieSpecSource zombieSpecs) {
-        this.zombieSpecs = zombieSpecs;
-    }
-
-    @Override
-    public void tick(TickContext context) {
-        SimulationWorld world = context.getWorld();
-        AdventureRuntimeState state = world.getAdventureState();
-        if (state == null || !world.isRunning()) {
+    /** Called once per simulation tick (1/10 second), from GameEngine.advance(). */
+    public void tick(GameEngine engine) {
+        AdventureRuntimeState state = engine.getAdventureState();
+        if (state == null || !engine.isRunning()) {
             return;
         }
 
         state.tickElapsed();
-        processNewWave(context, world, state);
-        tickConveyor(context, state);
-        meltIceNearFire(world, context);
-        checkSpecialConditions(context, world, state);
+        processNewWave(engine, state);
+        tickConveyor(engine, state);
+        meltIceNearFire(engine);
+        checkSpecialConditions(engine, state);
     }
 
-    private void processNewWave(
-            TickContext context,
-            SimulationWorld world,
-            AdventureRuntimeState state
-    ) {
-        int wave = world.getCurrentWave();
+    private void processNewWave(GameEngine engine, AdventureRuntimeState state) {
+        int wave = engine.getCurrentWave();
         if (wave <= 0 || wave <= state.getLastProcessedWave()) {
             return;
         }
         state.setLastProcessedWave(wave);
         ChapterRules rules = state.getConfig().getChapterRules();
         if (rules.getWorld() == GameWorld.FROSTBITE_CAVES) {
-            applyIcyWind(context, world, rules);
+            applyIcyWind(engine, rules);
         } else if (rules.getWorld() == GameWorld.BIG_WAVE_BEACH) {
-            applyWaterLevel(context, world, state, rules, wave);
-            spawnLowTideZombies(context, world, rules, state.getWaterColumns());
+            applyWaterLevel(engine, state, rules, wave);
+            spawnLowTideZombies(engine, rules, state.getWaterColumns());
         } else if (rules.getWorld() == GameWorld.DARK_AGES) {
-            createDarkAgesGraves(context, world, rules);
-            runNecromancy(context, world, rules);
+            createDarkAgesGraves(engine, rules);
+            runNecromancy(engine, rules);
         }
     }
 
-    private void tickConveyor(TickContext context, AdventureRuntimeState state) {
+    private void tickConveyor(GameEngine engine, AdventureRuntimeState state) {
         if (state.getConfig().getSpecialType() != SpecialLevelType.CONVEYOR_BELT
                 || !state.conveyorPacketDue()) {
             return;
         }
-        PlantType type = state.issueConveyorPacket(context.getRandom());
+        PlantType type = state.issueConveyorPacket(RandomSourceAdapter.wrap(engine.getRandom()));
         if (type != null) {
-            context.emit("Conveyor supplied " + type + ".");
+            engine.recordEvent("Conveyor supplied " + type + ".");
         }
     }
 
-    private void checkSpecialConditions(
-            TickContext context,
-            SimulationWorld world,
-            AdventureRuntimeState state
-    ) {
+    private void checkSpecialConditions(GameEngine engine, AdventureRuntimeState state) {
         AdventureLevelConfig config = state.getConfig();
         SpecialLevelType type = config.getSpecialType();
         if (type == null) {
             return;
         }
         switch (type) {
-            case SAVE_OUR_SEEDS -> checkProtectedPlants(context, world, state);
-            case TIMED_WAR -> checkTimedWar(context, world, state);
-            case DEAD_LINE -> checkDeadLine(context, world, config);
-            case LOVE_YOUR_PLANTS -> checkPlantLossLimit(context, world, config);
+            case SAVE_OUR_SEEDS -> checkProtectedPlants(engine, state);
+            case TIMED_WAR -> checkTimedWar(engine, state);
+            case DEAD_LINE -> checkDeadLine(engine, config);
+            case LOVE_YOUR_PLANTS -> checkPlantLossLimit(engine, config);
             default -> {
                 // Other special types alter setup/selection/planting rather than tick outcome.
             }
         }
     }
 
-    private void checkProtectedPlants(
-            TickContext context,
-            SimulationWorld world,
-            AdventureRuntimeState state
-    ) {
+    private void checkProtectedPlants(GameEngine engine, AdventureRuntimeState state) {
+        GameMap map = engine.getGameMap();
         for (TileCoordinate coordinate : state.getProtectedTiles()) {
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
+            Position pos = new Position(coordinate.getY(), coordinate.getX());
+            Tile tile = map.isInside(pos) ? map.getTile(pos) : null;
             if (tile == null || !tile.hasAnyPlant()) {
-                world.setOutcome(GameOutcome.LOST);
-                context.emit("A protected plant was lost; LOSER!!!");
+                engine.setOutcome(GameOutcome.LOST);
+                engine.recordEvent("A protected plant was lost; LOSER!!!");
                 return;
             }
         }
     }
 
-    private void checkTimedWar(
-            TickContext context,
-            SimulationWorld world,
-            AdventureRuntimeState state
-    ) {
+    private void checkTimedWar(GameEngine engine, AdventureRuntimeState state) {
         AdventureLevelConfig config = state.getConfig();
         int progress = config.getTimedWarObjective() == TimedWarObjective.ZOMBIE_KILLS
-                ? world.getZombieKillCount() : world.getProducedSunTotal();
+                ? engine.getZombieKillCount() : engine.getProducedSunTotal();
         if (progress >= config.getTimedWarTarget()) {
-            world.setOutcome(GameOutcome.WON);
-            context.emit("Timed War target completed.");
+            engine.setOutcome(GameOutcome.WON);
+            engine.recordEvent("Timed War target completed.");
             return;
         }
         if (state.getElapsedTicks() >= config.getTimedWarTicks()) {
-            world.setOutcome(GameOutcome.LOST);
-            context.emit("Timed War timer expired; LOSER!!!");
+            engine.setOutcome(GameOutcome.LOST);
+            engine.recordEvent("Timed War timer expired; LOSER!!!");
         }
     }
 
-    private void checkDeadLine(
-            TickContext context,
-            SimulationWorld world,
-            AdventureLevelConfig config
-    ) {
-        for (ZombieInstance zombie : world.getZombieInstances()) {
+    private void checkDeadLine(GameEngine engine, AdventureLevelConfig config) {
+        for (Zombie zombie : engine.getZombies()) {
             if (!zombie.isDead() && zombie.getX() < config.getDeadLineColumn()) {
-                world.setOutcome(GameOutcome.LOST);
-                context.emit("A zombie crossed the dead line; LOSER!!!");
+                engine.setOutcome(GameOutcome.LOST);
+                engine.recordEvent("A zombie crossed the dead line; LOSER!!!");
                 return;
             }
         }
     }
 
-    private void checkPlantLossLimit(
-            TickContext context,
-            SimulationWorld world,
-            AdventureLevelConfig config
-    ) {
-        if (world.getPlantLossCount() >= config.getMaximumPlantLosses()) {
-            world.setOutcome(GameOutcome.LOST);
-            context.emit("Too many plants were lost; LOSER!!!");
+    private void checkPlantLossLimit(GameEngine engine, AdventureLevelConfig config) {
+        if (engine.getPlantLossCount() >= config.getMaximumPlantLosses()) {
+            engine.setOutcome(GameOutcome.LOST);
+            engine.recordEvent("Too many plants were lost; LOSER!!!");
         }
     }
 
-    private void applyIcyWind(
-            TickContext context,
-            SimulationWorld world,
-            ChapterRules rules
-    ) {
-        int count = Math.min(world.getRows(), rules.getIcyWindRowsPerWave());
+    private void applyIcyWind(GameEngine engine, ChapterRules rules) {
+        GameMap map = engine.getGameMap();
+        Random random = engine.getRandom();
+        int count = Math.min(map.getRows(), rules.getIcyWindRowsPerWave());
         Set<Integer> rows = new LinkedHashSet<>();
         while (rows.size() < count) {
-            rows.add(context.getRandom().nextInt(world.getRows()));
+            rows.add(random.nextInt(map.getRows()));
         }
-        for (model.sim.Damageable damageable : world.getPlants()) {
-            if (!(damageable instanceof PlantInstance plant)
-                    || !rows.contains(plant.getTileY())
-                    || plant.getSpec().isFire()) {
+        for (Plant plant : map.getPlants()) {
+            if (plant.getPosition() == null || !rows.contains(plant.getPosition().getRow())
+                    || plant.getEffectiveDefinition().hasTag(PlantTag.FIRE)) {
                 continue;
             }
-            applyFreezeLevel(world, plant);
+            engine.addIceHit(plant); // handles the 3-hit freeze threshold + ICE obstacle placement
         }
         if (!rows.isEmpty()) {
-            context.emit("Icy wind affected rows " + rows + ".");
+            engine.recordEvent("Icy wind affected rows " + rows + ".");
         }
     }
 
-    private void applyFreezeLevel(SimulationWorld world, PlantInstance plant) {
-        if (plant.addFreezeLevel()) {
-            Tile tile = world.getBoard().tileAt(plant.getTileX(), plant.getTileY());
-            if (tile != null) {
-                tile.setProjectileBlocker("ice", PlantInstance.ICE_HEALTH);
-            }
-        }
-    }
-
-    private void meltIceNearFire(SimulationWorld world, TickContext context) {
-        for (model.sim.Damageable damageable : new ArrayList<>(world.getPlants())) {
-            if (!(damageable instanceof PlantInstance plant) || !plant.isFrozen()) {
+    private void meltIceNearFire(GameEngine engine) {
+        GameMap map = engine.getGameMap();
+        for (Plant plant : new ArrayList<>(map.getPlants())) {
+            if (plant.getPosition() == null || !plant.getBooleanState("FROZEN")) {
                 continue;
             }
             boolean hasFireNeighbour = false;
-            for (Tile neighbour : world.getBoard().neighboursOf(
-                    plant.getTileX(), plant.getTileY())) {
-                if (isFire(neighbour.getSupportPlant()) || isFire(neighbour.getStackedPlant())) {
+            for (Tile neighbour : engine.neighboursOf(plant.getPosition())) {
+                if (isFire(neighbour.getSupportPlant()) || isFire(neighbour.getPrimaryPlant())
+                        || isFire(neighbour.getArmorPlant())) {
                     hasFireNeighbour = true;
                     break;
                 }
@@ -210,41 +169,34 @@ public final class AdventureRuleSystem implements SimulationSystem {
             if (!hasFireNeighbour) {
                 continue;
             }
-            boolean melted = plant.damageIce(ADJACENT_FIRE_MELT_PER_TICK, false);
-            Tile tile = world.getBoard().tileAt(plant.getTileX(), plant.getTileY());
-            if (tile != null) {
-                tile.damageProjectileBlocker(ADJACENT_FIRE_MELT_PER_TICK);
-            }
-            if (melted) {
-                context.emit("Adjacent fire melted the ice at ("
-                        + plant.getTileX() + ", " + plant.getTileY() + ").");
+            int row = plant.getPosition().getRow();
+            int column = plant.getPosition().getColumn();
+            engine.damageObstacleAt(row, column, ADJACENT_FIRE_MELT_PER_TICK, DamageType.NORMAL);
+            if (!plant.getBooleanState("FROZEN")) {
+                engine.recordEvent("Adjacent fire melted the ice at (" + column + ", " + row + ").");
             }
         }
     }
 
-    private boolean isFire(PlantInstance plant) {
-        return plant != null && plant.getSpec().isFire() && !plant.isDead();
+    private boolean isFire(Plant plant) {
+        return plant != null && !plant.isDead() && plant.getEffectiveDefinition().hasTag(PlantTag.FIRE);
     }
 
-    private void applyWaterLevel(
-            TickContext context,
-            SimulationWorld world,
-            AdventureRuntimeState state,
-            ChapterRules rules,
-            int wave
-    ) {
+    private void applyWaterLevel(GameEngine engine, AdventureRuntimeState state, ChapterRules rules, int wave) {
+        GameMap map = engine.getGameMap();
         int targetColumns = rules.waterColumnsForWave(wave);
-        int waterStart = world.getColumns() - targetColumns;
-        for (int y = 0; y < world.getRows(); y++) {
-            for (int x = 0; x < world.getColumns(); x++) {
-                Tile tile = world.getBoard().tileAt(x, y);
-                boolean flooded = x >= waterStart;
+        int waterStart = map.getColumns() - targetColumns;
+        for (int row = 0; row < map.getRows(); row++) {
+            for (int column = 0; column < map.getColumns(); column++) {
+                Position pos = new Position(row, column);
+                Tile tile = map.getTile(pos);
+                boolean flooded = column >= waterStart;
                 if (flooded) {
                     if (tile.getTerrain() != TerrainType.WATER) {
-                        destroyPlantsExposedToWater(context, world, tile);
+                        destroyPlantsExposedToWater(engine, tile);
                     }
                     tile.setTerrain(TerrainType.WATER);
-                } else if (rules.getLowTideTiles().contains(new TileCoordinate(x, y))) {
+                } else if (rules.getLowTideTiles().contains(new TileCoordinate(column, row))) {
                     tile.setTerrain(TerrainType.LOW_TIDE);
                 } else {
                     tile.setTerrain(TerrainType.NORMAL_BEACH);
@@ -252,131 +204,82 @@ public final class AdventureRuleSystem implements SimulationSystem {
             }
         }
         state.setWaterColumns(targetColumns);
-        context.emit("Water level now covers " + targetColumns + " right-side columns.");
+        engine.recordEvent("Water level now covers " + targetColumns + " right-side columns.");
     }
 
-    private void destroyPlantsExposedToWater(
-            TickContext context,
-            SimulationWorld world,
-            Tile tile
-    ) {
-        PlantInstance support = tile.getSupportPlant();
-        if (support == null || support.getSpec().isWaterCapable()
-                || support.getSpec().providesSupport()) {
-            return;
+    private void destroyPlantsExposedToWater(GameEngine engine, Tile tile) {
+        Plant support = tile.getSupportPlant();
+        if (support != null && !waterSafe(support)) {
+            engine.destroyPlant(support, "drowned.");
         }
-        destroyPlant(context, world, tile, support);
-        PlantInstance stacked = tile.getStackedPlant();
-        if (stacked != null) {
-            destroyPlant(context, world, tile, stacked);
+        Plant primary = tile.getPrimaryPlant();
+        if (primary != null && !waterSafe(primary)) {
+            engine.destroyPlant(primary, "drowned.");
         }
     }
 
-    private void destroyPlant(
-            TickContext context,
-            SimulationWorld world,
-            Tile tile,
-            PlantInstance plant
-    ) {
-        if (plant == null) {
-            return;
-        }
-        if (tile.getStackedPlant() == plant) {
-            tile.setStackedPlant(null);
-        } else if (tile.getSupportPlant() == plant) {
-            tile.setSupportPlant(null);
-        }
-        world.getPlants().remove(plant);
-        world.recordPlantLost();
-        context.emit("Plant " + plant.getType() + " at (" + plant.getTileX()
-                + ", " + plant.getTileY() + ") drowned.");
+    private boolean waterSafe(Plant plant) {
+        return plant.getEffectiveDefinition().hasTag(PlantTag.WATER)
+                || plant.getEffectiveType() == PlantType.LILY_PAD;
     }
 
-    private void spawnLowTideZombies(
-            TickContext context,
-            SimulationWorld world,
-            ChapterRules rules,
-            int waterColumns
-    ) {
-        if (zombieSpecs == null || waterColumns <= 0) {
+    private void spawnLowTideZombies(GameEngine engine, ChapterRules rules, int waterColumns) {
+        if (waterColumns <= 0) {
             return;
         }
-        int waterStart = world.getColumns() - waterColumns;
-        ZombieSpec normal = findSpec(ZombieType.NORMAL);
-        if (normal == null) {
-            return;
-        }
+        int waterStart = engine.getGameMap().getColumns() - waterColumns;
         for (TileCoordinate coordinate : rules.getLowTideTiles()) {
             if (coordinate.getX() < waterStart) {
                 continue;
             }
-            ZombieInstance zombie = new ZombieInstance(
-                    normal, coordinate.getX() + 0.5, coordinate.getY());
-            world.addZombie(zombie);
-            context.emit("A zombie emerged from flooded low tide at " + coordinate + ".");
+            engine.spawnZombie(ZombieType.NORMAL, coordinate.getY(), coordinate.getX() + 0.5);
+            engine.recordEvent("A zombie emerged from flooded low tide at " + coordinate + ".");
         }
     }
 
-    private void createDarkAgesGraves(
-            TickContext context,
-            SimulationWorld world,
-            ChapterRules rules
-    ) {
-        List<Tile> valid = new ArrayList<>();
-        for (int y = 0; y < world.getRows(); y++) {
-            for (int x = 0; x < world.getColumns(); x++) {
-                Tile tile = world.getBoard().tileAt(x, y);
-                if (!tile.hasAnyPlant() && !tile.isGravestone()
+    private void createDarkAgesGraves(GameEngine engine, ChapterRules rules) {
+        GameMap map = engine.getGameMap();
+        Random random = engine.getRandom();
+        List<Position> valid = new ArrayList<>();
+        for (int row = 0; row < map.getRows(); row++) {
+            for (int column = 0; column < map.getColumns(); column++) {
+                Position pos = new Position(row, column);
+                Tile tile = map.getTile(pos);
+                if (!tile.hasAnyPlant() && !engine.isGrave(tile)
                         && (tile.getTerrain() == TerrainType.NORMAL_DARK_AGES
                         || tile.getTerrain() == TerrainType.NECROMANCY)) {
-                    valid.add(tile);
+                    valid.add(pos);
                 }
             }
         }
         int count = Math.min(rules.getDarkGravesPerWave(), valid.size());
         for (int i = 0; i < count; i++) {
-            Tile tile = valid.remove(context.getRandom().nextInt(valid.size()));
-            tile.setTerrain(TerrainType.DARK_AGES_GRAVESTONE);
-            GraveReward reward = switch (context.getRandom().nextInt(3)) {
-                case 1 -> GraveReward.SUN_50;
-                case 2 -> GraveReward.PLANT_FOOD;
-                default -> GraveReward.NONE;
+            Position pos = valid.remove(random.nextInt(valid.size()));
+            String payload = switch (random.nextInt(3)) {
+                case 1 -> "SUN_50";
+                case 2 -> "PLANT_FOOD";
+                default -> "";
             };
-            tile.setGraveReward(reward);
-            context.emit("A Dark Ages grave appeared at (" + tile.getColumn()
-                    + ", " + tile.getRow() + ") containing " + reward + ".");
+            map.setObstacle(pos, ObstacleType.GRAVE, 700, payload);
+            engine.recordEvent("A Dark Ages grave appeared at (" + pos.getColumn()
+                    + ", " + pos.getRow() + ") containing "
+                    + (payload.isEmpty() ? "nothing" : payload) + ".");
         }
     }
 
-    private void runNecromancy(
-            TickContext context,
-            SimulationWorld world,
-            ChapterRules rules
-    ) {
-        ZombieSpec normal = findSpec(ZombieType.NORMAL);
-        if (normal == null) {
-            return;
-        }
+    private void runNecromancy(GameEngine engine, ChapterRules rules) {
+        GameMap map = engine.getGameMap();
         for (TileCoordinate coordinate : rules.getNecromancyTiles()) {
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
-            if (tile == null || !tile.isGravestone()) {
+            Position pos = new Position(coordinate.getY(), coordinate.getX());
+            if (!map.isInside(pos)) {
                 continue;
             }
-            world.addZombie(new ZombieInstance(
-                    normal, coordinate.getX() + 0.5, coordinate.getY()));
-            context.emit("Necromancy spawned a zombie beneath grave " + coordinate + ".");
-        }
-    }
-
-    private ZombieSpec findSpec(ZombieType type) {
-        if (zombieSpecs == null) {
-            return null;
-        }
-        for (ZombieSpec spec : zombieSpecs.availableSpecs()) {
-            if (spec.getType() == type) {
-                return spec;
+            Tile tile = map.getTile(pos);
+            if (!engine.isGrave(tile)) {
+                continue;
             }
+            engine.spawnZombie(ZombieType.NORMAL, coordinate.getY(), coordinate.getX() + 0.5);
+            engine.recordEvent("Necromancy spawned a zombie beneath grave " + coordinate + ".");
         }
-        return null;
     }
 }

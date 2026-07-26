@@ -1,6 +1,7 @@
 package view;
 
 import controller.App;
+import model.GameEngine;
 import model.Store;
 import controller.BoardController;
 import controller.GameplayController;
@@ -70,11 +71,11 @@ public class MenuRouter {
             return new GameplayView(menuController, null);
         }
 
-        SimulationWorld world = Store.getActiveSimulation().getWorld();
+        GameEngine engine = Store.getActiveSimulation().getWorld();
         BoardController board = new BoardController(
-                world,
+                engine,
                 Store.getActiveSession() == null ? null : Store.getActiveSession().getSelection(),
-                plantSpecSource,
+                engine.getAdventureState(), // ← دیگه لازم نیست از app.getPlantSpecSource() بگیریم؛ خودِ engine نگه‌ش می‌داره
                 app.getDomainEvents(),
                 Store.getLoggedInUser(),
                 Store.getActiveSession());

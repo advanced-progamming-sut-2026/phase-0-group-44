@@ -1,8 +1,12 @@
 package model.sim.adventure;
 
+import model.GameEngine;
+import model.Position;
 import model.config.GameWorld;
+import model.enums.ObstacleType;
 import model.enums.PlantType;
 import model.enums.TerrainType;
+import model.inGame.plant.Plant;
 import model.level.AdventureLevelConfig;
 import model.level.ChapterRules;
 import model.level.FrozenZombiePlacement;
@@ -31,116 +35,99 @@ public final class AdventureInitializer {
     }
 
     public static void initialize(
-            SimulationWorld world,
+            GameEngine engine,
             AdventureLevelConfig config,
-            PlantSpecSource plantSpecs,
-            ZombieSpecSource zombieSpecs,
             User user,
             RandomSource random
     ) {
-        if (world == null || config == null) {
+        if (engine == null || config == null) {
             return;
         }
 
-        setBaseTerrain(world, config.getWorld());
+        setBaseTerrain(engine, config.getWorld());
         ChapterRules rules = config.getChapterRules();
-        applyChapterTerrain(world, rules);
+        applyChapterTerrain(engine, rules);
 
-        Set<TileCoordinate> protectedTiles = preplaceProtectedPlants(
-                world, config, plantSpecs);
+        Set<TileCoordinate> protectedTiles = preplaceProtectedPlants(engine, config);
         List<PlantType> conveyorPool = acquiredConveyorPool(config, user);
-        AdventureRuntimeState state = new AdventureRuntimeState(
-                config, protectedTiles, conveyorPool);
-        world.setAdventureState(state);
-        world.addSun(config.getStartingSun());
-        world.setWavesStarted(!config.areWavesInitiallyPaused());
+        AdventureRuntimeState state = new AdventureRuntimeState(config, protectedTiles, conveyorPool);
+        engine.setAdventureState(state);
+        engine.addSun(config.getStartingSun());
+        engine.setWavesStarted(!config.areWavesInitiallyPaused());
 
         if (config.getSpecialType() == SpecialLevelType.CONVEYOR_BELT) {
             state.issueConveyorPacket(random);
         }
 
         if (rules.getWorld() == GameWorld.BIG_WAVE_BEACH) {
-            applyInitialWater(world, rules, state);
+            applyInitialWater(engine, rules, state);
         }
 
-        preplaceFrozenZombies(world, rules, zombieSpecs);
+        preplaceFrozenZombies(engine, rules);
     }
 
-    private static void setBaseTerrain(SimulationWorld world, GameWorld gameWorld) {
+    private static void setBaseTerrain(GameEngine engine, GameWorld gameWorld) {
         TerrainType terrain = switch (gameWorld) {
             case ANCIENT_EGYPT -> TerrainType.NORMAL_EGYPT;
             case FROSTBITE_CAVES -> TerrainType.NORMAL_FROSTBITE;
             case BIG_WAVE_BEACH -> TerrainType.NORMAL_BEACH;
             case DARK_AGES -> TerrainType.NORMAL_DARK_AGES;
         };
-        for (int y = 0; y < world.getRows(); y++) {
-            for (int x = 0; x < world.getColumns(); x++) {
-                world.getBoard().tileAt(x, y).setTerrain(terrain);
+        var map = engine.getGameMap();
+        for (int row = 0; row < map.getRows(); row++) {
+            for (int column = 0; column < map.getColumns(); column++) {
+                map.getTile(row, column).setTerrain(terrain);
             }
         }
     }
 
-    private static void applyChapterTerrain(SimulationWorld world, ChapterRules rules) {
+    /** {@code NORMAL_EGYPT} chapter graves are an obstacle overlay, not a terrain type (world A). */
+    private static void applyChapterTerrain(GameEngine engine, ChapterRules rules) {
+        var map = engine.getGameMap();
         for (TileCoordinate coordinate : rules.getInitialGraves()) {
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
-            if (tile != null) {
-                tile.setTerrain(TerrainType.GRAVESTONE);
+            Position pos = new Position(coordinate.getY(), coordinate.getX());
+            if (map.isInside(pos)) {
+                map.setObstacle(pos, ObstacleType.GRAVE, 700, "");
             }
         }
         for (TileCoordinate coordinate : rules.getSlipperyUpTiles()) {
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
-            if (tile != null) {
-                tile.setTerrain(TerrainType.SLIPPERY_UP);
-            }
+            setTerrainIfInside(map, coordinate, TerrainType.SLIPPERY_UP);
         }
         for (TileCoordinate coordinate : rules.getSlipperyDownTiles()) {
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
-            if (tile != null) {
-                tile.setTerrain(TerrainType.SLIPPERY_DOWN);
-            }
+            setTerrainIfInside(map, coordinate, TerrainType.SLIPPERY_DOWN);
         }
         for (TileCoordinate coordinate : rules.getLowTideTiles()) {
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
-            if (tile != null) {
-                tile.setTerrain(TerrainType.LOW_TIDE);
-            }
+            setTerrainIfInside(map, coordinate, TerrainType.LOW_TIDE);
         }
         for (TileCoordinate coordinate : rules.getNecromancyTiles()) {
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
-            if (tile != null) {
-                tile.setTerrain(TerrainType.NECROMANCY);
-            }
+            setTerrainIfInside(map, coordinate, TerrainType.NECROMANCY);
         }
     }
 
-    private static Set<TileCoordinate> preplaceProtectedPlants(
-            SimulationWorld world,
-            AdventureLevelConfig config,
-            PlantSpecSource plantSpecs
-    ) {
-        Set<TileCoordinate> protectedTiles = new LinkedHashSet<>();
-        if (plantSpecs == null) {
-            return protectedTiles;
+    private static void setTerrainIfInside(model.inGame.GameMap map, TileCoordinate coordinate, TerrainType terrain) {
+        Position pos = new Position(coordinate.getY(), coordinate.getX());
+        if (map.isInside(pos)) {
+            map.getTile(pos).setTerrain(terrain);
         }
+    }
+
+    private static Set<TileCoordinate> preplaceProtectedPlants(GameEngine engine, AdventureLevelConfig config) {
+        Set<TileCoordinate> protectedTiles = new LinkedHashSet<>();
+        var map = engine.getGameMap();
         for (ProtectedPlantPlacement placement : config.getProtectedPlants()) {
-            PlantSpec spec = plantSpecs.specOf(placement.getType());
             TileCoordinate coordinate = placement.getCoordinate();
-            Tile tile = world.getBoard().tileAt(coordinate.getX(), coordinate.getY());
-            if (spec == null || tile == null || tile.hasAnyPlant()) {
+            Position pos = new Position(coordinate.getY(), coordinate.getX());
+            if (!map.isInside(pos) || map.getTile(pos).hasAnyPlant()) {
                 throw new IllegalStateException("Invalid protected plant placement: " + coordinate);
             }
-            PlantInstance plant = new PlantInstance(spec, coordinate.getX(), coordinate.getY());
-            tile.setSupportPlant(plant);
-            world.addPlant(plant);
+            Plant plant = engine.getPlantFactory().create(placement.getType(), 1);
+            engine.placePlantForFree(plant, pos);
             protectedTiles.add(coordinate);
         }
         return protectedTiles;
     }
 
-    private static List<PlantType> acquiredConveyorPool(
-            AdventureLevelConfig config,
-            User user
-    ) {
+    private static List<PlantType> acquiredConveyorPool(AdventureLevelConfig config, User user) {
         List<PlantType> result = new ArrayList<>();
         for (PlantType type : config.getConveyorCandidates()) {
             if (user == null || user.getCollection().hasPlant(type)) {
@@ -150,49 +137,23 @@ public final class AdventureInitializer {
         return result;
     }
 
-    private static void applyInitialWater(
-            SimulationWorld world,
-            ChapterRules rules,
-            AdventureRuntimeState state
-    ) {
+    private static void applyInitialWater(GameEngine engine, ChapterRules rules, AdventureRuntimeState state) {
+        var map = engine.getGameMap();
         int columns = rules.waterColumnsForWave(1);
-        int start = world.getColumns() - columns;
-        for (int y = 0; y < world.getRows(); y++) {
-            for (int x = Math.max(0, start); x < world.getColumns(); x++) {
-                world.getBoard().tileAt(x, y).setTerrain(TerrainType.WATER);
+        int start = map.getColumns() - columns;
+        for (int row = 0; row < map.getRows(); row++) {
+            for (int column = Math.max(0, start); column < map.getColumns(); column++) {
+                map.getTile(row, column).setTerrain(TerrainType.WATER);
             }
         }
         state.setWaterColumns(columns);
     }
 
-    private static void preplaceFrozenZombies(
-            SimulationWorld world,
-            ChapterRules rules,
-            ZombieSpecSource zombieSpecs
-    ) {
-        if (zombieSpecs == null) {
-            return;
-        }
+    private static void preplaceFrozenZombies(GameEngine engine, ChapterRules rules) {
         for (FrozenZombiePlacement placement : rules.getFrozenZombies()) {
-            ZombieSpec spec = findSpec(zombieSpecs, placement.getType());
-            if (spec == null) {
-                continue;
-            }
-            ZombieInstance zombie = new ZombieInstance(spec, placement.getX(), placement.getRow());
-            zombie.freezeInIce();
-            world.addZombie(zombie);
+            model.inGame.zombie.Zombie zombie =
+                    engine.spawnZombie(placement.getType(), placement.getRow(), placement.getX());
+            zombie.applyFreeze(Double.MAX_VALUE);
         }
-    }
-
-    private static ZombieSpec findSpec(
-            ZombieSpecSource source,
-            model.enums.ZombieType type
-    ) {
-        for (ZombieSpec spec : source.availableSpecs()) {
-            if (spec.getType() == type) {
-                return spec;
-            }
-        }
-        return null;
     }
 }

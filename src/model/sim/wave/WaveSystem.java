@@ -1,26 +1,19 @@
 package model.sim.wave;
 
-import model.sim.GameOutcome;
-import model.sim.SimulationSystem;
-import model.sim.SimulationWorld;
-import model.sim.TickContext;
-import model.sim.zombie.ZombieInstance;
+import model.GameEngine;
+import model.inGame.GameOutcome;
+import model.enums.ZombieType;
+import model.inGame.zombie.Zombie;
+import model.level.SpecialLevelType;
 import model.sim.zombie.ZombieSpec;
 import model.sim.zombie.ZombieSpecSource;
-import model.level.SpecialLevelType;
 import util.RandomSource;
-
+import util.RandomSourceAdapter;
 import java.util.List;
+import java.util.Random;
 
-/**
- * Drives the wave lifecycle: starting each wave (the first immediately, each
- * later one after 75% of the previous wave's initial aggregate health has been
- * lost), composing and placing its zombies, and declaring victory once every
- * wave has run and no zombie remains.
- */
-public class WaveSystem implements SimulationSystem {
+public class WaveSystem {
 
-    /** Fraction of a wave's initial health that must be lost before the next wave. */
     public static final double NEXT_WAVE_THRESHOLD = 0.75;
 
     private final WaveConfig config;
@@ -36,64 +29,55 @@ public class WaveSystem implements SimulationSystem {
         this.specSource = specSource;
     }
 
-    @Override
-    public void tick(TickContext context) {
-        SimulationWorld world = context.getWorld();
-
-        if (!world.isRunning() || !world.areWavesStarted()) {
+    public void tick(GameEngine engine) {
+        if (!engine.isRunning() || !engine.areWavesStarted()) {
             return;
         }
-
         if (!started) {
-            startWave(context, world, 1);
+            startWave(engine, 1);
             started = true;
             return;
         }
-
-        if (!allWavesSpawned && shouldStartNextWave(world)) {
-            startWave(context, world, currentWave + 1);
+        if (!allWavesSpawned && shouldStartNextWave(engine)) {
+            startWave(engine, currentWave + 1);
             return;
         }
-
-        if (allWavesSpawned && world.getZombieInstances().isEmpty()) {
-            declareWin(context, world);
+        if (allWavesSpawned && engine.getZombies().isEmpty()) {
+            declareWin(engine);
         }
     }
 
-    private boolean shouldStartNextWave(SimulationWorld world) {
-        int currentHealth = aggregateHealth(world);
+    private boolean shouldStartNextWave(GameEngine engine) {
+        int currentHealth = aggregateHealth(engine);
         int lost = currentWaveInitialHealth - currentHealth;
-
         return lost >= (int) Math.ceil(currentWaveInitialHealth * NEXT_WAVE_THRESHOLD);
     }
 
-    private void startWave(TickContext context, SimulationWorld world, int waveNumber) {
+    private void startWave(GameEngine engine, int waveNumber) {
         currentWave = waveNumber;
-        world.setCurrentWave(waveNumber);
+        engine.setCurrentWave(waveNumber);
 
         boolean finalWave = config.isFinalWave(waveNumber);
-
         if (finalWave) {
-            context.emit("The final wave has come.");
+            engine.recordEvent("The final wave has come.");
         }
+        engine.recordEvent("Wave " + waveNumber + " started.");
 
-        context.emit("Wave " + waveNumber + " started.");
-
-        spawnWave(context, world, waveNumber);
-
-        currentWaveInitialHealth = aggregateHealth(world);
+        spawnWave(engine, waveNumber);
+        currentWaveInitialHealth = aggregateHealth(engine);
 
         if (finalWave) {
             allWavesSpawned = true;
         }
     }
 
-    private void spawnWave(TickContext context, SimulationWorld world, int waveNumber) {
+    private void spawnWave(GameEngine engine, int waveNumber) {
         int targetCost = config.costOfWave(waveNumber);
-        RandomSource random = context.getRandom();
+        Random random = engine.getRandom();
+        RandomSource randomSource = RandomSourceAdapter.wrap(random); // ← اصلاح شد
 
         List<ZombieSpec> composition =
-                WaveComposer.compose(targetCost, specSource.availableSpecs(), random);
+                WaveComposer.compose(targetCost, specSource.availableSpecs(), randomSource);
 
         if (composition == null) {
             throw new IllegalStateException(
@@ -101,12 +85,11 @@ public class WaveSystem implements SimulationSystem {
                             + " cannot be composed from the available zombies.");
         }
 
-        int rows = world.getBoard().getRows();
-        int spawnColumn = world.getBoard().getColumns();
+        int rows = engine.getGameMap().getRows();
+        int spawnColumn = engine.getGameMap().getColumns();
         boolean tornadoes = config.isFinalWave(waveNumber)
-                && world.getAdventureState() != null
-                && world.getAdventureState().getConfig().getChapterRules()
-                .hasFinalWaveTornadoes();
+                && engine.getAdventureState() != null
+                && engine.getAdventureState().getConfig().getChapterRules().hasFinalWaveTornadoes();
 
         for (ZombieSpec spec : composition) {
             int lane = random.nextInt(rows);
@@ -114,35 +97,30 @@ public class WaveSystem implements SimulationSystem {
             if (tornadoes && random.nextInt(2) == 0) {
                 int advance = 1 + random.nextInt(4);
                 spawnX = Math.max(0.5, spawnColumn - advance);
-                context.emit("A tornado carried " + spec.getName() + " "
+                engine.recordEvent("A tornado carried " + spec.getName() + " "
                         + advance + " columns into lane " + lane + ".");
             }
-            ZombieInstance zombie = new ZombieInstance(spec, spawnX, lane);
-            world.addZombie(zombie);
-
-            context.emit("Zombie " + spec.getName() + " spawned at wave " + waveNumber
+            Zombie zombie = engine.spawnZombie(spec.getType(), lane, spawnX);
+            engine.recordEvent("Zombie " + spec.getName() + " spawned at wave " + waveNumber
                     + " in lane " + lane + " which costed " + spec.getWaveCost() + ".");
         }
     }
 
-    private int aggregateHealth(SimulationWorld world) {
+    private int aggregateHealth(GameEngine engine) {
         int total = 0;
-
-        for (ZombieInstance zombie : world.getZombieInstances()) {
-            total += zombie.getHp();
+        for (Zombie zombie : engine.getZombies()) {
+            total += zombie.getHealth();
         }
-
         return total;
     }
 
-    private void declareWin(TickContext context, SimulationWorld world) {
-        if (world.getAdventureState() != null
-                && world.getAdventureState().getConfig().getSpecialType()
-                == SpecialLevelType.TIMED_WAR) {
+    private void declareWin(GameEngine engine) {
+        if (engine.getAdventureState() != null
+                && engine.getAdventureState().getConfig().getSpecialType() == SpecialLevelType.TIMED_WAR) {
             return;
         }
-        world.setOutcome(GameOutcome.WON);
-        context.emit("Dear humanz, zis is not done yet; "
+        engine.setOutcome(GameOutcome.WON);
+        engine.recordEvent("Dear humanz, zis is not done yet; "
                 + "we will come back to eat your brainz, humanz.");
     }
 
