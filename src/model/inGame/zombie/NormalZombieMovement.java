@@ -2,7 +2,11 @@ package model.inGame.zombie;
 
 import model.GameEngine;
 import model.Position;
+import model.enums.DamageType;
 import model.enums.TerrainType;
+import model.inGame.GameOutcome;
+
+import java.util.ArrayList;
 
 public class NormalZombieMovement implements ZombieMovementComponent {
     private final double multiplier;
@@ -27,8 +31,27 @@ public class NormalZombieMovement implements ZombieMovementComponent {
                 zombie.moveToRow(nextRow);
             }
         }
-        if (zombie.getX() <= 0.0) {
-            engine.recordEvent(zombie.getName() + " reached the house in row " + zombie.getRow() + ".");
+        if (zombie.getX() <= 0.0 && !zombie.getBooleanState("REACHED_HOUSE")) {
+            zombie.putState("REACHED_HOUSE", true);
+            reachHouse(zombie, engine);
         }
+    }
+
+    private void reachHouse(Zombie zombie, GameEngine engine) {
+        int row = zombie.getRow();
+        if (!engine.isLawnMowerUsed(row)) {
+            engine.useLawnMower(row);
+            engine.recordEvent(zombie.getName() + " reached the house in row " + row
+                    + "; the lawn mower triggered.");
+            for (Zombie inRow : new ArrayList<>(engine.getZombiesInLane(row))) {
+                if (!inRow.isDead()) {
+                    inRow.takeDamage(Integer.MAX_VALUE, DamageType.TRUE);
+                }
+            }
+            return;
+        }
+        engine.recordEvent(zombie.getName() + " reached the house in row " + row + ".");
+        engine.setOutcome(GameOutcome.LOST);
+        engine.recordEvent("The zombie ate your brain; LOSER!!!");
     }
 }

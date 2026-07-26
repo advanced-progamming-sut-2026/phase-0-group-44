@@ -2,7 +2,7 @@ package model.miniGame;
 
 import model.Result;
 import model.sim.GameOutcome;
-import model.sim.Simulation;
+import model.sim.MiniGameSimulation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ public final class MiniGameSession {
     private final MiniGameDefinition definition;
     private final MiniGameLevelConfig config;
     private final MiniGame rules;
-    private final Simulation simulation;
+    private final MiniGameSimulation simulation;
     private MiniGameLifecycleState state = MiniGameLifecycleState.SELECTED;
     private boolean settled;
     private Object strategyState;
@@ -23,7 +23,7 @@ public final class MiniGameSession {
             MiniGameDefinition definition,
             MiniGameLevelConfig config,
             MiniGame rules,
-            Simulation simulation
+            MiniGameSimulation simulation
     ) {
         if (ownerUsername == null || ownerUsername.isBlank()
                 || definition == null || config == null || rules == null || simulation == null
@@ -54,7 +54,7 @@ public final class MiniGameSession {
         return rules;
     }
 
-    public Simulation getSimulation() {
+    public MiniGameSimulation getSimulation() {
         return simulation;
     }
 

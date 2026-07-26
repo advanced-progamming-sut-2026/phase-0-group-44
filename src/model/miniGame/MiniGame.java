@@ -2,14 +2,14 @@ package model.miniGame;
 
 import model.Result;
 import model.sim.GameOutcome;
-import model.sim.Simulation;
+import model.sim.MiniGameSimulation;
 import model.sim.SimulationWorld;
 
 import java.util.List;
 
 /**
  * Strategy base for minigame-only rule overrides. Shared board and tick logic
- * stay in {@link Simulation}; subclasses only configure the differences.
+ * stay in {@link MiniGameSimulation}; subclasses only configure the differences.
  */
 public abstract class MiniGame {
     public abstract MiniGameId getId();
@@ -28,7 +28,7 @@ public abstract class MiniGame {
 
     /** Called once before the common simulation enters RUNNING. */
     public void configure(
-            Simulation simulation,
+            MiniGameSimulation simulation,
             SimulationWorld world,
             MiniGameLevelConfig config
     ) {

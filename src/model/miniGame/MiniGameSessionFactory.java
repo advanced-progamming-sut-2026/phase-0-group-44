@@ -1,6 +1,6 @@
 package model.miniGame;
 
-import model.sim.Simulation;
+import model.sim.MiniGameSimulation;
 import model.sim.SimulationWorld;
 import util.RandomSource;
 
@@ -41,7 +41,7 @@ public final class MiniGameSessionFactory {
             throw new IllegalArgumentException("No mandatory strategy exists for this minigame.");
         }
         SimulationWorld world = new SimulationWorld(config.getRows(), config.getColumns());
-        Simulation simulation = new Simulation(random, world, config.isSkySunEnabled());
+        MiniGameSimulation simulation = new MiniGameSimulation(random, world, config.isSkySunEnabled());
         MiniGameSession session = new MiniGameSession(
                 ownerUsername, definition, config, strategy, simulation);
         strategy.prepare(session);

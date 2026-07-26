@@ -28,6 +28,8 @@ public final class Zombotany extends MiniGame {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern STATUS = Pattern.compile(
             "^(?:show\\s+zombotany|zombotany\\s+status)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHOW_MAP = Pattern.compile(
+            "^show\\s+map$", Pattern.CASE_INSENSITIVE);
 
     private final RandomSource random;
 
@@ -141,7 +143,8 @@ public final class Zombotany extends MiniGame {
                     || SHOW_SELECTED.matcher(value).matches()
                     || PLANT.matcher(value).matches()
                     || COLLECT.matcher(value).matches()
-                    || STATUS.matcher(value).matches();
+                    || STATUS.matcher(value).matches()
+                    || SHOW_MAP.matcher(value).matches();
         }
 
         @Override
@@ -199,6 +202,13 @@ public final class Zombotany extends MiniGame {
                         session,
                         Integer.parseInt(matcher.group(1)),
                         Integer.parseInt(matcher.group(2)));
+            }
+            if (SHOW_MAP.matcher(value).matches()) {
+                if (session.getState() != MiniGameLifecycleState.RUNNING) {
+                    return rejected("start Zombotany before viewing the map");
+                }
+                return new controller.MiniGameBoardController(
+                        session.getSimulation().getWorld(), null, null).showMap();
             }
             return success(session.getState() == MiniGameLifecycleState.SELECTED
                     ? state.selectionStatus() : state.status(session));

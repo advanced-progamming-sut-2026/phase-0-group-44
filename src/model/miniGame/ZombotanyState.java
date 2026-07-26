@@ -1,6 +1,6 @@
 package model.miniGame;
 
-import controller.BoardController;
+import controller.MiniGameBoardController;
 import model.Result;
 import model.enums.PlantType;
 import model.inGame.PlantSelection;
@@ -160,7 +160,7 @@ public final class ZombotanyState {
             return result;
         }
         PlantType type = parsePlant(token);
-        BoardController board = new BoardController(
+        MiniGameBoardController board = new MiniGameBoardController(
                 session.getSimulation().getWorld(), selection, plantSpecs);
         return board.plantPlant(type, x, y);
     }

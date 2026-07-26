@@ -39,7 +39,7 @@ java {
 application {
     mainClass = 'Main'
 }
-
+tasks.named('run') { standardInput = System.in }
 jar {
     manifest {
         attributes 'Main-Class': application.mainClass.get()

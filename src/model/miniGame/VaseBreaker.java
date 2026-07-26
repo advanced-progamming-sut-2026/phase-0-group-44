@@ -25,6 +25,8 @@ public final class VaseBreaker extends MiniGame {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern STATUS = Pattern.compile(
             "^(?:show\\s+vases|vasebreaker\\s+status)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHOW_MAP = Pattern.compile(
+            "^show\\s+map$", Pattern.CASE_INSENSITIVE);
 
     private final RandomSource random;
 
@@ -110,7 +112,8 @@ public final class VaseBreaker extends MiniGame {
             return BREAK.matcher(value).matches()
                     || COLLECT.matcher(value).matches()
                     || PLANT.matcher(value).matches()
-                    || STATUS.matcher(value).matches();
+                    || STATUS.matcher(value).matches()
+                    || SHOW_MAP.matcher(value).matches();
         }
 
         @Override
@@ -137,6 +140,10 @@ public final class VaseBreaker extends MiniGame {
                         Integer.parseInt(matcher.group(1)),
                         Integer.parseInt(matcher.group(2)),
                         Integer.parseInt(matcher.group(3)));
+            }
+            if (SHOW_MAP.matcher(input.trim()).matches()) {
+                return new controller.MiniGameBoardController(
+                        session.getSimulation().getWorld(), null, null).showMap();
             }
             Result<String> result = new Result<>();
             String status = state.status(session);

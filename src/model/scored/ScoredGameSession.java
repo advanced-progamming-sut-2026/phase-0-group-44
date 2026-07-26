@@ -1,6 +1,6 @@
 package model.scored;
 
-import controller.BoardController;
+import controller.MiniGameBoardController;
 import model.Result;
 import model.enums.PlantType;
 import model.inGame.PlantSelection;
@@ -8,7 +8,7 @@ import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRegistry;
 import model.inGame.zombie.ZombieRegistry;
 import model.sim.GameOutcome;
-import model.sim.Simulation;
+import model.sim.MiniGameSimulation;
 import model.sim.SimulationWorld;
 import model.sim.TickContext;
 import model.sim.board.DefaultPlantSpecSource;
@@ -34,9 +34,9 @@ public final class ScoredGameSession {
     private final String ownerUsername;
     private final LocalDate date;
     private final DailyZombieSequence sequence;
-    private final Simulation simulation;
+    private final MiniGameSimulation simulation;
     private final PlantSelection selection;
-    private final BoardController board;
+    private final MiniGameBoardController board;
     private final ScoredGameScore score = new ScoredGameScore();
     private final PlantRegistry plants = PlantRegistry.getDefault();
     private final ZombieRegistry zombies = ZombieRegistry.getDefault();
@@ -57,15 +57,15 @@ public final class ScoredGameSession {
         this.sequence = new DailyZombieSequenceGenerator().generate(date);
         SimulationWorld world = new SimulationWorld();
         world.addSun(50);
-        this.simulation = new Simulation(random, world, true);
+        this.simulation = new MiniGameSimulation(random, world, true);
         this.selection = selectionFor(user);
-        this.board = new BoardController(world, selection, new DefaultPlantSpecSource(plants));
+        this.board = new MiniGameBoardController(world, selection, new DefaultPlantSpecSource(plants));
     }
 
     public String getOwnerUsername() { return ownerUsername; }
     public LocalDate getDate() { return date; }
     public DailyZombieSequence getSequence() { return sequence; }
-    public Simulation getSimulation() { return simulation; }
+    public MiniGameSimulation getSimulation() { return simulation; }
     public PlantSelection getSelection() { return selection; }
     public ScoredGameScore getScore() { return score; }
     public State getState() { return state; }
@@ -166,7 +166,7 @@ public final class ScoredGameSession {
         return output.toString();
     }
 
-    private void spawnAndAttack(model.sim.TickContext context) {
+    private void spawnAndAttack(TickContext context) {
         if (!context.getWorld().isRunning()) return;
         long tick = context.getCurrentTick() + 1;
         deathsThisTick = 0;
@@ -183,7 +183,7 @@ public final class ScoredGameSession {
         attackWithPlants(context, tick);
     }
 
-    private void attackWithPlants(model.sim.TickContext context, long tick) {
+    private void attackWithPlants(TickContext context, long tick) {
         List<PlantInstance> livePlants = new ArrayList<>();
         for (var damageable : context.getWorld().getPlants()) {
             if (damageable instanceof PlantInstance plant && !plant.isDead() && plant.isActive()) {
@@ -231,7 +231,7 @@ public final class ScoredGameSession {
         return result;
     }
 
-    private void scoreAndEvaluate(model.sim.TickContext context) {
+    private void scoreAndEvaluate(TickContext context) {
         long tick = context.getCurrentTick() + 1;
         for (ZombieInstance zombie : new ArrayList<>(spawnTicks.keySet())) {
             if (zombie.isDead() && !scoredDeaths.containsKey(zombie)) {

@@ -22,6 +22,8 @@ public final class IZombie extends MiniGame {
     private static final Pattern STATUS = Pattern.compile(
             "^(?:show\\s+i[- ]?zombie|i[- ]?zombie\\s+status|show\\s+brains)$",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHOW_MAP = Pattern.compile(
+            "^show\\s+map$", Pattern.CASE_INSENSITIVE);
 
     private final RandomSource random;
 
@@ -131,7 +133,8 @@ public final class IZombie extends MiniGame {
         public boolean supports(String input) {
             if (input == null) return false;
             String value = input.trim();
-            return PLACE.matcher(value).matches() || STATUS.matcher(value).matches();
+            return PLACE.matcher(value).matches() || STATUS.matcher(value).matches()
+                    || SHOW_MAP.matcher(value).matches();
         }
 
         @Override
@@ -149,6 +152,10 @@ public final class IZombie extends MiniGame {
                         matcher.group(1),
                         Integer.parseInt(matcher.group(2)),
                         Integer.parseInt(matcher.group(3)));
+            }
+            if (SHOW_MAP.matcher(input.trim()).matches()) {
+                return new controller.MiniGameBoardController(
+                        session.getSimulation().getWorld(), null, null).showMap();
             }
             Result<String> result = new Result<>();
             String status = state.status(session);

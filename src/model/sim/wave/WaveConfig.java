@@ -65,11 +65,21 @@ public final class WaveConfig {
             if (wave == waveCount) {
                 cost = cost * 2;
             } else {
-                cost = (int) Math.round(cost * 1.25);
+                cost = roundToNearest50(cost * 1.25);
             }
         }
 
         return cost;
+    }
+
+    /**
+     * Every zombie's wave cost is a multiple of 50 (see zombies.csv), so a wave
+     * target must stay a multiple of 50 to remain exactly composable. Rounding
+     * to a plain integer (e.g. 100 * 1.25 = 125) can produce an uncomposable
+     * target and crash {@link WaveComposer}.
+     */
+    private static int roundToNearest50(double value) {
+        return (int) (Math.round(value / 50.0) * 50);
     }
 
     public boolean isFinalWave(int waveNumber) {

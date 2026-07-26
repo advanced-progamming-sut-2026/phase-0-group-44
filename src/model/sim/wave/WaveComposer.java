@@ -21,6 +21,31 @@ public final class WaveComposer {
     }
 
     /**
+     * @return true if {@code targetCost} can be composed exactly from the wave
+     *         costs of {@code specs} (a non-negative combination summing to it)
+     */
+    public static boolean isComposable(int targetCost, List<ZombieSpec> specs) {
+        if (targetCost < 0) {
+            return false;
+        }
+        if (targetCost == 0) {
+            return true;
+        }
+
+        List<ZombieSpec> usable = new ArrayList<>();
+        for (ZombieSpec spec : specs) {
+            if (spec.getWaveCost() > 0) {
+                usable.add(spec);
+            }
+        }
+        if (usable.isEmpty()) {
+            return false;
+        }
+
+        return reachability(targetCost, usable)[targetCost];
+    }
+
+    /**
      * @return a list of specs summing to {@code targetCost}, or {@code null} if
      *         the target cannot be composed from the given specs
      */

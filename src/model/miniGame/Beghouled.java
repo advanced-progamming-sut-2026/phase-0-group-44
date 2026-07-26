@@ -25,6 +25,8 @@ public final class Beghouled extends MiniGame {
     private static final Pattern STATUS = Pattern.compile(
             "^(?:show\\s+beghouled|beghouled\\s+status|show\\s+match\\s+board)$",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHOW_MAP = Pattern.compile(
+            "^show\\s+map$", Pattern.CASE_INSENSITIVE);
 
     private final RandomSource random;
 
@@ -124,7 +126,8 @@ public final class Beghouled extends MiniGame {
             String value = input.trim();
             return SWAP.matcher(value).matches()
                     || UPGRADE.matcher(value).matches()
-                    || STATUS.matcher(value).matches();
+                    || STATUS.matcher(value).matches()
+                    || SHOW_MAP.matcher(value).matches();
         }
 
         @Override
@@ -147,6 +150,10 @@ public final class Beghouled extends MiniGame {
             matcher = UPGRADE.matcher(input.trim());
             if (matcher.matches()) {
                 return state.upgrade(session, matcher.group(1));
+            }
+            if (SHOW_MAP.matcher(input.trim()).matches()) {
+                return new controller.MiniGameBoardController(
+                        session.getSimulation().getWorld(), null, null).showMap();
             }
             Result<String> result = new Result<>();
             String status = state.status(session);

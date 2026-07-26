@@ -71,13 +71,45 @@ public class WaveSystem {
         }
     }
 
+    /**
+     * The general cost formula (×1.25 growth) has no visibility into which
+     * zombies are actually available for this level's chapter, so its target
+     * is not guaranteed to be composable even when it is a multiple of 50 (some
+     * multiples of 50, like 150, still cannot be formed from every available
+     * cost set). Search outward in steps of 50 — the shared unit every zombie's
+     * wave cost is defined in — for the closest cost that is composable, so a
+     * plain formula mismatch never crashes the game.
+     */
+    private static int resolveComposableCost(int targetCost, List<ZombieSpec> availableSpecs) {
+        if (WaveComposer.isComposable(targetCost, availableSpecs)) {
+            return targetCost;
+        }
+
+        int maxSearchDistance = 5000;
+
+        for (int distance = 1; distance <= maxSearchDistance; distance++) {
+            int higher = targetCost + distance;
+            if (WaveComposer.isComposable(higher, availableSpecs)) {
+                return higher;
+            }
+            int lower = targetCost - distance;
+            if (lower >= 0 && WaveComposer.isComposable(lower, availableSpecs)) {
+                return lower;
+            }
+        }
+
+        return targetCost;
+    }
+
     private void spawnWave(GameEngine engine, int waveNumber) {
         int targetCost = config.costOfWave(waveNumber);
         Random random = engine.getRandom();
         RandomSource randomSource = RandomSourceAdapter.wrap(random); // ← اصلاح شد
 
+        List<ZombieSpec> availableSpecs = specSource.availableSpecs();
+        int resolvedCost = resolveComposableCost(targetCost, availableSpecs);
         List<ZombieSpec> composition =
-                WaveComposer.compose(targetCost, specSource.availableSpecs(), randomSource);
+                WaveComposer.compose(resolvedCost, availableSpecs, randomSource);
 
         if (composition == null) {
             throw new IllegalStateException(
