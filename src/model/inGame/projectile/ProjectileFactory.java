@@ -27,6 +27,14 @@ public class ProjectileFactory {
                 Math.max(0.3, distance / DEFAULT_SPEED));
     }
 
+    public Projectile lobbedAt(Plant plant, int row, double landingX, int damage,
+                               ProjectileEffect effect) {
+        double spawnX = plant.getPosition().getColumn() + 0.55;
+        double range = Math.max(1.0, landingX - spawnX);
+        return create(plant, row, 1, damage, ProjectileType.LOBBED, effect, 1, range, null,
+                Math.max(0.3, range / DEFAULT_SPEED));
+    }
+
     public Projectile homing(Plant plant, Zombie target, int damage,
                              ProjectileEffect effect) {
         return create(plant, plant.getPosition().getRow(), 1, damage,

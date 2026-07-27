@@ -35,14 +35,55 @@ public class LobberBehavior extends AbstractTimedBehavior {
             engine.clearIce(plant.getPosition(), warmthRadius);
         }
         Zombie target = engine.getFirstZombieAhead(plant, 20.0);
-        if (target == null || !ready(plant, deltaSeconds, plant.getStats().getActionInterval())) {
+        Integer obstacleColumn = target == null ? firstBlockingColumnAhead(plant, engine, 20.0) : null;
+        if (target == null && obstacleColumn == null) {
             return;
         }
-        launch(plant, engine, target, false);
+        if (!ready(plant, deltaSeconds, plant.getStats().getActionInterval())) {
+            return;
+        }
+        if (target != null) {
+            launch(plant, engine, target, false);
+        } else {
+            launchAtObstacle(plant, engine, obstacleColumn);
+        }
+    }
+
+    /**
+     * True if a destructible obstacle (grave, ice, barrel, etc.) sits within
+     * range ahead of the plant — lobbers should proactively clear these
+     * rather than only ever requiring a live zombie target.
+     */
+    private Integer firstBlockingColumnAhead(Plant plant, GameEngine engine, double range) {
+        int row = plant.getPosition().getRow();
+        int startColumn = plant.getPosition().getColumn() + 1;
+        int maxColumn = Math.min(engine.getGameMap().getColumns() - 1,
+                (int) Math.floor(plant.getPosition().getColumn() + range));
+        for (int column = startColumn; column <= maxColumn; column++) {
+            if (engine.getGameMap().getTile(row, column).blocksDirectProjectiles()) {
+                return column;
+            }
+        }
+        return null;
     }
 
     private void launch(Plant plant, GameEngine engine, Zombie target, boolean food) {
-        int damage = boostedDamage(plant, engine);
+        int[] damageHolder = {boostedDamage(plant, engine)};
+        ProjectileEffect effect = resolveEffect(plant, engine, damageHolder);
+        int damage = food ? damageHolder[0] * 2 : damageHolder[0];
+        engine.spawnProjectile(projectileFactory.lobbed(plant, target, damage, effect));
+    }
+
+    private void launchAtObstacle(Plant plant, GameEngine engine, int column) {
+        int[] damageHolder = {boostedDamage(plant, engine)};
+        ProjectileEffect effect = resolveEffect(plant, engine, damageHolder);
+        engine.spawnProjectile(projectileFactory.lobbedAt(
+                plant, plant.getPosition().getRow(), column + 0.5, damageHolder[0], effect));
+    }
+
+    /** Shared damage/effect selection for both a live-zombie lob and an obstacle lob. */
+    private ProjectileEffect resolveEffect(Plant plant, GameEngine engine, int[] damageHolder) {
+        int damage = damageHolder[0];
         ProjectileEffect effect;
         if (mode == Mode.KERNEL) {
             double butterChance = 0.25 + plant.getStats().getSpecial("BUTTER_CHANCE", 0);
@@ -62,7 +103,8 @@ public class LobberBehavior extends AbstractTimedBehavior {
         } else {
             effect = new NormalEffect();
         }
-        engine.spawnProjectile(projectileFactory.lobbed(plant, target, food ? damage * 2 : damage, effect));
+        damageHolder[0] = damage;
+        return effect;
     }
 
     @Override

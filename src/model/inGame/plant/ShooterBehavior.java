@@ -64,14 +64,33 @@ public class ShooterBehavior extends AbstractTimedBehavior {
         if (mode == Mode.THREE_LANES || mode == Mode.DIAGONAL) {
             for (int row = Math.max(0, plant.getPosition().getRow() - 1);
                  row <= Math.min(engine.getGameMap().getRows() - 1, plant.getPosition().getRow() + 1); row++) {
-                if (!engine.getZombiesInLane(row).isEmpty()) {
+                if (!engine.getZombiesInLane(row).isEmpty() || hasBlockingObstacleAhead(plant, engine, range, row)) {
                     return true;
                 }
             }
             return false;
         }
         return engine.getFirstZombieAhead(plant, range) != null
-                || mode == Mode.SPLIT && engine.getFirstZombieBehind(plant, range) != null;
+                || mode == Mode.SPLIT && engine.getFirstZombieBehind(plant, range) != null
+                || hasBlockingObstacleAhead(plant, engine, range, plant.getPosition().getRow());
+    }
+
+    /**
+     * True if a destructible obstacle (grave, ice, barrel, etc.) sits within
+     * range ahead of the plant in {@code row}, even with no zombie present —
+     * plants should proactively clear these rather than only damage them as a
+     * side effect of shooting through them at a zombie behind.
+     */
+    private boolean hasBlockingObstacleAhead(Plant plant, GameEngine engine, double range, int row) {
+        int startColumn = plant.getPosition().getColumn() + 1;
+        int maxColumn = Math.min(engine.getGameMap().getColumns() - 1,
+                (int) Math.floor(plant.getPosition().getColumn() + range));
+        for (int column = startColumn; column <= maxColumn; column++) {
+            if (engine.getGameMap().getTile(row, column).blocksDirectProjectiles()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void fireVolley(Plant plant, GameEngine engine, boolean food) {

@@ -73,7 +73,15 @@ public class Projectile {
         double effectiveNewX = blocker == null ? newX : blocker;
         engine.transformProjectileAlongPath(this, oldX, effectiveNewX);
         if (blocker != null) {
-            engine.damageObstacleAt(row, blocker, damage, effect.damageType());
+            model.enums.ObstacleType obstacleType =
+                    engine.getGameMap().getTile(row, blocker).getObstacle();
+            int dealt = engine.damageObstacleAt(row, blocker, damage, effect.damageType());
+            boolean destroyed =
+                    engine.getGameMap().getTile(row, blocker).getObstacle() == model.enums.ObstacleType.NONE;
+            if (dealt > 0) {
+                engine.recordEvent(sourceType + " projectile hit " + obstacleType.name()
+                        + " for " + dealt + (destroyed ? "; it was destroyed." : "."));
+            }
         }
 
         List<Zombie> crossed = engine.getZombiesCrossed(row, oldX, effectiveNewX, direction, hitZombieIds);
@@ -112,6 +120,18 @@ public class Projectile {
         }
         if (landingTarget != null) {
             hit(landingTarget, engine);
+        } else {
+            int landingColumn = Math.max(0, Math.min(
+                    engine.getGameMap().getColumns() - 1, (int) Math.floor(landingX)));
+            model.enums.ObstacleType obstacleType =
+                    engine.getGameMap().getTile(row, landingColumn).getObstacle();
+            int dealt = engine.damageObstacleAt(row, landingColumn, damage, effect.damageType());
+            boolean destroyed = engine.getGameMap().getTile(row, landingColumn).getObstacle()
+                    == model.enums.ObstacleType.NONE;
+            if (dealt > 0) {
+                engine.recordEvent(sourceType + " projectile hit " + obstacleType.name()
+                        + " for " + dealt + (destroyed ? "; it was destroyed." : "."));
+            }
         }
         active = false;
     }
