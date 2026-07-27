@@ -12,6 +12,7 @@ import model.inGame.GameSession;
 import model.inGame.plant.Plant;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRegistry;
+import model.inGame.projectile.Projectile;
 import model.inGame.zombie.Zombie;
 import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureRuntimeState;
@@ -24,6 +25,7 @@ import model.sim.sun.SunProducer;
 import model.user.User;
 import service.DomainEventPublisher;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,6 +257,41 @@ public class BoardController {
         return result;
     }
 
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_GREEN = "\u001B[32m";
+    private static final String ANSI_RED = "\u001B[31m";
+    private static final String ANSI_YELLOW = "\u001B[33m";
+    private static final String ANSI_CYAN = "\u001B[36m";
+    private static final String ANSI_BLUE = "\u001B[34m";
+    private static final String ANSI_GRAY = "\u001B[90m";
+    private static final int CELL_WIDTH = 11;
+    private static final int LABEL_WIDTH = 11;
+
+    public Result<String> showConveyor() {
+        Result<String> result = new Result<>();
+        if (!isConveyorLevel()) {
+            result.appendToMessage("this level has no conveyor belt");
+            return result;
+        }
+
+        Map<PlantType, Integer> packets = adventureState.getConveyorPackets();
+        StringBuilder builder = new StringBuilder();
+        if (packets.isEmpty()) {
+            builder.append("conveyor belt is empty");
+        } else {
+            builder.append("conveyor belt:");
+            for (Map.Entry<PlantType, Integer> entry : packets.entrySet()) {
+                builder.append(' ').append(entry.getKey().name())
+                        .append(" x").append(entry.getValue());
+            }
+        }
+
+        result.setStatus(true);
+        result.setData(builder.toString());
+        result.appendToMessage(builder.toString());
+        return result;
+    }
+
     public Result<String> showMap() {
         Result<String> result = new Result<>();
         GameMap map = engine.getGameMap();
@@ -264,20 +301,123 @@ public class BoardController {
         builder.append("plant food: ").append(engine.getPlantFood()).append('\n');
         builder.append("sun: ").append(engine.getSun()).append('\n');
 
+        builder.append(pad("", LABEL_WIDTH));
+        for (int column = 0; column < map.getColumns(); column++) {
+            builder.append(colorPad("col " + column, CELL_WIDTH, ANSI_GRAY));
+        }
+        builder.append('\n');
+
         for (int row = 0; row < map.getRows(); row++) {
-            builder.append("row ").append(row)
-                    .append(" [mower ").append(engine.isLawnMowerUsed(row) ? "used" : "ready").append("]: ");
+            builder.append("-- row ").append(row).append(" [mower ")
+                    .append(engine.isLawnMowerUsed(row) ? "used" : "ready").append("] --\n");
+
+            builder.append(pad("plants:", LABEL_WIDTH));
             for (int column = 0; column < map.getColumns(); column++) {
-                builder.append(cellSymbol(map.getTile(row, column))).append(' ');
+                Tile tile = map.getTile(row, column);
+                builder.append(colorPad(plantCell(tile), CELL_WIDTH, plantCellColor(tile)));
+            }
+            builder.append('\n');
+
+            builder.append(pad("zombies:", LABEL_WIDTH));
+            for (int column = 0; column < map.getColumns(); column++) {
+                builder.append(colorPad(zombieCell(row, column), CELL_WIDTH, ANSI_RED));
+            }
+            builder.append('\n');
+
+            builder.append(pad("shots:", LABEL_WIDTH));
+            for (int column = 0; column < map.getColumns(); column++) {
+                builder.append(colorPad(projectileCell(row, column), CELL_WIDTH, ANSI_YELLOW));
             }
             builder.append('\n');
         }
-        appendZombiePositions(builder);
 
         result.setStatus(true);
         result.setData(builder.toString());
         result.appendToMessage(builder.toString().trim());
         return result;
+    }
+
+    private String plantCell(Tile tile) {
+        List<String> parts = new ArrayList<>();
+        if (tile.getObstacle() != ObstacleType.NONE) {
+            parts.add("[" + abbreviate(tile.getObstacle().name(), 5) + "]");
+        }
+        if (tile.getSupportPlant() != null) {
+            parts.add(abbreviate(tile.getSupportPlant().getEffectiveType().name(), 6));
+        }
+        if (tile.getPrimaryPlant() != null) {
+            parts.add(abbreviate(tile.getPrimaryPlant().getEffectiveType().name(), 6));
+        }
+        if (tile.getArmorPlant() != null) {
+            parts.add(abbreviate(tile.getArmorPlant().getEffectiveType().name(), 5) + "(A)");
+        }
+        if (parts.isEmpty()) {
+            return terrainSymbol(tile.getTerrain());
+        }
+        return String.join("+", parts);
+    }
+
+    private String zombieCell(int row, int column) {
+        List<String> parts = new ArrayList<>();
+        for (Zombie zombie : engine.getZombies()) {
+            if (zombie.getRow() == row && zombie.getColumn() == column) {
+                parts.add(abbreviate(zombie.getType().name(), 6) + ":" + zombie.getHealth());
+            }
+        }
+        return String.join(",", parts);
+    }
+
+    private String projectileCell(int row, int column) {
+        List<String> parts = new ArrayList<>();
+        for (Projectile projectile : engine.getProjectiles()) {
+            if (projectile.getRow() == row && (int) Math.floor(projectile.getX()) == column) {
+                parts.add("o" + abbreviate(projectile.getSourceType().name(), 4));
+            }
+        }
+        return String.join(",", parts);
+    }
+
+    private String plantCellColor(Tile tile) {
+        if (hasAnyPlant(tile)) {
+            return ANSI_GREEN;
+        }
+        if (tile.getObstacle() != ObstacleType.NONE) {
+            return ANSI_CYAN;
+        }
+        return tile.getTerrain().isPlantableByDefault() && !tile.getTerrain().isSlippery()
+                ? ANSI_GRAY : ANSI_BLUE;
+    }
+
+    private String terrainSymbol(TerrainType terrain) {
+        return switch (terrain) {
+            case WATER -> "~water~";
+            case SLIPPERY_UP -> "^up^";
+            case SLIPPERY_DOWN -> "vdownv";
+            case LOW_TIDE -> "_tide_";
+            default -> ".";
+        };
+    }
+
+    private String abbreviate(String enumName, int maxLen) {
+        String compact = enumName.replace("_", "");
+        return compact.length() <= maxLen ? compact : compact.substring(0, maxLen);
+    }
+
+    /** Pads {@code content} to {@code width} visible characters (ANSI codes excluded), left-aligned. */
+    private String pad(String content, int width) {
+        String visible = content.length() >= width ? content.substring(0, Math.max(0, width - 1)) + " " : content;
+        StringBuilder builder = new StringBuilder(visible);
+        while (builder.length() < width) {
+            builder.append(' ');
+        }
+        return builder.toString();
+    }
+
+    private String colorPad(String content, int width, String color) {
+        if (content.isEmpty()) {
+            return ANSI_GRAY + pad(".", width) + ANSI_RESET;
+        }
+        return color + pad(content, width) + ANSI_RESET;
     }
 
     public Result<String> showPlantsStatus() {
@@ -369,35 +509,6 @@ public class BoardController {
 
     private boolean hasAnyPlant(Tile tile) {
         return tile.getSupportPlant() != null || tile.getPrimaryPlant() != null || tile.getArmorPlant() != null;
-    }
-
-    private String cellSymbol(Tile tile) {
-        if (hasAnyPlant(tile)) {
-            return "P";
-        }
-        if (tile.getObstacle() == ObstacleType.ICE) {
-            return "*";
-        }
-        if (tile.getObstacle() == ObstacleType.GRAVE) {
-            return "#"; // پاداش (SUN_50/PLANT_FOOD) در payload نگه‌داری می‌شه، نه در نماد
-        }
-        return switch (tile.getTerrain()) {
-            case WATER -> "~";
-            case SLIPPERY_UP -> "^";
-            case SLIPPERY_DOWN -> "v";
-            case LOW_TIDE -> "_";
-            default -> ".";
-        };
-    }
-
-    private void appendZombiePositions(StringBuilder builder) {
-        List<Zombie> zombies = engine.getZombies();
-        if (zombies.isEmpty()) return;
-        builder.append("zombies:");
-        for (Zombie zombie : zombies) {
-            builder.append(" (").append(zombie.getColumn()).append(", ").append(zombie.getRow()).append(')');
-        }
-        builder.append('\n');
     }
 
     private void appendPlantStatus(StringBuilder builder, Plant plant, int column, int row) {

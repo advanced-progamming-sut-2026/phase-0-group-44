@@ -145,6 +145,11 @@ public class GameplayView extends MenuView {
             return true;
         }
 
+        if (Command.SHOW_CONVEYOR.matches(input)) {
+            print(board.showConveyor());
+            return true;
+        }
+
         if (Command.SHOW_PLANTS_STATUS.matches(input)) {
             print(board.showPlantsStatus());
             return true;
