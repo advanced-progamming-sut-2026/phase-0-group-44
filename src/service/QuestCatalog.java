@@ -107,26 +107,26 @@ public final class QuestCatalog {
 
     private static QuestConditionType conditionFor(String name) {
         return switch (name) {
-            case "آفتاب گیر روزانه" -> QuestConditionType.SUN_PRODUCED_IN_DAY;
-            case "شکارچی chapter" -> QuestConditionType.ZOMBIES_KILLED_IN_CHAPTER;
-            case "plant باز حرفه‌ای" -> QuestConditionType.ZOMBIES_KILLED_ONLY_BY_PLANT;
-            case "only cactus" -> QuestConditionType.ZOMBIES_KILLED_ONLY_BY_CACTUS;
-            case "گیاه خوار اقتصادی" -> QuestConditionType.WIN_WITH_MAX_PLANT_LOSSES;
-            case "استاد دفاع" -> QuestConditionType.WIN_WITH_ZERO_SUN;
-            case "سرعت عمل" -> QuestConditionType.KILLS_WITHIN_FIRST_WAVE_SECONDS;
-            case "تخریب گر حرفه ای" -> QuestConditionType.EXPLOSIVE_PLANTS_USED;
-            case "تقارن" -> QuestConditionType.WIN_WITH_SYMMETRIC_BOARD;
-            case "کشتار خانوادگی" -> QuestConditionType.KILLS_ONLY_BY_PLANT_FAMILY;
-            case "شکوفایی در محدودیت‌ها" -> QuestConditionType.WIN_WITHOUT_PLANT_FAMILY;
-            case "شب یا صبح" -> QuestConditionType.WIN_DAY_LEVEL_WITH_NIGHT_PLANTS;
-            case "برد پشت برد" -> QuestConditionType.MAX_DIFFICULTY_WIN_STREAK;
-            case "تقریبا پیروز" -> QuestConditionType.FIRST_COLUMN_KILLS_WITHOUT_MOWER;
-            case "OCD نَمَنَ" -> QuestConditionType.WIN_WITH_ASYMMETRIC_BOARD;
-            case "روز ابری" -> QuestConditionType.WIN_WITH_ONLY_THREE_SUN_PRODUCERS;
-            case "یه ستون کمتر" -> QuestConditionType.WIN_WITH_EMPTY_COLUMN;
-            case "سطر بی دفاع" -> QuestConditionType.WIN_WITH_EMPTY_ROW;
-            case "صلیب بی دفاع" -> QuestConditionType.WIN_WITH_EMPTY_ROW_AND_COLUMN;
-            case "وقت چمن‌زنی" -> QuestConditionType.LAWNMOWER_KILLS;
+            case "Daily Sun Collector" -> QuestConditionType.SUN_PRODUCED_IN_DAY;
+            case "Chapter Hunter" -> QuestConditionType.ZOMBIES_KILLED_IN_CHAPTER;
+            case "Plant Pro" -> QuestConditionType.ZOMBIES_KILLED_ONLY_BY_PLANT;
+            case "Only Cactus" -> QuestConditionType.ZOMBIES_KILLED_ONLY_BY_CACTUS;
+            case "Frugal Gardener" -> QuestConditionType.WIN_WITH_MAX_PLANT_LOSSES;
+            case "Defense Master" -> QuestConditionType.WIN_WITH_ZERO_SUN;
+            case "Quick Action" -> QuestConditionType.KILLS_WITHIN_FIRST_WAVE_SECONDS;
+            case "Professional Demolisher" -> QuestConditionType.EXPLOSIVE_PLANTS_USED;
+            case "Symmetry" -> QuestConditionType.WIN_WITH_SYMMETRIC_BOARD;
+            case "Family Slaughter" -> QuestConditionType.KILLS_ONLY_BY_PLANT_FAMILY;
+            case "Blooming Within Limits" -> QuestConditionType.WIN_WITHOUT_PLANT_FAMILY;
+            case "Night or Day" -> QuestConditionType.WIN_DAY_LEVEL_WITH_NIGHT_PLANTS;
+            case "Winning Streak" -> QuestConditionType.MAX_DIFFICULTY_WIN_STREAK;
+            case "Almost Victorious" -> QuestConditionType.FIRST_COLUMN_KILLS_WITHOUT_MOWER;
+            case "Asymmetric OCD" -> QuestConditionType.WIN_WITH_ASYMMETRIC_BOARD;
+            case "Cloudy Day" -> QuestConditionType.WIN_WITH_ONLY_THREE_SUN_PRODUCERS;
+            case "One Column Less" -> QuestConditionType.WIN_WITH_EMPTY_COLUMN;
+            case "Undefended Row" -> QuestConditionType.WIN_WITH_EMPTY_ROW;
+            case "Undefended Cross" -> QuestConditionType.WIN_WITH_EMPTY_ROW_AND_COLUMN;
+            case "Lawnmower Time" -> QuestConditionType.LAWNMOWER_KILLS;
             default -> throw new IllegalStateException(
                     "No machine condition mapping for canonical quest: " + name);
         };
@@ -134,32 +134,32 @@ public final class QuestCatalog {
 
     private static Reward rewardFor(String name, String canonicalText) {
         return switch (name) {
-            case "آفتاب گیر روزانه" -> new Reward(
+            case "Daily Sun Collector" -> new Reward(
                     RewardType.COINS, 0, null,
                     Reward.AmountRule.VARIABLE_DIVIDED_BY_100, canonicalText);
-            case "شکارچی chapter" -> inventory(10, canonicalText);
-            case "plant باز حرفه‌ای" -> new Reward(
+            case "Chapter Hunter" -> inventory(10, canonicalText);
+            case "Plant Pro" -> new Reward(
                     RewardType.PLANT_UNLOCK, 1, "random-new-plant",
                     Reward.AmountRule.FIXED, canonicalText);
-            case "only cactus" -> gems(20, canonicalText);
-            case "گیاه خوار اقتصادی" -> new Reward(
+            case "Only Cactus" -> gems(20, canonicalText);
+            case "Frugal Gardener" -> new Reward(
                     RewardType.INVENTORY, 0, "seed-packets",
                     Reward.AmountRule.TWENTY_MINUS_VARIABLE, canonicalText);
-            case "استاد دفاع" -> gems(200, canonicalText);
-            case "سرعت عمل" -> coins(500, canonicalText);
-            case "تخریب گر حرفه ای" -> coins(100, canonicalText);
-            case "تقارن" -> coins(500, canonicalText);
-            case "کشتار خانوادگی" -> coins(1000, canonicalText);
-            case "شکوفایی در محدودیت‌ها" -> gems(100, canonicalText);
-            case "شب یا صبح" -> gems(20, canonicalText);
-            case "برد پشت برد" -> coins(5000, canonicalText);
-            case "تقریبا پیروز" -> coins(300, canonicalText);
-            case "OCD نَمَنَ" -> coins(800, canonicalText);
-            case "روز ابری" -> gems(10, canonicalText);
-            case "یه ستون کمتر" -> gems(10, canonicalText);
-            case "سطر بی دفاع" -> gems(20, canonicalText);
-            case "صلیب بی دفاع" -> gems(25, canonicalText);
-            case "وقت چمن‌زنی" -> new Reward(
+            case "Defense Master" -> gems(200, canonicalText);
+            case "Quick Action" -> coins(500, canonicalText);
+            case "Professional Demolisher" -> coins(100, canonicalText);
+            case "Symmetry" -> coins(500, canonicalText);
+            case "Family Slaughter" -> coins(1000, canonicalText);
+            case "Blooming Within Limits" -> gems(100, canonicalText);
+            case "Night or Day" -> gems(20, canonicalText);
+            case "Winning Streak" -> coins(5000, canonicalText);
+            case "Almost Victorious" -> coins(300, canonicalText);
+            case "Asymmetric OCD" -> coins(800, canonicalText);
+            case "Cloudy Day" -> gems(10, canonicalText);
+            case "One Column Less" -> gems(10, canonicalText);
+            case "Undefended Row" -> gems(20, canonicalText);
+            case "Undefended Cross" -> gems(25, canonicalText);
+            case "Lawnmower Time" -> new Reward(
                     RewardType.GEMS, 0, null, Reward.AmountRule.VARIABLE, canonicalText);
             default -> throw new IllegalStateException(
                     "No reward mapping for canonical quest: " + name);

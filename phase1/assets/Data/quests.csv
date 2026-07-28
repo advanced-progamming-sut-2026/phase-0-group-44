@@ -1,21 +1,21 @@
-نام کوئست ها,دسته بندی,شرط تکمیلی,نوع پاداش,اولویت,متغیرها
-آفتاب گیر روزانه,روزانه,جمع آوری sun_amount واحد خورشید در طول یک روز,sun_amount / ۱۰۰ سکه,متوسط,3000-4000-5000
-شکارچی chapter,اصلی,شکست دادن ۵۰ زامبی از فصل chapter,۱۰ پک دانه,بالا,هرکدام از فصل‌های بازی
-plant باز حرفه‌ای,روزانه,ده تا زامبی را فقط با plant بکش,گیاه جدید شانسی,بالا,هر گیاهی که قابلیت کشتن دارد
-only cactus,روزانه,ده تا زامبی را فقط با کاکتوس بکش,۲۰ الماس (Gem),بالا,
-گیاه خوار اقتصادی,اصلی,پیروزی در یک مرحله بدون از دست دادن بیش از n گیاه,۲۰ - n پک دانه,بالا,0-1-2-3-4-5
-استاد دفاع,چالش (Epic),اتمام یک مرحله دقیقا با صفر خورشید,۲۰۰ الماس (Gem),بحرانی,
-سرعت عمل,اصلی,کشتن ۱۰ زامبی در کمتر از ۳۰ ثانیه از شروع موج اول حمله زامبی ها,۵۰۰ سکه (Coin),متوسط,
-تخریب گر حرفه ای,روزانه,استفاده از ۳ گیاه انفجاری در یک مرحله,۱۰۰ سکه (Coin),کم,
-تقارن,روزانه,باغچه بازی در نهایت باید متقارن باشد,۵۰۰ سکه (Coin),بالا,
-کشتار خانوادگی,روزانه,تنها از گیاهان family_type برای کشتن زامبی ها استفاده شود,۱۰۰۰ سکه,متوسط,خانواده‌ی گیاهان
-شکوفایی در محدودیت‌ها,روزانه,برای برد در مرحله از هیچ گیاهی از خانواده family_type استفاده نشود,۱۰۰ الماس (Gem),بالا,خانواده‌ی گیاهان
-شب یا صبح,چالش (Epic),تبه پایان رساندن بازی روز با گیاهان شب (mushroom ها),۲۰ الماس (Gem),بالا,
-برد پشت برد,روزانه,۵ مرحله را پشت سر هم با بیشترین سختی ببر,۵۰۰۰ سکه(Coin),متوسط,
-تقریبا پیروز,روزانه,۱۰ زامبی را در ستون اول ردیفی بکش که چمن‌زن ندارد,۳۰۰ سکه(Coin),متوسط,
-OCD نَمَنَ,روزانه,در حالتی مرحله را ببر که هیچ تقارنی در باغچه وجود ندارد (به جز ردیف وسط),۸۰۰ سکه(Coin),متوسط,
-روز ابری,روزانه,یک مرحله را تنها با ۳ تا گیاه تولیدکننده خورشید بزن,۱۰ الماس (Gem),بالا,
-یه ستون کمتر,روزانه,یک مرحله را در صورتی ببرد که در ستون nام گیاهی نکاشته باشد,۱۰ الماس (Gem),بالا,تعداد ستون‌ها
-سطر بی دفاع,روزانه,یک مرحله را در صورتی ببرد که سطر nام را هیچ گیاهی نکاشته باشد,۲۰ الماس (Gem),بالا,تعداد سطرها
-صلیب بی دفاع,روزانه, یک مرحله را در صورتی ببرد که ستون و ردیف nام خالی باشد,۲۵ الماس (Gem),بالا,مینیمم تعداد سطر و ستون
-وقت چمن‌زنی,چالش (Epic),حداقل n زامبی را با چمن‌زن بکش,n الماس,متوسط,10-20-30-40-50
+Quest Name,Category,Completion Condition,Reward Type,Priority,Variables
+Daily Sun Collector,Daily,Collect sun_amount units of sun during one day,sun_amount / 100 Coins,Medium,3000-4000-5000
+Chapter Hunter,Main,Defeat 50 zombies from chapter chapter,10 Seed Packets,High,Any of the game's chapters
+Plant Pro,Daily,Kill ten zombies using only plant,Random New Plant,High,Any plant capable of killing
+Only Cactus,Daily,Kill ten zombies using only cactus,20 Gems,High,
+Frugal Gardener,Main,Win a level without losing more than n plants,20 - n Seed Packets,High,0-1-2-3-4-5
+Defense Master,Epic (Challenge),Finish a level with exactly zero sun,200 Gems,Critical,
+Quick Action,Main,Kill 10 zombies within 30 seconds of the first zombie wave starting,500 Coins,Medium,
+Professional Demolisher,Daily,Use 3 explosive plants in one level,100 Coins,Low,
+Symmetry,Daily,The garden board must end up symmetric,500 Coins,High,
+Family Slaughter,Daily,Only use family_type plants to kill zombies,1000 Coins,Medium,Plant family
+Blooming Within Limits,Daily,Win the level without using any plant from the family_type family,100 Gems,High,Plant family
+Night or Day,Epic (Challenge),Finish a day level using night plants (mushrooms),20 Gems,High,
+Winning Streak,Daily,Win 5 levels in a row at the highest difficulty,5000 Coins,Medium,
+Almost Victorious,Daily,Kill 10 zombies in the first column of a row that has no lawnmower,300 Coins,Medium,
+Asymmetric OCD,Daily,Win the level in a state where there is no symmetry in the garden (except the middle row),800 Coins,Medium,
+Cloudy Day,Daily,Beat a level using only 3 sun-producing plants,10 Gems,High,
+One Column Less,Daily,Win a level provided that no plant was planted in column n,10 Gems,High,Number of columns
+Undefended Row,Daily,Win a level provided that no plant was planted in row n,20 Gems,High,Number of rows
+Undefended Cross,Daily,Win a level provided that column and row n are empty,25 Gems,High,Minimum of number of rows and columns
+Lawnmower Time,Epic (Challenge),Kill at least n zombies with the lawnmower,n Gems,Medium,10-20-30-40-50

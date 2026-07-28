@@ -4,9 +4,9 @@ import java.util.Locale;
 
 /** Categories named by the canonical quests workbook. */
 public enum QuestCategory {
-    MAIN("main", "اصلی"),
-    EPIC("epic", "چالش (Epic)"),
-    DAILY("daily", "روزانه");
+    MAIN("main", "Main"),
+    EPIC("epic", "Epic (Challenge)"),
+    DAILY("daily", "Daily");
 
     private final String pageToken;
     private final String canonicalLabel;

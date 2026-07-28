@@ -2,10 +2,10 @@ package model.utility;
 
 /** Priority values copied from the canonical quest table. */
 public enum QuestPriority {
-    CRITICAL(0, "بحرانی"),
-    HIGH(1, "بالا"),
-    MEDIUM(2, "متوسط"),
-    LOW(3, "کم");
+    CRITICAL(0, "Critical"),
+    HIGH(1, "High"),
+    MEDIUM(2, "Medium"),
+    LOW(3, "Low");
 
     private final int sortRank;
     private final String canonicalLabel;
