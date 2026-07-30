@@ -10,4 +10,9 @@ public interface ProjectileEffect {
     default DamageType damageType() {
         return DamageType.NORMAL;
     }
+
+    /** Short clause describing any status effect this applies (e.g. " and stunned it for 4.0s"). Empty if none. */
+    default String statusEffectSuffix() {
+        return "";
+    }
 }

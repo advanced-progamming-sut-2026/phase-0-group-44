@@ -38,6 +38,7 @@ public enum Command {
     TRAVEL_LOG_PAGE("^travel\\s+log\\s+page\\s+(.+)$"),
     TRAVEL_LOG_CLAIM("^travel\\s+log\\s+claim\\s+(\\d+)$"),
     MINIGAME_SELECT("^minigame\\s+select\\s+-n\\s+(.+?)\\s+-l\\s+([123])$"),
+    CHEAT_UNLOCK_ALL_MINIGAMES("^cheat\\s+unlock-all-minigames$"),
     MINIGAME_START("^minigame\\s+start$"),
 
     // Running minigame

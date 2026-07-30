@@ -673,7 +673,7 @@ public class GameEngine {
             int column = Math.max(0, Math.min(gameMap.getColumns() - 1, zombie.getColumn()));
             Position position = new Position(zombie.getRow(), column);
             if (!zombie.isDead() && !zombie.isHypnotized()
-                    && gameMap.getTile(position).getTerrain() == model.enums.TerrainType.WATER) {
+                    && gameMap.getTile(position).getTerrain() == TerrainType.WATER) {
                 candidates.add(zombie);
             }
         }
@@ -1063,7 +1063,7 @@ public class GameEngine {
             for (int column = 0; column < gameMap.getColumns(); column++) {
                 Position position = new Position(row, column);
                 Tile tile = gameMap.getTile(position);
-                boolean water = tile.getTerrain() == model.enums.TerrainType.WATER;
+                boolean water = tile.getTerrain() == TerrainType.WATER;
                 if (waterOnly != water || tile.getPrimaryPlant() != null || tile.blocksPlanting()) {
                     continue;
                 }
@@ -1152,6 +1152,17 @@ public class GameEngine {
 
     public List<Zombie> getZombies() {
         return List.copyOf(zombies);
+    }
+
+    /** True if any zombie is still hostile — alive and not hypnotized. Hypnotized zombies
+     *  have switched to the player's side and shouldn't count as a remaining threat. */
+    public boolean hasHostileZombiesRemaining() {
+        for (Zombie zombie : zombies) {
+            if (!zombie.isDead() && !zombie.isHypnotized()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public List<Projectile> getProjectiles() {

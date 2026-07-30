@@ -27,4 +27,9 @@ public class IceEffect implements ProjectileEffect {
         return DamageType.ICE;
     }
 
+    @Override
+    public String statusEffectSuffix() {
+        return " and slowed it for " + slowDuration + "s";
+    }
+
 }

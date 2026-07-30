@@ -31,7 +31,7 @@ public class NormalZombieMovement implements ZombieMovementComponent {
                 zombie.moveToRow(nextRow);
             }
         }
-        if (zombie.getX() <= 0.0 && !zombie.getBooleanState("REACHED_HOUSE")) {
+        if (!zombie.isHypnotized() && zombie.getX() <= 0.0 && !zombie.getBooleanState("REACHED_HOUSE")) {
             zombie.putState("REACHED_HOUSE", true);
             reachHouse(zombie, engine);
         }

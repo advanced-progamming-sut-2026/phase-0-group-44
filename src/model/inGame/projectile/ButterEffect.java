@@ -22,4 +22,9 @@ public class ButterEffect implements ProjectileEffect {
         return DamageType.NORMAL;
     }
 
+    @Override
+    public String statusEffectSuffix() {
+        return " and stunned it for " + stunDuration + "s";
+    }
+
 }

@@ -45,4 +45,9 @@ public class AreaEffect implements ProjectileEffect {
         return primary.damageType();
     }
 
+    @Override
+    public String statusEffectSuffix() {
+        return primary.statusEffectSuffix();
+    }
+
 }

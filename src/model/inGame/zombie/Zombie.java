@@ -226,6 +226,7 @@ public class Zombie {
     public void hypnotize() {
         effects.put(ZombieEffectType.HYPNOTIZED,
                 new ZombieEffectState(ZombieEffectType.HYPNOTIZED, Double.MAX_VALUE, 0));
+        setDirection(-direction);
     }
 
     public void moveToRow(int newRow) {

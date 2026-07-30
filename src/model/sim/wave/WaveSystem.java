@@ -42,7 +42,7 @@ public class WaveSystem {
             startWave(engine, currentWave + 1);
             return;
         }
-        if (allWavesSpawned && engine.getZombies().isEmpty()) {
+        if (allWavesSpawned && !engine.hasHostileZombiesRemaining()) {
             declareWin(engine);
         }
     }

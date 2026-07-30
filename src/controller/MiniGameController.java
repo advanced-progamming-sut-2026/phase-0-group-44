@@ -58,6 +58,15 @@ public class MiniGameController {
         return service;
     }
 
+    /** Cheat: unlocks every mandatory minigame and all three of their levels. */
+    public Result<String> cheatUnlockAll(User user) {
+        Result<String> result = new Result<>();
+        boolean changed = service.cheatUnlockAllMiniGames(user);
+        result.setStatus(true);
+        result.appendToMessage(changed ? "all minigames unlocked" : "all minigames were already unlocked");
+        return result;
+    }
+
     public List<MiniGameStatus> list(User user) {
         return service.list(user);
     }

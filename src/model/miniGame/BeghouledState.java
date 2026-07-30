@@ -493,13 +493,15 @@ public final class BeghouledState {
                 ZombieInstance target = nearestTarget(world, x, y);
                 if (target == null) continue;
                 target.takeDamage(damage);
+                String statusSuffix = "";
                 if (plant.getType() == PlantType.SNOW_PEA
                         || plant.getType() == PlantType.WINTER_MELON) {
                     target.applyEffect(ZombieEffectType.CHILLED, 2.0, 1);
                     target.onIceHit();
+                    statusSuffix = " and chilled it for 2.0s";
                 }
                 context.emit(plant.getType() + " hit " + target.getSpec().getName()
-                        + " for " + damage + ".");
+                        + " for " + damage + statusSuffix + ".");
             }
         }
     }

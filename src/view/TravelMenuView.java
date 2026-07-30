@@ -28,6 +28,10 @@ public class TravelMenuView extends MenuView {
             print(controller.claim(Integer.parseInt(matcher.group(1))));
             return;
         }
+        if (Command.CHEAT_UNLOCK_ALL_MINIGAMES.matches(input)) {
+            print(controller.cheatUnlockAllMiniGames());
+            return;
+        }
         if (Command.MINIGAME_SELECT.matches(input)) {
             Matcher matcher = Command.MINIGAME_SELECT.getMatcher(input);
             matcher.matches();

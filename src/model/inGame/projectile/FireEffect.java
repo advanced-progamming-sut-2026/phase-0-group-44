@@ -17,4 +17,9 @@ public class FireEffect implements ProjectileEffect {
         return DamageType.FIRE;
     }
 
+    @Override
+    public String statusEffectSuffix() {
+        return " and thawed/burned it";
+    }
+
 }

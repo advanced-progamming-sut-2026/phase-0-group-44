@@ -11,10 +11,10 @@ import model.sim.adventure.GraveReward;
 public class Tile {
 
     /** Ice health while a tile is frozen. */
-    public static final int ICE_HEALTH = 600;
+    public static final int ICE_HEALTH = 400;
 
     /** Gravestone health. */
-    public static final int GRAVESTONE_HEALTH = 700;
+    public static final int GRAVESTONE_HEALTH = 200;
 
     private final int row;
     private final int column;

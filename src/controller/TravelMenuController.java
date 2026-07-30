@@ -107,6 +107,20 @@ public class TravelMenuController {
         return miniGames.executeStrategyCommand(user, input);
     }
 
+    /** Cheat: unlocks every mandatory minigame and all three of their levels. */
+    public Result<String> cheatUnlockAllMiniGames() {
+        Result<String> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+        if (miniGames == null) {
+            result.appendToMessage("minigame framework is unavailable");
+            return result;
+        }
+        return miniGames.cheatUnlockAll(user);
+    }
+
     /** Claims by the stable one-based position shown on the selected page. */
     public Result<String> claim(int position) {
         Result<String> result = new Result<>();

@@ -252,12 +252,14 @@ public final class IZombieState {
                 continue;
             }
             target.takeDamage(damage);
+            String statusSuffix = "";
             if (plant.getType() == PlantType.SNOW_PEA) {
                 target.applyEffect(ZombieEffectType.CHILLED, 2.0, 1);
                 target.onIceHit();
+                statusSuffix = " and chilled it for 2.0s";
             }
             context.emit(plant.getType().name() + " hit " + target.getSpec().getName()
-                    + " for " + damage + ".");
+                    + " for " + damage + statusSuffix + ".");
         }
     }
 

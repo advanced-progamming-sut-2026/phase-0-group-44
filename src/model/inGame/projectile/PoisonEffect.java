@@ -28,4 +28,9 @@ public class PoisonEffect implements ProjectileEffect {
         return DamageType.POISON;
     }
 
+    @Override
+    public String statusEffectSuffix() {
+        return " and poisoned it for " + duration + "s (" + tickDamage + " dmg/tick)";
+    }
+
 }

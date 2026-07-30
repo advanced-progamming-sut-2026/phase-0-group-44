@@ -18,6 +18,8 @@ public class MintBehavior implements PlantBehavior {
         if (plant.getStats().hasFlag("RESET_FAMILY_COOLDOWNS")) {
             engine.resetFamilyCooldowns(family);
         }
+        engine.recordEvent(plant.getEffectiveType() + " activated: boosted the " + family
+                + " family for " + duration + "s and applied its instant effect, then was consumed.");
         plant.expire(engine);
     }
 }

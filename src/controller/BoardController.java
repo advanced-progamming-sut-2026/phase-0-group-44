@@ -14,6 +14,7 @@ import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRegistry;
 import model.inGame.projectile.Projectile;
 import model.inGame.zombie.Zombie;
+import model.inGame.zombie.ZombieEffectType;
 import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureRuntimeState;
 import model.level.SpecialLevelType;
@@ -264,6 +265,18 @@ public class BoardController {
     private static final String ANSI_CYAN = "\u001B[36m";
     private static final String ANSI_BLUE = "\u001B[34m";
     private static final String ANSI_GRAY = "\u001B[90m";
+    private static final String ANSI_MAGENTA = "\u001B[35m";
+    // Distinct colors cycled per-projectile (by id) so each shot's trail is visually traceable.
+    private static final String[] PROJECTILE_PALETTE = {
+        "\u001B[33m", // yellow
+        "\u001B[36m", // cyan
+        "\u001B[35m", // magenta
+        "\u001B[32m", // green
+        "\u001B[94m", // bright blue
+        "\u001B[91m", // bright red
+        "\u001B[93m", // bright yellow
+        "\u001B[96m", // bright cyan
+    };
     private static final int CELL_WIDTH = 11;
     private static final int LABEL_WIDTH = 11;
 
@@ -324,9 +337,15 @@ public class BoardController {
             }
             builder.append('\n');
 
+            builder.append(pad("effects:", LABEL_WIDTH));
+            for (int column = 0; column < map.getColumns(); column++) {
+                builder.append(colorPad(zombieEffectsCell(row, column), CELL_WIDTH, ANSI_MAGENTA));
+            }
+            builder.append('\n');
+
             builder.append(pad("shots:", LABEL_WIDTH));
             for (int column = 0; column < map.getColumns(); column++) {
-                builder.append(colorPad(projectileCell(row, column), CELL_WIDTH, ANSI_YELLOW));
+                builder.append(padColoredTokens(projectileTokens(row, column), CELL_WIDTH));
             }
             builder.append('\n');
         }
@@ -367,14 +386,75 @@ public class BoardController {
         return String.join(",", parts);
     }
 
-    private String projectileCell(int row, int column) {
+    private String zombieEffectsCell(int row, int column) {
         List<String> parts = new ArrayList<>();
+        for (Zombie zombie : engine.getZombies()) {
+            if (zombie.getRow() != row || zombie.getColumn() != column) {
+                continue;
+            }
+            Map<ZombieEffectType, Double> active = zombie.getActiveEffects();
+            if (active.isEmpty()) {
+                continue;
+            }
+            StringBuilder entry = new StringBuilder();
+            for (Map.Entry<ZombieEffectType, Double> effectEntry : active.entrySet()) {
+                if (entry.length() > 0) {
+                    entry.append(',');
+                }
+                entry.append(effectEntry.getKey().name())
+                        .append(':')
+                        .append(String.format("%.1f", effectEntry.getValue()));
+            }
+            parts.add(entry.toString());
+        }
+        return String.join(" ", parts);
+    }
+
+    /**
+     * Builds the colored display tokens for one map cell's projectile row: the projectile's
+     * current position is shown as an uppercase colored letter, and every earlier cell it has
+     * passed through this flight is shown as a lowercase colored letter in the same color —
+     * so a shot's whole path so far is visible at a glance, one color per projectile.
+     */
+    private List<String> projectileTokens(int row, int column) {
+        List<String> tokens = new ArrayList<>();
         for (Projectile projectile : engine.getProjectiles()) {
-            if (projectile.getRow() == row && (int) Math.floor(projectile.getX()) == column) {
-                parts.add("o" + abbreviate(projectile.getSourceType().name(), 4));
+            String color = PROJECTILE_PALETTE[Math.floorMod(projectile.getId(), PROJECTILE_PALETTE.length)];
+            char label = (char) ('A' + Math.floorMod(projectile.getId(), 26));
+
+            boolean isCurrent = projectile.getRow() == row
+                    && (int) Math.floor(projectile.getX()) == column;
+            if (isCurrent) {
+                tokens.add(color + label + ANSI_RESET);
+                continue;
+            }
+            for (int[] cell : projectile.getPath()) {
+                if (cell[0] == row && cell[1] == column) {
+                    tokens.add(color + Character.toLowerCase(label) + ANSI_RESET);
+                    break;
+                }
             }
         }
-        return String.join(",", parts);
+        return tokens;
+    }
+
+    /** Pads a list of already-ANSI-colored single-cell tokens to a fixed visible width. */
+    private String padColoredTokens(List<String> tokens, int width) {
+        if (tokens.isEmpty()) {
+            return ANSI_GRAY + pad(".", width) + ANSI_RESET;
+        }
+        String joined = String.join("", tokens);
+        int visibleLength = stripAnsi(joined).length();
+        StringBuilder builder = new StringBuilder(joined);
+        while (visibleLength < width) {
+            builder.append(' ');
+            visibleLength++;
+        }
+        return builder.toString();
+    }
+
+    private String stripAnsi(String value) {
+        return value.replaceAll("\u001B\\[[0-9;]*m", "");
     }
 
     private String plantCellColor(Tile tile) {

@@ -280,6 +280,22 @@ public final class MiniGameService {
         return true;
     }
 
+    /** Cheat: unlocks every minigame and all three levels of each, bypassing normal
+     *  first-completion progression. Returns true if anything actually changed. */
+    public boolean cheatUnlockAllMiniGames(User user) {
+        boolean changed = false;
+        for (MiniGameDefinition definition : catalog.getDefinitions()) {
+            MiniGameProgress progress = progressFor(user, definition.getId());
+            changed |= progress.unlockMiniGame();
+            changed |= progress.unlockLevel(2);
+            changed |= progress.unlockLevel(3);
+        }
+        if (changed) {
+            users.updateUser(user);
+        }
+        return changed;
+    }
+
     private void ensureDefaults(User user) {
         user.applyDefaults();
         boolean changed = progressFor(user, MiniGameId.VASE_BREAKER).unlockMiniGame();

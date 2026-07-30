@@ -10,6 +10,11 @@ import java.util.List;
 import java.util.Set;
 
 public class Projectile {
+    private static final java.util.concurrent.atomic.AtomicInteger ID_COUNTER =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    private final int id = ID_COUNTER.getAndIncrement();
+    private final List<int[]> path = new java.util.ArrayList<>();
     private final PlantType sourceType;
     private int row;
     private double x;
@@ -54,6 +59,28 @@ public class Projectile {
             case HOMING -> new HomingCollision();
             case BOUNCING -> new BouncingCollision();
         };
+        recordPath(row, x);
+    }
+
+    private void recordPath(int r, double xPos) {
+        int col = (int) Math.floor(xPos);
+        if (!path.isEmpty()) {
+            int[] last = path.get(path.size() - 1);
+            if (last[0] == r && last[1] == col) {
+                return;
+            }
+        }
+        path.add(new int[]{r, col});
+    }
+
+    /** Every distinct (row, column) cell this projectile has occupied so far, in order. */
+    public List<int[]> getPath() {
+        return java.util.Collections.unmodifiableList(path);
+    }
+
+    /** Stable identity used to give this projectile a consistent display color/label across ticks. */
+    public int getId() {
+        return id;
     }
 
     public void tick(GameEngine engine, double deltaSeconds) {
@@ -64,15 +91,26 @@ public class Projectile {
     }
 
     void advanceLinear(GameEngine engine, double deltaSeconds, boolean piercing, boolean bouncing) {
+        int startRow = row;
         double oldX = x;
         double distance = speed * deltaSeconds;
         double newX = x + direction * distance;
         remainingRange -= distance;
 
         Integer blocker = engine.getGameMap().firstBlockingColumn(row, oldX, newX);
-        double effectiveNewX = blocker == null ? newX : blocker;
+
+        // Find whichever the projectile actually reaches first: the blocking
+        // obstacle or the nearest not-yet-hit zombie in its path.
+        List<Zombie> aheadOfObstacle = engine.getZombiesCrossed(
+                row, oldX, blocker == null ? newX : blocker, direction, hitZombieIds);
+        boolean zombieBlocksFirst = !aheadOfObstacle.isEmpty();
+
+        double effectiveNewX = zombieBlocksFirst
+                ? aheadOfObstacle.get(0).getX()
+                : (blocker == null ? newX : blocker);
         engine.transformProjectileAlongPath(this, oldX, effectiveNewX);
-        if (blocker != null) {
+
+        if (blocker != null && !zombieBlocksFirst) {
             model.enums.ObstacleType obstacleType =
                     engine.getGameMap().getTile(row, blocker).getObstacle();
             int dealt = engine.damageObstacleAt(row, blocker, damage, effect.damageType());
@@ -100,6 +138,17 @@ public class Projectile {
             }
         }
         x = effectiveNewX;
+
+        int fromCol = (int) Math.floor(oldX);
+        int toCol = (int) Math.floor(effectiveNewX);
+        int step = direction >= 0 ? 1 : -1;
+        for (int c = fromCol; step > 0 ? c <= toCol : c >= toCol; c += step) {
+            recordPath(startRow, c);
+        }
+        if (row != startRow) {
+            recordPath(row, effectiveNewX);
+        }
+
         if (blocker != null || remainingRange <= 0 || x < 0 || x > engine.getGameMap().getColumns()) {
             active = false;
         }
@@ -134,6 +183,7 @@ public class Projectile {
             }
         }
         active = false;
+        recordPath(row, landingX);
     }
 
     void advanceHoming(GameEngine engine, double deltaSeconds) {
@@ -149,6 +199,7 @@ public class Projectile {
             row = target.getRow();
             hit(target, engine);
             active = false;
+            recordPath(row, target.getX());
         }
     }
 
@@ -163,7 +214,8 @@ public class Projectile {
             return;
         }
         effect.apply(this, zombie, engine);
-        engine.recordEvent(sourceType + " projectile hit " + zombie.getName() + " for " + damage + ".");
+        engine.recordEvent(sourceType + " projectile hit " + zombie.getName() + " for " + damage
+                + effect.statusEffectSuffix() + ".");
     }
 
     public PlantType getSourceType() {
