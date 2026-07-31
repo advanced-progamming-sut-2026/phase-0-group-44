@@ -100,9 +100,15 @@ public class Projectile {
         Integer blocker = engine.getGameMap().firstBlockingColumn(row, oldX, newX);
 
         // Find whichever the projectile actually reaches first: the blocking
-        // obstacle or the nearest not-yet-hit zombie in its path.
+        // obstacle or the nearest not-yet-hit zombie in its path. The search range
+        // covers the obstacle's whole tile (not just its floored column boundary) so a
+        // zombie standing on the same tile as the obstacle — e.g. spawned there by
+        // Necromancy on top of a grave — can still be hit instead of the shot being
+        // permanently stuck on the obstacle.
+        double obstacleFarEdge = blocker == null ? newX
+                : (direction >= 0 ? blocker + 1.0 - 1e-6 : (double) blocker);
         List<Zombie> aheadOfObstacle = engine.getZombiesCrossed(
-                row, oldX, blocker == null ? newX : blocker, direction, hitZombieIds);
+                row, oldX, obstacleFarEdge, direction, hitZombieIds);
         boolean zombieBlocksFirst = !aheadOfObstacle.isEmpty();
 
         double effectiveNewX = zombieBlocksFirst

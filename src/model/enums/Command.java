@@ -83,6 +83,7 @@ public enum Command {
     SHOW_ALL_PLANTS("^show\\s+all\\s+plants$"),
     SHOW_AVAILABLE_PLANTS("^show\\s+available\\s+plants$"),
     ADD_PLANT("^add\\s+plant\\s+-t\\s+(.+)$"),
+    CHEAT_SELECT_ALL_PLANTS("^cheat\\s+select-all-plants$"),
     REMOVE_PLANT("^remove\\s+plant\\s+-t\\s+(.+)$"),
     BOOST_PLANT("^boost\\s+plant\\s+-t\\s+(.+)$"),
     START_GAME("^start\\s+game$"),

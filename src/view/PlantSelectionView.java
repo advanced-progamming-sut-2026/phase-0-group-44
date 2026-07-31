@@ -30,6 +30,10 @@ public class PlantSelectionView extends MenuView {
             return;
         }
 
+        if (Command.CHEAT_SELECT_ALL_PLANTS.matches(input)) {
+            print(controller.cheatSelectAllPlants());
+            return;
+        }
         if (Command.ADD_PLANT.matches(input)) {
             print(controller.addPlant(group(Command.ADD_PLANT, input)));
             return;

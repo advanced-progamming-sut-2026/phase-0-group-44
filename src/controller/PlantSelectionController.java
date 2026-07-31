@@ -48,10 +48,11 @@ public class PlantSelectionController {
     private final UserService userService;
     private final RandomSource randomSource;
     private final DomainEventPublisher events;
-    private model.sim.zombie.ZombieSpecSource zombieSpecSource;
+    private ZombieSpecSource zombieSpecSource;
 
     private Level level;
     private PlantSelection selection;
+    private boolean cheatCapacityBypassed;
 
     public PlantSelectionController(PlantRepository plantRepository, UserService userService) {
         this(plantRepository, userService, new SeededRandomSource(), null);
@@ -92,6 +93,7 @@ public class PlantSelectionController {
 
         this.level = level;
         this.selection = new PlantSelection();
+        this.cheatCapacityBypassed = false;
         for (PlantType forced : level.getSelectionRules().getForcedPlants()) {
             this.selection.add(forced);
         }
@@ -236,6 +238,31 @@ public class PlantSelectionController {
         return result;
     }
 
+    /** Cheat: selects every plant this level allows, ignoring the normal selection
+     *  capacity cap. Marks the bypass so {@link #startGame()} doesn't reject the
+     *  oversized roster; you'll place them onto the board a handful at a time. */
+    public Result<String> cheatSelectAllPlants() {
+        Result<String> result = new Result<>();
+
+        if (notInSelection(result)) {
+            return result;
+        }
+
+        User user = Store.getLoggedInUser();
+        int added = 0;
+        for (PlantType type : availablePlantTypes(user)) {
+            if (selection.add(type)) {
+                added++;
+            }
+        }
+        cheatCapacityBypassed = true;
+
+        result.setStatus(true);
+        result.appendToMessage("selected all " + selection.size() + " available plants ("
+                + added + " newly added), capacity cap bypassed for this level");
+        return result;
+    }
+
     /** Handles {@code remove plant -t <type>}. */
     public Result<String> removePlant(String typeToken) {
         Result<String> result = new Result<>();
@@ -332,7 +359,7 @@ public class PlantSelectionController {
         return result;
     }
 
-    public void setZombieSpecSource(model.sim.zombie.ZombieSpecSource zombieSpecSource) {
+    public void setZombieSpecSource(ZombieSpecSource zombieSpecSource) {
         this.zombieSpecSource = zombieSpecSource;
     }
 
@@ -380,7 +407,7 @@ public class PlantSelectionController {
             result.appendToMessage("select at least one plant");
             return null;
         }
-        if (selection.size() > rules.getCapacity()) {
+        if (!cheatCapacityBypassed && selection.size() > rules.getCapacity()) {
             result.appendToMessage("too many plants selected");
             return null;
         }
