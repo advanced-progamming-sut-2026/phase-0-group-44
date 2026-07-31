@@ -132,7 +132,6 @@ public class WaveSystem {
                 engine.recordEvent("A tornado carried " + spec.getName() + " "
                         + advance + " columns into lane " + lane + ".");
             }
-            Zombie zombie = engine.spawnZombie(spec.getType(), lane, spawnX);
             engine.recordEvent("Zombie " + spec.getName() + " spawned at wave " + waveNumber
                     + " in lane " + lane + " which costed " + spec.getWaveCost() + ".");
         }
@@ -156,7 +155,4 @@ public class WaveSystem {
                 + "we will come back to eat your brainz, humanz.");
     }
 
-    public int getCurrentWave() {
-        return currentWave;
-    }
 }

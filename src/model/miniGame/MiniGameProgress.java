@@ -72,10 +72,6 @@ public class MiniGameProgress {
         return getCompletedLevels().containsAll(Set.of(1, 2, 3));
     }
 
-    public boolean isCompletionCounted() {
-        return completionCounted;
-    }
-
     /** @return true only when the completed-minigame statistic changes. */
     public boolean markCompletionCounted() {
         if (!isFullyCompleted() || completionCounted) {

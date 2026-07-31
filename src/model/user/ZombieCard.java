@@ -24,22 +24,9 @@ public class ZombieCard {
         return type;
     }
 
-    public boolean isSeen() {
-        return seen;
-    }
-
     public boolean isUnlocked() {
         return unlocked;
     }
 
-    public void setSeen(boolean seen) {
-        this.seen = seen;
-    }
-
-    public String showInfo() {
-        return "Zombie Type: " + type + "\n"
-                + "Seen: " + seen + "\n"
-                + "Unlocked: " + unlocked;
-    }
 }
 

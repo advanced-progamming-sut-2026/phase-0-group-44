@@ -76,17 +76,8 @@ public final class BeghouledState {
     }
 
     public BeghouledLevelRules getRules() { return rules; }
-    public int getCompletedMatches() { return completedMatches; }
-    public int getResetCount() { return resetCount; }
-    public boolean isCleanupPhase() { return cleanupPhase; }
     public boolean isCrater(int x, int y) {
         return inside(x, y) && craters[y][x];
-    }
-    public PlantType getPlantAt(int x, int y) {
-        return inside(x, y) ? grid[y][x] : null;
-    }
-    public Map<PlantType, PlantType> getPurchasedConversions() {
-        return Collections.unmodifiableMap(purchasedConversions);
     }
 
     public Result<String> swap(

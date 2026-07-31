@@ -25,10 +25,6 @@ public class Result<T> {
         return message.toString();
     }
 
-    public void setDead(boolean dead) {
-        this.dead = dead;
-    }
-
     public boolean isDead() {
         return dead;
     }

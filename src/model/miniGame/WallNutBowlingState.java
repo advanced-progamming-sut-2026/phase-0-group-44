@@ -79,10 +79,6 @@ public final class WallNutBowlingState {
         return nextZombieIndex;
     }
 
-    public int getRemainingZombieCount() {
-        return rules.getZombieCount() - nextZombieIndex;
-    }
-
     public Result<String> plantFromConveyor(
             MiniGameSession session,
             int packetId,

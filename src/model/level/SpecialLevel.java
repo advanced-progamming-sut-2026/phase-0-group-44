@@ -31,7 +31,4 @@ public final class SpecialLevel implements Level {
         return config;
     }
 
-    public SpecialLevelType getSpecialType() {
-        return config.getSpecialType();
-    }
 }

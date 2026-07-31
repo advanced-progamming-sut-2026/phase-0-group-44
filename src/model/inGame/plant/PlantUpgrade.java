@@ -110,10 +110,6 @@ public final class PlantUpgrade {
         return level;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
     public UpgradeEffect getEffect() {
         return effect;
     }

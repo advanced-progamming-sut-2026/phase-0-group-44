@@ -6,10 +6,6 @@ public class PlantFactory {
     private final PlantRegistry registry;
     private final PlantBehaviorFactory behaviorFactory;
 
-    public PlantFactory() {
-        this(PlantRegistry.getDefault());
-    }
-
     public PlantFactory(PlantRegistry registry) {
         this(registry, new PlantBehaviorFactory());
     }

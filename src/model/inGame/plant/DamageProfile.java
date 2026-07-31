@@ -64,7 +64,4 @@ public final class DamageProfile {
         return projectileCount;
     }
 
-    public boolean isInstantKill() {
-        return instantKill;
-    }
 }

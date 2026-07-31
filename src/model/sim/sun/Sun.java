@@ -53,10 +53,6 @@ public class Sun {
         return state;
     }
 
-    public int getRemainingFallTicks() {
-        return remainingFallTicks;
-    }
-
     public boolean isFalling() {
         return state == State.FALLING;
     }

@@ -70,7 +70,6 @@ public final class ZombotanyState {
         variants.forEach((zombie, state) -> result.put(zombie, state.trait));
         return Collections.unmodifiableMap(result);
     }
-    public int getSpawnedCount() { return spawned; }
 
     /** Production selection is restricted to the owner's unlocked mandatory plants. */
     public void restrictAvailablePlants(Set<PlantType> owned) {

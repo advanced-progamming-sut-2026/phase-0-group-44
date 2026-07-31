@@ -61,14 +61,6 @@ public class PlantSelectionController {
     public PlantSelectionController(
             PlantRepository plantRepository,
             UserService userService,
-            RandomSource randomSource
-    ) {
-        this(plantRepository, userService, randomSource, null);
-    }
-
-    public PlantSelectionController(
-            PlantRepository plantRepository,
-            UserService userService,
             RandomSource randomSource,
             DomainEventPublisher events
     ) {

@@ -55,10 +55,6 @@ public final class MiniGameLevelConfig {
         return levelNumber;
     }
 
-    public int getDifficultyRank() {
-        return difficultyRank;
-    }
-
     public int getObjectiveTarget() {
         return objectiveTarget;
     }

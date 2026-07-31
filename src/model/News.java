@@ -19,14 +19,6 @@ public class News {
         this.read = false;
     }
 
-    public String getTitle() {
-        return title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
     public NewsType getType() {
         return type;
     }

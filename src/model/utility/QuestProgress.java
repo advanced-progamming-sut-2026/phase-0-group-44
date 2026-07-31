@@ -41,12 +41,6 @@ public class QuestProgress {
         this.progress = Math.max(0, progress);
     }
 
-    public void addProgress(int amount) {
-        if (amount > 0) {
-            progress += amount;
-        }
-    }
-
     public boolean isCompleted() {
         return completed;
     }
@@ -73,14 +67,6 @@ public class QuestProgress {
 
     public String getRecurrenceDate() {
         return recurrenceDate;
-    }
-
-    public void setRecurrenceDate(String recurrenceDate) {
-        this.recurrenceDate = recurrenceDate;
-    }
-
-    public String getCompletionDate() {
-        return completionDate;
     }
 
     public void setCompletionDate(String completionDate) {

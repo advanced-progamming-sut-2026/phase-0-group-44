@@ -15,14 +15,8 @@ import model.inGame.plant.PlantRegistry;
 import model.inGame.projectile.Projectile;
 import model.inGame.zombie.Zombie;
 import model.inGame.zombie.ZombieEffectType;
-import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureRuntimeState;
 import model.level.SpecialLevelType;
-import model.sim.board.Board;
-import model.sim.board.PlantInstance;
-import model.sim.board.PlantSpec;
-import model.sim.board.PlantSpecSource;
-import model.sim.sun.SunProducer;
 import model.user.User;
 import service.DomainEventPublisher;
 
@@ -85,7 +79,7 @@ public class BoardController {
 
         Position position;
         try {
-            position = new Position(y, x); // (x,y) ورودی = (column,row) → Position(row, column)
+            position = new Position(y, x);
         } catch (IllegalArgumentException e) {
             result.appendToMessage("invalid tile");
             return result;

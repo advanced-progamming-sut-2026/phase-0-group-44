@@ -23,14 +23,6 @@ public class GreenhouseSlot {
     private long plantedAtEpochSecond;
     private long readyAtEpochSecond;
 
-    public GreenhouseSlot() {
-        // Required by Gson.
-    }
-
-    public GreenhouseSlot(int index) {
-        this(index, false);
-    }
-
     public GreenhouseSlot(int index, boolean unlocked) {
         this.index = index;
         this.unlocked = unlocked;
@@ -70,13 +62,6 @@ public class GreenhouseSlot {
 
     public boolean isMarigold() {
         return marigold;
-    }
-
-    public String getCropName() {
-        if (marigold) {
-            return "Marigold";
-        }
-        return plantType == null ? null : plantType.name();
     }
 
     public long getPlantedAtEpochSecond() {

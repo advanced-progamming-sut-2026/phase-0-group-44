@@ -62,10 +62,6 @@ public final class MiniGameSession {
         return state;
     }
 
-    public boolean isSettled() {
-        return settled;
-    }
-
     public Object getStrategyState() {
         return strategyState;
     }
