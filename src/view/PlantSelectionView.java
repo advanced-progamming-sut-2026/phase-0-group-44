@@ -30,6 +30,11 @@ public class PlantSelectionView extends MenuView {
             return;
         }
 
+        if (Command.SHOW_LOCKED_PLANTS.matches(input)) {
+            print(controller.showLockedPlants());
+            return;
+        }
+
         if (Command.CHEAT_SELECT_ALL_PLANTS.matches(input)) {
             print(controller.cheatSelectAllPlants());
             return;

@@ -8,10 +8,8 @@ import model.enums.PlantType;
 import model.inGame.GameSession;
 import model.inGame.PlantSelection;
 import model.sim.Simulation;
-import model.sim.SimulationWorld;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
-import model.sim.board.DefaultPlantSpecSource;
 import model.sim.wave.WaveSystem;
 import model.sim.zombie.ChapterZombieSpecSource;
 import model.sim.zombie.ZombieSpecSource;
@@ -25,25 +23,15 @@ import service.DomainEventPublisher;
 import service.UserService;
 import util.RandomSource;
 import util.SeededRandomSource;
-
+import model.enums.PlantCategory;
+import java.util.Set;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-/**
- * The pre-level plant-selection flow: pick plants within the level's rules,
- * optionally pay to boost one, then start a fresh game session.
- *
- * <p>The controller holds the in-progress selection for the level it was begun
- * with. Diamonds are charged only on success, and stored greenhouse boosts are
- * recorded for consumption on first use inside the session.</p>
- */
 public class PlantSelectionController {
 
     public static final int DIAMOND_BOOST_COST = 2;
-
     private final PlantRepository plantRepository;
     private final UserService userService;
     private final RandomSource randomSource;
@@ -70,7 +58,6 @@ public class PlantSelectionController {
         this.events = events;
     }
 
-    /** Opens the selection screen for a level; called when a level is entered. */
     public Result<String> begin(Level level) {
         Result<String> result = new Result<>();
 
@@ -98,12 +85,6 @@ public class PlantSelectionController {
         return result;
     }
 
-    /**
-     * Opens a level from the chapter command and applies the documented
-     * automatic-start rule. If the player owns fewer allowed plants than the
-     * available slots, every such plant is selected and gameplay starts. A
-     * level that bypasses selection also starts immediately.
-     */
     public Result<GameSession> beginForPlayer(Level requestedLevel) {
         Result<GameSession> result = new Result<>();
         User user = Store.getLoggedInUser();
@@ -135,8 +116,6 @@ public class PlantSelectionController {
         result.appendToMessage(beginResult.getMessage());
         return result;
     }
-
-    /** Handles {@code show all plants}. */
     public Result<List<PlantDefinition>> showAllPlants() {
         Result<List<PlantDefinition>> result = new Result<>();
         List<PlantDefinition> all = new ArrayList<>(plantRepository.findAll());
@@ -153,8 +132,6 @@ public class PlantSelectionController {
 
         return result;
     }
-
-    /** Handles {@code show available plants}: owned plants this level allows. */
     public Result<List<PlantDefinition>> showAvailablePlants() {
         Result<List<PlantDefinition>> result = new Result<>();
 
@@ -184,7 +161,58 @@ public class PlantSelectionController {
         return result;
     }
 
-    /** Handles {@code add plant -t <type>}. */
+    public Result<List<String>> showLockedPlants() {
+        Result<List<String>> result = new Result<>();
+
+        if (notInSelection(result)) {
+            return result;
+        }
+
+        User user = Store.getLoggedInUser();
+        List<String> locked = new ArrayList<>();
+
+        for (PlantDefinition definition : plantRepository.findAll()) {
+            PlantType type = definition.getType();
+            if (!user.getCollection().hasPlant(type) || level.getSelectionRules().isForced(type)) {
+                continue;
+            }
+
+            if (!level.getSelectionRules().allows(type)) {
+                locked.add(type.name() + " - " + lockReason(definition));
+            }
+        }
+
+        result.setStatus(true);
+        result.setData(locked);
+
+        if (locked.isEmpty()) {
+            result.appendToMessage("no locked plants for this level");
+            return result;
+        }
+
+        for (int i = 0; i < locked.size(); i++) {
+            result.appendToMessage(locked.get(i));
+            if (i < locked.size() - 1) {
+                result.appendToMessage("\n");
+            }
+        }
+
+        return result;
+    }
+
+    private String lockReason(PlantDefinition definition) {
+        LevelSelectionRules rules = level.getSelectionRules();
+        Set<PlantCategory> excludedCategories = rules.getExcludedCategories();
+        Set<PlantType> allowedPlants = rules.getAllowedPlants();
+
+        if (excludedCategories.contains(definition.getCategory())) {
+            return "locked: the entire " + definition.getCategory().name() + " family is unavailable in this level";
+        }
+        if (!allowedPlants.isEmpty() && !allowedPlants.contains(definition.getType())) {
+            return "locked: this level restricts selection to a fixed plant list";
+        }
+        return "locked by level rules";
+    }
     public Result<String> addPlant(String typeToken) {
         Result<String> result = new Result<>();
 
@@ -422,7 +450,9 @@ public class PlantSelectionController {
     }
 
     private GameEngine createSimulation(User user) {
-        GameEngine engine = new GameEngine(); // یا سازنده‌ای که random/seed می‌گیره، اگه لازمه
+        GameEngine engine = new GameEngine();// یا سازنده‌ای که random/seed می‌گیره، اگه لازمه
+        System.out.println(level.getAdventureConfig().getName());
+        System.out.println(level.getAdventureConfig().getSpecialType());
         AdventureInitializer.initialize(engine, level.getAdventureConfig(), user, randomSource);
         engine.setSkySunEnabled(skySunEnabled());
         registerSystems(engine);

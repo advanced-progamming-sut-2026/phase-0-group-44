@@ -14,12 +14,9 @@ import model.inGame.GameSession;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantRegistry;
 import model.inGame.zombie.Zombie;
+import model.level.LevelSelectionRules;
 import model.sim.Simulation;
-import model.sim.SimulationWorld;
-import model.sim.sun.SunCollector;
 import model.sim.zombie.ZombieDeath;
-import model.sim.zombie.ZombieInstance;
-import model.sim.zombie.ZombieSpec;
 import model.level.SpecialLevelType;
 import model.inGame.zombie.ZombieDefinition;
 import model.inGame.zombie.ZombieRegistry;
@@ -27,7 +24,7 @@ import model.user.User;
 import service.DomainEventPublisher;
 import service.GameConclusionService;
 import service.RewardService;
-
+import java.util.Set;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -41,11 +38,6 @@ import java.util.StringJoiner;
  * clock and the sun/board/zombie commands against the active {@link Simulation}.
  */
 public class GameplayController {
-
-    /** Winning line printed when the player clears every wave. */
-    public static final String WIN_MESSAGE =
-            "Dear humanz, zis is not done yet; we will come back to eat your brainz, humanz.";
-
     private final Simulation simulation;
     private final BoardController board;
     private final RewardService rewardService;
@@ -407,5 +399,86 @@ public class GameplayController {
         result.appendToMessage("sun: " + simulation.getSunAmount());
 
         return result;
+    }
+    public Result<List<String>> showAvailablePlantsInGame() {
+        Result<List<String>> result = new Result<>();
+        LevelSelectionRules rules = currentRules(result);
+        if (rules == null) {
+            return result;
+        }
+
+        List<String> lines = new ArrayList<>();
+        for (PlantDefinition definition : PlantRegistry.getDefault().findAll()) {
+            PlantType type = definition.getType();
+            boolean owned = user != null && user.getCollection().hasPlant(type);
+            if ((owned || rules.isForced(type)) && rules.allows(type)) {
+                lines.add(definition.getDisplayText());
+            }
+        }
+
+        result.setStatus(true);
+        result.setData(lines);
+        if (lines.isEmpty()) {
+            result.appendToMessage("no available plants");
+            return result;
+        }
+        for (int i = 0; i < lines.size(); i++) {
+            result.appendToMessage(lines.get(i));
+            if (i < lines.size() - 1) result.appendToMessage("\n\n");
+        }
+        return result;
+    }
+
+    public Result<List<String>> showLockedPlantsInGame() {
+        Result<List<String>> result = new Result<>();
+        LevelSelectionRules rules = currentRules(result);
+        if (rules == null) {
+            return result;
+        }
+
+        List<String> lines = new ArrayList<>();
+        for (PlantDefinition definition : PlantRegistry.getDefault().findAll()) {
+            PlantType type = definition.getType();
+            boolean owned = user != null && user.getCollection().hasPlant(type);
+            if (!owned || rules.isForced(type)) {
+                continue;
+            }
+            if (!rules.allows(type)) {
+                lines.add(type.name() + " - " + lockReason(rules, definition));
+            }
+        }
+
+        result.setStatus(true);
+        result.setData(lines);
+        if (lines.isEmpty()) {
+            result.appendToMessage("no locked plants for this level");
+            return result;
+        }
+        for (int i = 0; i < lines.size(); i++) {
+            result.appendToMessage(lines.get(i));
+            if (i < lines.size() - 1) result.appendToMessage("\n");
+        }
+        return result;
+    }
+
+    private LevelSelectionRules currentRules(Result<?> result) {
+        if (session == null || session.getLevel() == null) {
+            result.appendToMessage("no level rules available");
+            return null;
+        }
+        return session.getLevel().getSelectionRules();
+    }
+
+    private String lockReason(LevelSelectionRules rules, PlantDefinition definition) {
+        Set<model.enums.PlantCategory> excludedCategories = rules.getExcludedCategories();
+        Set<PlantType> allowedPlants = rules.getAllowedPlants();
+
+        if (excludedCategories.contains(definition.getCategory())) {
+            return "locked: the entire " + definition.getCategory().name() + " family is unavailable in this level";
+        }
+        if (!allowedPlants.isEmpty() && !allowedPlants.contains(definition.getType())) {
+            return "locked: this level restricts selection to a fixed plant list";
+        }
+        return "locked by level rules";
     }
 }

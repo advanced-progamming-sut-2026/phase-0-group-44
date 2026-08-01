@@ -86,6 +86,7 @@ public enum Command {
     CHEAT_SELECT_ALL_PLANTS("^cheat\\s+select-all-plants$"),
     REMOVE_PLANT("^remove\\s+plant\\s+-t\\s+(.+)$"),
     BOOST_PLANT("^boost\\s+plant\\s+-t\\s+(.+)$"),
+    SHOW_LOCKED_PLANTS("^show\\s+locked\\s+plants$"),
     START_GAME("^start\\s+game$"),
 
     // Gameplay
@@ -110,7 +111,6 @@ public enum Command {
     ZOMBIES_INFO("^zombies\\s+info$"),
     CHEAT_SPAWN_ZOMBIE(
             "^cheat\\s+spawn-zombie\\s+-t\\s+(.+?)\\s+-l\\s+\\(?\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)?$"),
-
     // News Menu
 
     MENU_NEWS_SHOW_UNREAD("^menu\\s+news\\s+show-unread$"),

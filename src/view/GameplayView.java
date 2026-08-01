@@ -57,6 +57,16 @@ public class GameplayView extends MenuView {
             return;
         }
 
+        if (Command.SHOW_AVAILABLE_PLANTS.matches(input)) {
+            print(controller.showAvailablePlantsInGame());
+            return;
+        }
+
+        if (Command.SHOW_LOCKED_PLANTS.matches(input)) {
+            print(controller.showLockedPlantsInGame());
+            return;
+        }
+
         if (Command.CHEAT_ADD_SUNS.matches(input)) {
             Matcher matcher = Command.CHEAT_ADD_SUNS.getMatcher(input);
             matcher.matches();

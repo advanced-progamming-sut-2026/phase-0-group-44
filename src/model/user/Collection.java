@@ -11,13 +11,11 @@ import java.util.Map;
 import java.util.Set;
 
 public class Collection {
-    private Map<PlantType, PlantCard> ownedPlants;
-    private Set<ZombieType> seenZombies;
-    private ArrayList<ZombieCard> zombieCards;
+    private Map<PlantType, PlantCard> ownedPlants = new EnumMap<>(PlantType.class);
+    private Set<ZombieType> seenZombies = EnumSet.noneOf(ZombieType.class);
+    private ArrayList<ZombieCard> zombieCards = new ArrayList<>();
 
     public Collection() {
-
-        seenZombies = EnumSet.noneOf(ZombieType.class);
 
     }
 
