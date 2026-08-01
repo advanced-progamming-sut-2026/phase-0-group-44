@@ -16,14 +16,6 @@ public enum QuestCategory {
         this.canonicalLabel = canonicalLabel;
     }
 
-    public String getPageToken() {
-        return pageToken;
-    }
-
-    public String getCanonicalLabel() {
-        return canonicalLabel;
-    }
-
     public static QuestCategory fromCanonicalLabel(String value) {
         if (value == null) {
             return null;

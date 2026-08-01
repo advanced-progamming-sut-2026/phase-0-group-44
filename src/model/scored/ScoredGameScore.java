@@ -70,14 +70,6 @@ public final class ScoredGameScore {
         return points.values().stream().mapToInt(Integer::intValue).sum();
     }
 
-    public boolean isFinalized() {
-        return finalized;
-    }
-
-    public Map<ScorePattern, Integer> breakdown() {
-        return Collections.unmodifiableMap(new EnumMap<>(points));
-    }
-
     private void add(ScorePattern pattern, int amount) {
         if (amount > 0) {
             points.put(pattern, points.get(pattern) + amount);

@@ -38,18 +38,6 @@ public final class PlantSpec {
         this.productionIntervalTicks = builder.productionIntervalTicks;
     }
 
-    public int getSunProductionAmount() {
-        return sunProductionAmount;
-    }
-
-    public int getProductionIntervalTicks() {
-        return productionIntervalTicks;
-    }
-
-    public boolean isSunProducer() {
-        return sunProductionAmount > 0 && productionIntervalTicks > 0;
-    }
-
     public PlantType getType() {
         return type;
     }
@@ -110,16 +98,6 @@ public final class PlantSpec {
 
         private Builder(PlantType type) {
             this.type = type;
-        }
-
-        public Builder sunProductionAmount(int amount) {
-            this.sunProductionAmount = amount;
-            return this;
-        }
-
-        public Builder productionIntervalTicks(int ticks) {
-            this.productionIntervalTicks = ticks;
-            return this;
         }
 
         public Builder sunCost(int sunCost) {

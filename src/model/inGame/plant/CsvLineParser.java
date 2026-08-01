@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class CsvLineParser {
-    private CsvLineParser() {
-    }
 
     static List<String> parse(String line) {
         List<String> fields = new ArrayList<>();

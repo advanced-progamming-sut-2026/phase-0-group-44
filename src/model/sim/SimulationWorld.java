@@ -140,10 +140,6 @@ public class SimulationWorld {
         cooldownRemaining.clear();
     }
 
-    public boolean areCooldownsDisabled() {
-        return cooldownsDisabled;
-    }
-
     public GameOutcome getOutcome() {
         return outcome;
     }
@@ -161,28 +157,12 @@ public class SimulationWorld {
         return adventureState;
     }
 
-    public void setAdventureState(AdventureRuntimeState adventureState) {
-        this.adventureState = adventureState;
-    }
-
     public boolean areWavesStarted() {
         return wavesStarted;
     }
 
-    public void setWavesStarted(boolean wavesStarted) {
-        this.wavesStarted = wavesStarted;
-    }
-
-    public int getZombieKillCount() {
-        return zombieKillCount;
-    }
-
     public void recordZombieKill() {
         zombieKillCount++;
-    }
-
-    public int getProducedSunTotal() {
-        return producedSunTotal;
     }
 
     public void recordProducedSun(int amount) {
@@ -218,29 +198,6 @@ public class SimulationWorld {
         }
 
         return result;
-    }
-
-
-    /** Damages a grave and grants its configured payload when it is destroyed. */
-    public boolean damageGrave(int x, int y, int damage) {
-        model.sim.board.Tile tile = board.tileAt(x, y);
-        if (tile == null || !tile.isGravestone() || damage <= 0) {
-            return false;
-        }
-        GraveReward reward = tile.getGraveReward();
-        TerrainType ground = adventureState != null
-                && adventureState.getConfig().getWorld() == model.config.GameWorld.DARK_AGES
-                ? TerrainType.NORMAL_DARK_AGES : TerrainType.NORMAL_EGYPT;
-        tile.damageTerrain(damage, ground);
-        if (tile.isGravestone()) {
-            return false;
-        }
-        if (reward == GraveReward.SUN_50) {
-            addSun(50);
-        } else if (reward == GraveReward.PLANT_FOOD) {
-            addPlantFood();
-        }
-        return true;
     }
 
     public int getRows() {

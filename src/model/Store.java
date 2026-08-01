@@ -12,8 +12,6 @@ import java.util.ArrayList;
 
 public class Store {
     private static ArrayList<User> users = new ArrayList<>();
-    private static ArrayList<User> beforeTheQuestionUser = new ArrayList<>();
-    private static ArrayList<String> listOfQuestions = new ArrayList<>();
     private static User loggedInUser;
     private static AuthFlowState authFlow = new AuthFlowState();
     private static GameSession activeSession;
@@ -43,14 +41,6 @@ public class Store {
         }
 
         return null;
-    }
-
-    public static ArrayList<User> getBeforeTheQuestionUser() {
-        return beforeTheQuestionUser;
-    }
-
-    public static ArrayList<String> getListOfQuestions() {
-        return listOfQuestions;
     }
 
     public static GameSession getActiveSession() {

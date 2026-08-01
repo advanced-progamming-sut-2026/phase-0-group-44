@@ -40,14 +40,6 @@ public final class PlantSelection {
         selected.remove(type);
     }
 
-    public List<PlantDefinition> getDefinitions() {
-        List<PlantDefinition> result = new ArrayList<>();
-        for (PlantType type : selected) {
-            result.add(registry.require(type));
-        }
-        return Collections.unmodifiableList(result);
-    }
-
     public Set<PlantType> getTypes() {
         return Collections.unmodifiableSet(selected);
     }

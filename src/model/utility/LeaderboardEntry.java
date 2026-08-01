@@ -84,14 +84,6 @@ public final class LeaderboardEntry {
         return highestScore;
     }
 
-    public int getHighestScoredGameScore() {
-        return highestScore;
-    }
-
-    public int getHighestMewPoint() {
-        return highestScore;
-    }
-
     /** Human-readable progress cell; zero means no adventure level completed yet. */
     public String getProgressLabel() {
         if (latestCompletedChapter == 0 && latestCompletedLevel == 0) {

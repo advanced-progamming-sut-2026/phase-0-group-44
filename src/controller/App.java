@@ -205,24 +205,12 @@ public class App {
         return profileController;
     }
 
-    public NewsService getNewsService() {
-        return newsService;
-    }
-
-    public GreenhouseBoostService getGreenhouseBoostService() {
-        return greenhouseBoostService;
-    }
-
     public PlantSelectionController getPlantSelectionController() {
         return plantSelectionController;
     }
 
     public PlantSpecSource getPlantSpecSource() {
         return plantSpecSource;
-    }
-
-    public ZombieSpecSource getZombieSpecSource() {
-        return zombieSpecSource;
     }
 
     public RewardService getRewardService() {
@@ -233,23 +221,8 @@ public class App {
         return conclusionService;
     }
 
-    public DomainEventBus getDomainEventBus() {
-        return domainEventBus;
-    }
-
     public DomainEventPublisher getDomainEvents() {
         return domainEvents;
-    }
-
-    public QuestService getQuestService() {
-        return questService;
-    }
-    public LeaderboardService getLeaderboardService() {
-        return leaderboardService;
-    }
-
-    public ScoredGameService getScoredGameService() {
-        return scoredGameService;
     }
 
     public ScoredGameController getScoredGameController() {

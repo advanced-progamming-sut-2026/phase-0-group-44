@@ -54,10 +54,6 @@ public class PlantSelection {
         diamondBoosted.add(type);
     }
 
-    public Set<PlantType> getDiamondBoosted() {
-        return Collections.unmodifiableSet(new LinkedHashSet<>(diamondBoosted));
-    }
-
     /** A detached copy, used when a session is started so later edits don't leak in. */
     public PlantSelection copy() {
         PlantSelection copy = new PlantSelection();

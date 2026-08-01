@@ -63,8 +63,6 @@ public final class ScoredGameSession {
     }
 
     public String getOwnerUsername() { return ownerUsername; }
-    public LocalDate getDate() { return date; }
-    public DailyZombieSequence getSequence() { return sequence; }
     public MiniGameSimulation getSimulation() { return simulation; }
     public PlantSelection getSelection() { return selection; }
     public ScoredGameScore getScore() { return score; }

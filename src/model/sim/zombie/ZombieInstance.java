@@ -149,10 +149,6 @@ public class ZombieInstance implements Damageable {
         return glowing;
     }
 
-    public void setGlowing(boolean glowing) {
-        this.glowing = glowing;
-    }
-
     @Override
     public void takeDamage(int amount) {
         takeDamage(amount, DamageType.NORMAL);
@@ -214,16 +210,6 @@ public class ZombieInstance implements Damageable {
         return dealt;
     }
 
-    public boolean removeMetalArmor() {
-        for (ZombieArmorPart part : armorParts) {
-            if (part.isMagnetic() && !part.isBroken()) {
-                part.remove();
-                return true;
-            }
-        }
-        return false;
-    }
-
     public boolean hasActiveArmor(String name) {
         for (ZombieArmorPart part : armorParts) {
             if (part.getName().equalsIgnoreCase(name) && !part.isBroken()) {
@@ -276,33 +262,8 @@ public class ZombieInstance implements Damageable {
         return encasedInIce || effects.containsKey(ZombieEffectType.FROZEN);
     }
 
-    public void freezeInIce() {
-        encasedInIce = true;
-        encasingIceHealth = 600;
-    }
-
     public boolean isEncasedInIce() {
         return encasedInIce;
-    }
-
-    public int getEncasingIceHealth() {
-        return encasingIceHealth;
-    }
-
-    public void damageEncasingIce(int amount, boolean fire) {
-        if (!encasedInIce) {
-            return;
-        }
-        if (fire) {
-            encasedInIce = false;
-            encasingIceHealth = 0;
-            return;
-        }
-        encasingIceHealth -= Math.max(0, amount);
-        if (encasingIceHealth <= 0) {
-            encasedInIce = false;
-            encasingIceHealth = 0;
-        }
     }
 
     public boolean isSlowed() {
@@ -334,12 +295,6 @@ public class ZombieInstance implements Damageable {
         }
     }
 
-    public void onFireHit() {
-        if (getType() == ZombieType.EXPLORER) {
-            runtimeState.put("TORCH_LIT", true);
-        }
-    }
-
     public void putState(String key, Object value) {
         if (value == null) {
             runtimeState.remove(key);
@@ -351,11 +306,6 @@ public class ZombieInstance implements Damageable {
     public int getIntState(String key, int defaultValue) {
         Object value = runtimeState.get(key);
         return value instanceof Number number ? number.intValue() : defaultValue;
-    }
-
-    public double getDoubleState(String key, double defaultValue) {
-        Object value = runtimeState.get(key);
-        return value instanceof Number number ? number.doubleValue() : defaultValue;
     }
 
     public double effectiveSpeed() {
@@ -407,24 +357,4 @@ public class ZombieInstance implements Damageable {
         state = State.DEAD;
     }
 
-    public String infoText() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(spec.getName()).append(':').append('\n')
-                .append("type: ").append(getType()).append('\n')
-                .append("position: ")
-                .append(String.format(Locale.ROOT, "%.2f", x)).append(", ").append(row).append('\n')
-                .append("health: ").append(hp).append('/').append(spec.getHealth()).append('\n')
-                .append("armor:").append('\n');
-        for (ZombieArmorPart part : armorParts) {
-            if (!part.isBroken()) {
-                builder.append(part.getName()).append(": ").append(part.getHealth()).append('\n');
-            }
-        }
-        builder.append("effects:").append('\n');
-        for (Map.Entry<ZombieEffectType, Double> effect : getActiveEffects().entrySet()) {
-            builder.append(effect.getKey().name().toLowerCase(Locale.ROOT)).append(": ")
-                    .append(String.format(Locale.ROOT, "%.1fs", effect.getValue())).append('\n');
-        }
-        return builder.toString().stripTrailing();
-    }
 }

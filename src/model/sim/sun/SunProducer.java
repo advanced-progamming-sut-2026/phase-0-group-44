@@ -38,14 +38,6 @@ public class SunProducer {
         return tileY;
     }
 
-    public boolean hasUncollectedSun() {
-        return uncollectedSun != null;
-    }
-
-    public Sun getUncollectedSun() {
-        return uncollectedSun;
-    }
-
     /**
      * Advances one tick. When the interval elapses and no produced sun is
      * waiting, it produces a sun, emits the exact message, and holds the sun.

@@ -38,18 +38,6 @@ public final class ConveyorBelt {
         this.nextArrivalTick = arrivalIntervalTicks;
     }
 
-    public int getCapacity() {
-        return capacity;
-    }
-
-    public int getArrivalIntervalTicks() {
-        return arrivalIntervalTicks;
-    }
-
-    public long getNextArrivalTick() {
-        return nextArrivalTick;
-    }
-
     public List<ConveyorPacket> getPackets() {
         return Collections.unmodifiableList(packets);
     }

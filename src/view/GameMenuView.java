@@ -23,23 +23,6 @@ public class GameMenuView extends MenuView {
     public GameMenuView(
             MenuController menuController,
             GameMenuController controller,
-            MainMenuController mainController
-    ) {
-        this(menuController, controller, mainController, null, null);
-    }
-
-    public GameMenuView(
-            MenuController menuController,
-            GameMenuController controller,
-            MainMenuController mainController,
-            ScoredGameController scoredController
-    ) {
-        this(menuController, controller, mainController, scoredController, null);
-    }
-
-    public GameMenuView(
-            MenuController menuController,
-            GameMenuController controller,
             MainMenuController mainController,
             ScoredGameController scoredController,
             PlantSelectionController plantSelectionController

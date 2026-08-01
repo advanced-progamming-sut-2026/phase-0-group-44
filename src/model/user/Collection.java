@@ -16,11 +16,9 @@ public class Collection {
     private ArrayList<ZombieCard> zombieCards;
 
     public Collection() {
-        ownedPlants = new EnumMap<PlantType, PlantCard>(PlantType.class);
 
         seenZombies = EnumSet.noneOf(ZombieType.class);
 
-        zombieCards = new ArrayList<ZombieCard>();
     }
 
     public Map<PlantType, PlantCard> getOwnedPlants() {
@@ -29,10 +27,6 @@ public class Collection {
 
     public Set<ZombieType> getSeenZombies() {
         return seenZombies;
-    }
-
-    public ArrayList<ZombieCard> getZombieCards() {
-        return zombieCards;
     }
 
     public boolean hasPlant(PlantType type) {
@@ -90,15 +84,6 @@ public class Collection {
         zombieCards.add(new ZombieCard(type, true, true));
     }
 
-    public ZombieCard getZombieCard(ZombieType type) {
-        for (ZombieCard card : zombieCards) {
-            if (card.getType() == type) {
-                return card;
-            }
-        }
-
-        return null;
-    }
 
     /**
      * Recreates any container a save file did not contain, so a reloaded

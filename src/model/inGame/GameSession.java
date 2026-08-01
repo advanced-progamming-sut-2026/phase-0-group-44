@@ -58,9 +58,6 @@ public class GameSession {
         return pendingGreenhouseBoosts.contains(type);
     }
 
-    public Set<PlantType> getPendingGreenhouseBoosts() {
-        return Collections.unmodifiableSet(new LinkedHashSet<>(pendingGreenhouseBoosts));
-    }
 
     public void recordPlantUsed(PlantType type) {
         if (type != null) {

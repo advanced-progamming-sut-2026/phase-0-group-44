@@ -19,10 +19,6 @@ public enum QuestPriority {
         return sortRank;
     }
 
-    public String getCanonicalLabel() {
-        return canonicalLabel;
-    }
-
     public static QuestPriority fromCanonicalLabel(String value) {
         if (value == null) {
             return null;

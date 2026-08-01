@@ -109,10 +109,6 @@ public class PlantDefinition {
         return getDamageProfile().getPrimaryDamage();
     }
 
-    public String getBaseAbility() {
-        return baseAbility;
-    }
-
     public String getPlantFoodEffect() {
         return plantFoodEffect;
     }
@@ -123,11 +119,6 @@ public class PlantDefinition {
 
     public double getActionInterval() {
         return actionInterval;
-    }
-
-    /** Compatibility alias; timings are no longer rounded internally. */
-    public int getActionTime() {
-        return (int) Math.round(actionInterval);
     }
 
     public double getRecharge() {
@@ -153,10 +144,6 @@ public class PlantDefinition {
 
     public PlantStats statsAtLevel(int level) {
         return PlantStats.resolve(this, level);
-    }
-
-    public String getDescription() {
-        return baseAbility;
     }
 
     public String getDisplayText() {

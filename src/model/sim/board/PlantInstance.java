@@ -22,7 +22,6 @@ public class PlantInstance implements Damageable {
     private boolean octopused;
     private boolean transformed;
     private long transformedBy = -1L;
-    private int stackCount = 1;
 
     public PlantInstance(PlantSpec spec, int tileX, int tileY) {
         this.spec = spec;
@@ -53,30 +52,8 @@ public class PlantInstance implements Damageable {
         return hp;
     }
 
-    public int getStackCount() {
-        return stackCount;
-    }
-
-    public boolean addPeaPodHead() {
-        if (getType() != PlantType.PEA_POD || stackCount >= 5) {
-            return false;
-        }
-        stackCount++;
-        return true;
-    }
-
-
-    public boolean isStackedOnSupport() {
-        return stackedOnSupport;
-    }
-
     public void setStackedOnSupport(boolean stackedOnSupport) {
         this.stackedOnSupport = stackedOnSupport;
-    }
-
-
-    public int getIceHitCount() {
-        return freezeLevel;
     }
 
     public int getFreezeLevel() {
@@ -85,10 +62,6 @@ public class PlantInstance implements Damageable {
 
     public int getIceHealth() {
         return iceHealth;
-    }
-
-    public boolean addIceHit() {
-        return addFreezeLevel();
     }
 
     /** Icy wind and Hunter attacks share the same three-level freeze system. */
@@ -105,31 +78,8 @@ public class PlantInstance implements Damageable {
         return frozen;
     }
 
-    /** Fire removes the ice immediately; other damage reduces its 600 health. */
-    public boolean damageIce(int amount, boolean fire) {
-        if (!frozen) {
-            return false;
-        }
-        if (fire) {
-            clearFrozen();
-            return true;
-        }
-        iceHealth -= Math.max(0, amount);
-        if (iceHealth <= 0) {
-            clearFrozen();
-            return true;
-        }
-        return false;
-    }
-
     public boolean isFrozen() {
         return frozen;
-    }
-
-    public void clearFrozen() {
-        frozen = false;
-        freezeLevel = 0;
-        iceHealth = 0;
     }
 
     public boolean isOctopused() {

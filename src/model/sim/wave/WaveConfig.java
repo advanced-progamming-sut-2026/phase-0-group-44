@@ -41,10 +41,6 @@ public final class WaveConfig {
         return waveCount;
     }
 
-    public boolean hasOverride() {
-        return costOverride != null;
-    }
-
     /**
      * The target cost of a wave (1-based). Uses the override when present,
      * otherwise the general rule: ×1.25 per wave, and ×2 of the previous wave

@@ -147,10 +147,6 @@ public final class AdventureLevelConfig {
         return maximumPlantLosses;
     }
 
-    public Set<PlantCategory> getExcludedPlantCategories() {
-        return excludedPlantCategories;
-    }
-
     public static final class Builder {
         private final GameWorld world;
         private final int levelNumber;
@@ -231,10 +227,6 @@ public final class AdventureLevelConfig {
             return this;
         }
 
-        public Builder conveyorIntervalSeconds(int seconds) {
-            conveyorIntervalTicks = Math.max(1, seconds * TickContext.TICKS_PER_SECOND);
-            return this;
-        }
 
         public Builder protectedPlants(List<ProtectedPlantPlacement> placements) {
             protectedPlants = placements == null ? List.of() : List.copyOf(placements);

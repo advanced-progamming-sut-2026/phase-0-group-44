@@ -178,33 +178,4 @@ public class GameMap {
         return positions;
     }
 
-    private String emptyRows(GameEngine world) {
-        StringJoiner rows = new StringJoiner(",");
-        for (int row = 0; row < world.getGameMap().getRows(); row++) {
-            boolean empty = true;
-            for (int column = 0; column < world.getGameMap().getColumns(); column++) {
-                if (world.getGameMap().getTile(row, column).hasAnyPlant()) {
-                    empty = false;
-                    break;
-                }
-            }
-            if (empty) rows.add(String.valueOf(row));
-        }
-        return rows.toString();
-    }
-
-    private String emptyColumns(GameEngine world) {
-        StringJoiner columns = new StringJoiner(",");
-        for (int column = 0; column < world.getGameMap().getColumns(); column++) {
-            boolean empty = true;
-            for (int row = 0; row < world.getGameMap().getRows(); row++) {
-                if (world.getGameMap().getTile(row, column).hasAnyPlant()) {
-                    empty = false;
-                    break;
-                }
-            }
-            if (empty) columns.add(String.valueOf(column));
-        }
-        return columns.toString();
-    }
 }

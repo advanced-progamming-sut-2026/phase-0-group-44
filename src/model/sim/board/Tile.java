@@ -85,19 +85,6 @@ public class Tile {
         return graveReward;
     }
 
-    public void setGraveReward(GraveReward graveReward) {
-        if (!isGravestone()) {
-            throw new IllegalStateException("Only graves may contain rewards.");
-        }
-        this.graveReward = graveReward == null ? GraveReward.NONE : graveReward;
-    }
-
-    public GraveReward consumeGraveReward() {
-        GraveReward result = graveReward;
-        graveReward = GraveReward.NONE;
-        return result;
-    }
-
     public boolean isFrozen() {
         return frozen;
     }
@@ -130,32 +117,9 @@ public class Tile {
         return frozen || projectileBlockerHealth > 0;
     }
 
-    public int getProjectileBlockerHealth() {
-        return frozen ? iceHealth : projectileBlockerHealth;
-    }
-
-    public String getProjectileBlockerKind() {
-        return frozen ? "ice" : projectileBlockerKind;
-    }
-
     public void setProjectileBlocker(String kind, int health) {
         projectileBlockerKind = kind == null ? "" : kind;
         projectileBlockerHealth = Math.max(0, health);
-    }
-
-    public int damageProjectileBlocker(int damage) {
-        if (frozen) {
-            int before = iceHealth;
-            meltIce(damage);
-            return Math.min(before, Math.max(0, damage));
-        }
-        int dealt = Math.min(projectileBlockerHealth, Math.max(0, damage));
-        projectileBlockerHealth -= dealt;
-        if (projectileBlockerHealth <= 0) {
-            projectileBlockerHealth = 0;
-            projectileBlockerKind = "";
-        }
-        return dealt;
     }
 
     public boolean hasAnyPlant() {

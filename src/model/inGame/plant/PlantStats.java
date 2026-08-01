@@ -104,7 +104,4 @@ public final class PlantStats {
         return special.getOrDefault(key, 0.0) > 0.0;
     }
 
-    public Map<String, Double> getSpecialValues() {
-        return Collections.unmodifiableMap(special);
-    }
 }
