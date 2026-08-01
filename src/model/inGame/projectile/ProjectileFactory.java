@@ -22,7 +22,7 @@ public class ProjectileFactory {
     public Projectile lobbed(Plant plant, Zombie target, int damage,
                              ProjectileEffect effect) {
         double distance = Math.max(1.0, Math.abs(target.getX() - plant.getPosition().getColumn()));
-        return create(plant, plant.getPosition().getRow(), 1, damage,
+        return create(plant, target.getRow(), 1, damage,
                 ProjectileType.LOBBED, effect, 1, distance, target,
                 Math.max(0.3, distance / DEFAULT_SPEED));
     }

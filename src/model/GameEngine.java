@@ -26,6 +26,8 @@ import model.sim.wave.WaveSystem;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -133,6 +135,10 @@ public class GameEngine {
         this.skySunEnabled = enabled;
     }
 
+    public List<Sun> getSuns() {
+        return List.copyOf(suns);
+    }
+
     public List<String> advance(int ticks) {
         if (ticks <= 0) {
             throw new IllegalArgumentException("Tick count must be a positive integer.");
@@ -188,6 +194,14 @@ public class GameEngine {
     public long getCurrentTick() {
         return currentTick;
     }
+
+
+    public enum GraveReward {
+        NONE, SUN_50, PLANT_FOOD
+    }
+
+    /** یک رکورد ساده برای صف مرگ‌های زامبی که کنترلرهای بیرونی مصرف می‌کنن. */
+    public record ZombieDeath(long zombieId, ZombieType type, int row, double x) {}
 
     public int getCurrentWave() {
         return currentWave;
@@ -283,7 +297,7 @@ public class GameEngine {
         sun -= newHead.getCost();
         existing.putState("PEA_POD_HEADS", heads + 1);
         seedCooldowns.put(type, newHead.getStats().getRecharge());
-        recordEvent("Stacked Pea Pod head " + (heads + 1) + " at " + position + ".");
+        recordEvent("Stacked Pea Pod head " + (heads + 1) + " at (" + position.getColumn() + ", " + position.getRow() + ").");
         return existing;
     }
 
@@ -309,7 +323,7 @@ public class GameEngine {
         if (startCooldown) {
             seedCooldowns.put(plant.getType(), plant.getStats().getRecharge());
         }
-        recordEvent("Planted " + plant.getType() + " at " + position + ".");
+        recordEvent("Planted " + plant.getType() + " at (" + position.getColumn() + ", " + position.getRow() + ").");
         plant.onPlant(this);
         cleanupDeadPlants();
     }
