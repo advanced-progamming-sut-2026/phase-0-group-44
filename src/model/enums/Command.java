@@ -92,6 +92,7 @@ public enum Command {
     ADVANCE_TIME("^advance\\s+time\\s+-t\\s+(\\d+)\\s+ticks$"),
     START_ZOMBIE_WAVES("^start\\s+zombie\\s+waves$"),
     COLLECT_SUN("^collect\\s+sun\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
+    CHEAT_COLLECT_ALL_SUNS("^cheat\\s+collect-all-suns$"),
     SHOW_SUN_AMOUNT("^show\\s+sun\\s+amount$"),
     CHEAT_ADD_SUNS("^cheat\\s+add\\s+-n\\s+(\\d+)\\s+suns$"),
 
@@ -123,7 +124,8 @@ public enum Command {
     MENU_COLLECTION_SHOW_PLANT("^menu\\s+collection\\s+show-plant\\s+-p\\s+(.+)$"),
     MENU_COLLECTION_SHOW_ZOMBIE("^menu\\s+collection\\s+show-zombie\\s+-z\\s+(.+)$"),
     MENU_COLLECTION_UPGRADE_PLANT("^menu\\s+collection\\s+upgrade-plant\\s+-p\\s+(.+)$"),
-    MENU_COLLECTION_PURCHASE_PLANT("^menu\\s+collection\\s+purchase-plant\\s+-p\\s+(.+)$");
+    MENU_COLLECTION_PURCHASE_PLANT("^menu\\s+collection\\s+purchase-plant\\s+-p\\s+(.+)$"),
+    CHEAT_BUY_ALL_PLANTS("^cheat\\s+buy-all-plants$");
 
 
     private final Pattern pattern;

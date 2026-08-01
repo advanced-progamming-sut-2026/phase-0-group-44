@@ -64,6 +64,11 @@ public class CollectionMenuView extends MenuView {
             return;
         }
 
+        if (Command.CHEAT_BUY_ALL_PLANTS.matches(input)) {
+            print(controller.cheatBuyAllPlants(user));
+            return;
+        }
+
         if (Command.MENU_COLLECTION_PURCHASE_PLANT.matches(input)) {
             print(controller.purchasePlant(
                     user, group(Command.MENU_COLLECTION_PURCHASE_PLANT, input)));

@@ -349,6 +349,17 @@ public class GameplayController {
     }
 
     /** Handles {@code collect sun -l (<x>, <y>)}. */
+    /** Cheat: instantly collects every sun on the board at once. */
+    public Result<Integer> cheatCollectAllSuns() {
+        Result<Integer> result = new Result<>();
+        int gained = simulation.cheatCollectAllSuns();
+        result.setStatus(true);
+        result.setData(simulation.getSunAmount());
+        result.appendToMessage("collected " + gained + " sun from the board; total "
+                + simulation.getSunAmount());
+        return result;
+    }
+
     public Result<Integer> collectSun(int x, int y) {
         Result<Integer> result = new Result<>();
         GameEngine.SunCollectionOutcome outcome = simulation.collectSun(x, y); // ← فقط این خط تغییر کرد

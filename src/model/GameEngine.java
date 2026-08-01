@@ -410,13 +410,27 @@ public class GameEngine {
             plant.putState("UNCOLLECTED_SUNS", pending);
         }
         pending.add(sun);
-        recordEvent("plant " + plant.getType() + " produced a sun at ("
+        recordEvent("plant " + plant.getType() + " produced a sun worth " + amount + " at ("
                 + plant.getPosition().getColumn() + ", " + plant.getPosition().getRow() + ")");
     }
 
     public boolean plantHasUncollectedSun(Plant plant) {
         List<?> pending = plant.getState("UNCOLLECTED_SUNS", List.class, null);
         return pending != null && !pending.isEmpty();
+    }
+
+    /** Cheat: instantly collects every sun currently on the board (falling or landed),
+     *  skipping the radioactive-explosion risk a normal pickup would have. Returns the
+     *  total value collected. */
+    public int cheatCollectAllSuns() {
+        int total = 0;
+        for (Sun sun : new ArrayList<>(suns)) {
+            total += sun.getValue();
+            detachFromProducerPlant(sun);
+        }
+        suns.clear();
+        addSun(total);
+        return total;
     }
 
     public SunCollectionOutcome collectSunAt(int x, int y) {
@@ -1026,7 +1040,18 @@ public class GameEngine {
     public void applyPlantFoodToFamily(PlantCategory category, Plant excluded) {
         for (Plant plant : new ArrayList<>(gameMap.getPlants())) {
             if (plant != excluded && plant.getCategory() == category && !plant.getEffectiveDefinition().isMint()) {
+                recordEvent(excluded.getEffectiveType() + " fed Plant Food to " + plant.getEffectiveType()
+                        + " at (" + plant.getPosition().getColumn() + ", " + plant.getPosition().getRow() + ")");
                 plant.usePlantFood(this);
+            }
+        }
+    }
+
+    public void resetFamilyCooldowns(PlantCategory category, Plant source) {
+        for (PlantDefinition definition : plantRegistry.findByCategory(category, true)) {
+            if (seedCooldowns.containsKey(definition.getType())) {
+                seedCooldowns.remove(definition.getType());
+                recordEvent(source.getEffectiveType() + " reset the cooldown of " + definition.getType());
             }
         }
     }

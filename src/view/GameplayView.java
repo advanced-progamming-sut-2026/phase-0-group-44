@@ -36,6 +36,11 @@ public class GameplayView extends MenuView {
             return;
         }
 
+        if (Command.CHEAT_COLLECT_ALL_SUNS.matches(input)) {
+            print(controller.cheatCollectAllSuns());
+            return;
+        }
+
         if (Command.COLLECT_SUN.matches(input)) {
             Matcher matcher = Command.COLLECT_SUN.getMatcher(input);
             matcher.matches();

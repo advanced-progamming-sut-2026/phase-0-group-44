@@ -27,6 +27,10 @@ public class Simulation {
         return engine.collectSunAt(x, y);
     }
 
+    public int cheatCollectAllSuns() {
+        return engine.cheatCollectAllSuns();
+    }
+
     public int getSunAmount() {
         return engine.getSun();
     }

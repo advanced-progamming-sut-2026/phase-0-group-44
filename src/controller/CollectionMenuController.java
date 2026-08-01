@@ -148,6 +148,28 @@ public class CollectionMenuController {
         return result;
     }
 
+    /** Cheat: unlocks every plant in the game for free, bypassing the coin cost. */
+    public Result<String> cheatBuyAllPlants(User user) {
+        Result<String> result = new Result<>();
+        if (user == null) {
+            result.appendToMessage("No user is logged in.");
+            return result;
+        }
+        Collection collection = user.getCollection();
+        int added = 0;
+        for (PlantDefinition definition : plantRepository.findAll()) {
+            if (!collection.hasPlant(definition.getType())) {
+                collection.purchasePlant(definition);
+                added++;
+            }
+        }
+        userService.updateUser(user);
+        result.setStatus(true);
+        result.appendToMessage("unlocked " + added + " new plant(s); collection now has "
+                + plantRepository.findAll().size() + " plant(s) total");
+        return result;
+    }
+
     @SuppressWarnings("PMD.ExcessiveMethodLength")
     public Result<PlantCollectionView> purchasePlant(
             User user,

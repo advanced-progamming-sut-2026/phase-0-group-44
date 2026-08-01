@@ -13,11 +13,17 @@ public class SunProducerBehavior extends AbstractTimedBehavior {
     private final Mode mode;
     private final int baseAmount;
     private final int plantFoodAmount;
+    private final int sunCount;
 
     public SunProducerBehavior(Mode mode, int baseAmount, int plantFoodAmount) {
+        this(mode, baseAmount, plantFoodAmount, 1);
+    }
+
+    public SunProducerBehavior(Mode mode, int baseAmount, int plantFoodAmount, int sunCount) {
         this.mode = mode;
         this.baseAmount = baseAmount;
         this.plantFoodAmount = plantFoodAmount;
+        this.sunCount = Math.max(1, sunCount);
     }
 
     @Override
@@ -53,6 +59,9 @@ public class SunProducerBehavior extends AbstractTimedBehavior {
             amount = (int) Math.round(amount * 1.5);
         }
         engine.spawnPlantSun(plant, amount);
+        for (int i = 1; i < sunCount; i++) {
+            engine.spawnPlantSun(plant, amount);
+        }
         if (plant.getStats().hasFlag("DOUBLE_SUN_CHANCE") && engine.getRandom().nextDouble() < 0.25) {
             engine.spawnPlantSun(plant, amount);
         }
@@ -63,6 +72,10 @@ public class SunProducerBehavior extends AbstractTimedBehavior {
         if (mode == Mode.RAMP_UP) {
             plant.putState("MAX_GROWTH", true);
         }
-        engine.addSun(plantFoodAmount);
+        int perSun = plantFoodAmount / sunCount;
+        int remainder = plantFoodAmount - perSun * sunCount;
+        for (int i = 0; i < sunCount; i++) {
+            engine.spawnPlantSun(plant, perSun + (i == 0 ? remainder : 0));
+        }
     }
 }

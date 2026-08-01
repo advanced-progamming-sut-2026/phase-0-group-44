@@ -16,7 +16,7 @@ public class MintBehavior implements PlantBehavior {
         engine.addFamilyBoost(family, duration);
         engine.applyPlantFoodToFamily(family, plant);
         if (plant.getStats().hasFlag("RESET_FAMILY_COOLDOWNS")) {
-            engine.resetFamilyCooldowns(family);
+            engine.resetFamilyCooldowns(family, plant);
         }
         engine.recordEvent(plant.getEffectiveType() + " activated: boosted the " + family
                 + " family for " + duration + "s and applied its instant effect, then was consumed.");
