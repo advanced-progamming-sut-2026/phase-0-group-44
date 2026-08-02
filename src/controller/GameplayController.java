@@ -257,18 +257,18 @@ public class GameplayController {
         }
         return messages;
     }
-
     private void publishLevelCompleted(boolean won) {
         if (events == null || user == null) {
             return;
         }
-        GameEngine world = simulation.getWorld(); // ← SimulationWorld بود
+        GameEngine world = simulation.getWorld();
         Map<String, String> attributes = new LinkedHashMap<>();
         attributes.put("won", String.valueOf(won));
         attributes.put("sunBalance", String.valueOf(world.getSunBalance()));
         attributes.put("plantLossCount", String.valueOf(world.getPlantLossCount()));
         attributes.put("emptyRows", emptyRows(world));
         attributes.put("emptyColumns", emptyColumns(world));
+        attributes.put("boardSymmetric", String.valueOf(isBoardSymmetric(world)));
         if (session != null) {
             attributes.put("difficulty", String.valueOf(session.getDifficulty()));
             if (session.getLevel() != null) {
@@ -281,7 +281,29 @@ public class GameplayController {
         }
         events.publish(DomainEventType.LEVEL_COMPLETED, user, attributes);
     }
-
+    private boolean isBoardSymmetric(GameEngine world) {
+        var map = world.getGameMap();
+        int rows = map.getRows();
+        for (int row = 0; row < rows / 2; row++) {
+            int mirrorRow = rows - 1 - row;
+            for (int column = 0; column < map.getColumns(); column++) {
+                if (!sameFootprint(map.getTile(row, column), map.getTile(mirrorRow, column))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    private boolean sameFootprint(model.Tile a, model.Tile b) {
+        return samePlantType(a.getSupportPlant(), b.getSupportPlant())
+                && samePlantType(a.getPrimaryPlant(), b.getPrimaryPlant())
+                && samePlantType(a.getArmorPlant(), b.getArmorPlant());
+    }
+    private boolean samePlantType(model.inGame.plant.Plant a, model.inGame.plant.Plant b) {
+        model.enums.PlantType typeA = a == null ? null : a.getEffectiveType();
+        model.enums.PlantType typeB = b == null ? null : b.getEffectiveType();
+        return typeA == typeB;
+    }
     private void addUsedPlantAttributes(Map<String, String> attributes, Set<PlantType> used) {
         Set<String> families = new LinkedHashSet<>();
         boolean allNight = !used.isEmpty();
@@ -305,7 +327,6 @@ public class GameplayController {
         attributes.put("allUsedPlantsNight", String.valueOf(allNight));
         attributes.put("allUsedPlantsSunProducers", String.valueOf(allSun));
     }
-
     private String emptyRows(GameEngine world) {
         StringJoiner rows = new StringJoiner(",");
         for (int row = 0; row < world.getGameMap().getRows(); row++) {
@@ -322,7 +343,6 @@ public class GameplayController {
         }
         return rows.toString();
     }
-
     private String emptyColumns(GameEngine world) {
         StringJoiner columns = new StringJoiner(",");
         for (int column = 0; column < world.getGameMap().getColumns(); column++) {
@@ -339,9 +359,6 @@ public class GameplayController {
         }
         return columns.toString();
     }
-
-    /** Handles {@code collect sun -l (<x>, <y>)}. */
-    /** Cheat: instantly collects every sun on the board at once. */
     public Result<Integer> cheatCollectAllSuns() {
         Result<Integer> result = new Result<>();
         int gained = simulation.cheatCollectAllSuns();
@@ -370,8 +387,6 @@ public class GameplayController {
         result.appendToMessage("collected " + outcome.getGained() + " sun; total " + simulation.getSunAmount());
         return result;
     }
-
-    /** Handles {@code show sun amount}. */
     public Result<Integer> showSunAmount() {
         Result<Integer> result = new Result<>();
 
@@ -381,8 +396,6 @@ public class GameplayController {
 
         return result;
     }
-
-    /** Handles {@code cheat add -n <count> suns}. */
     public Result<Integer> cheatAddSuns(int count) {
         Result<Integer> result = new Result<>();
 
@@ -406,7 +419,6 @@ public class GameplayController {
         if (rules == null) {
             return result;
         }
-
         List<String> lines = new ArrayList<>();
         for (PlantDefinition definition : PlantRegistry.getDefault().findAll()) {
             PlantType type = definition.getType();
@@ -415,7 +427,6 @@ public class GameplayController {
                 lines.add(definition.getDisplayText());
             }
         }
-
         result.setStatus(true);
         result.setData(lines);
         if (lines.isEmpty()) {
@@ -428,7 +439,6 @@ public class GameplayController {
         }
         return result;
     }
-
     public Result<List<String>> showLockedPlantsInGame() {
         Result<List<String>> result = new Result<>();
         LevelSelectionRules rules = currentRules(result);
@@ -460,7 +470,6 @@ public class GameplayController {
         }
         return result;
     }
-
     private LevelSelectionRules currentRules(Result<?> result) {
         if (session == null || session.getLevel() == null) {
             result.appendToMessage("no level rules available");
@@ -468,7 +477,6 @@ public class GameplayController {
         }
         return session.getLevel().getSelectionRules();
     }
-
     private String lockReason(LevelSelectionRules rules, PlantDefinition definition) {
         Set<model.enums.PlantCategory> excludedCategories = rules.getExcludedCategories();
         Set<PlantType> allowedPlants = rules.getAllowedPlants();

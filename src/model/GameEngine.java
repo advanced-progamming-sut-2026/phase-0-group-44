@@ -75,7 +75,6 @@ public class GameEngine {
     }
 
     public GameEngine(PlantRegistry registry, GameMap gameMap, Random random) {
-        System.out.println("GAME ENGINE CREATED");
         this.plantRegistry = registry;
         this.gameMap = gameMap;
         this.random = random == null ? new Random(0) : random;
