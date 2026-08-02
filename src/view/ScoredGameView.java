@@ -26,6 +26,14 @@ public final class ScoredGameView extends MenuView {
             Matcher matcher = Command.SCORED_GAME_ADVANCE.getMatcher(input); matcher.matches();
             print(controller.advance(Integer.parseInt(matcher.group(1)))); return;
         }
+
+        if (Command.SCORED_GAME_CHEAT_ADD_SUNS.matches(input)) {
+            Matcher matcher = Command.SCORED_GAME_CHEAT_ADD_SUNS.getMatcher(input); matcher.matches();
+            print(controller.cheatAddSuns(Integer.parseInt(matcher.group(1)))); return;
+        }
+        if (Command.SCORED_GAME_RELEASE_NUKE.matches(input)) {
+            print(controller.cheatReleaseNuke()); return;
+        }
         if (Command.SCORED_GAME_PLANT.matches(input)) {
             Matcher matcher = Command.SCORED_GAME_PLANT.getMatcher(input); matcher.matches();
             print(controller.plant(matcher.group(1), Integer.parseInt(matcher.group(2)),

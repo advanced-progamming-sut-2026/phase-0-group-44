@@ -26,4 +26,11 @@ public final class ScoredGameController {
     }
     public Result<String> status() { return service.status(Store.getLoggedInUser()); }
     public Result<String> forfeit() { return service.forfeit(Store.getLoggedInUser()); }
+    public Result<String> cheatAddSuns(int count) {
+        return service.cheatAddSuns(Store.getLoggedInUser(), count);
+    }
+
+    public Result<List<String>> cheatReleaseNuke() {
+        return service.cheatReleaseNuke(Store.getLoggedInUser());
+    }
 }

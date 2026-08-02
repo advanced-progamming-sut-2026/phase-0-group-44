@@ -62,6 +62,46 @@ public final class ScoredGameSession {
         this.board = new MiniGameBoardController(world, selection, new DefaultPlantSpecSource(plants));
     }
 
+    /** Cheat: adds sun directly to the running session. */
+    public Result<String> cheatAddSun(int amount) {
+        Result<String> result = new Result<>();
+        if (state != State.RUNNING) {
+            result.appendToMessage("no scored game is running");
+            return result;
+        }
+        if (amount <= 0) {
+            result.appendToMessage("count must be a positive integer");
+            return result;
+        }
+        simulation.getWorld().addSun(amount);
+        result.setStatus(true);
+        result.setData(String.valueOf(simulation.getSunAmount()));
+        result.appendToMessage("sun: " + simulation.getSunAmount());
+        return result;
+    }
+
+    /** Cheat: kills every zombie currently on the board. */
+    public Result<List<String>> cheatReleaseNuke() {
+        Result<List<String>> result = new Result<>();
+        if (state != State.RUNNING) {
+            result.appendToMessage("no scored game is running");
+            return result;
+        }
+        List<String> messages = new ArrayList<>();
+        for (ZombieInstance zombie : simulation.getWorld().getZombieInstances()) {
+            if (zombie.isDead()) {
+                continue;
+            }
+            zombie.takeDamage(Integer.MAX_VALUE);
+            messages.add("Zombie of type " + zombie.getType()
+                    + " is dead at (" + zombie.getTileX() + ", " + zombie.getRow() + ")");
+        }
+        result.setStatus(true);
+        result.setData(messages);
+        result.appendToMessage(messages.isEmpty() ? "no zombies to nuke" : String.join("\n", messages));
+        return result;
+    }
+
     public String getOwnerUsername() { return ownerUsername; }
     public MiniGameSimulation getSimulation() { return simulation; }
     public PlantSelection getSelection() { return selection; }

@@ -58,6 +58,8 @@ public enum Command {
     SCORED_GAME_PLANT("^scored\\s+game\\s+plant\\s+-t\\s+(.+?)\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
     SCORED_GAME_COLLECT_SUN("^scored\\s+game\\s+collect\\s+sun\\s+-l\\s+\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)$"),
     SCORED_GAME_FORFEIT("^scored\\s+game\\s+forfeit$"),
+    SCORED_GAME_CHEAT_ADD_SUNS("^scored\\s+game\\s+cheat\\s+add\\s+-n\\s+(\\d+)\\s+suns$"),
+    SCORED_GAME_RELEASE_NUKE("^scored\\s+game\\s+release\\s+the\\s+nuke$"),
 
     // Greenhouse
     SHOW_GREENHOUSE("^show\\s+greenhouse$"),

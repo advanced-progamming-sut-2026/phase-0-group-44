@@ -9,6 +9,7 @@ import util.SeededRandomSource;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Owns the current scored-game attempt and persists only the user's best result. */
@@ -35,6 +36,30 @@ public final class ScoredGameService {
         result.setData("scored-game");
         result.appendToMessage("entered scored-game menu; use scored game start");
         return result;
+    }
+
+    public Result<String> cheatAddSuns(User user, int count) {
+        Result<String> result = new Result<>();
+        ScoredGameSession session = ownedRunning(user, result);
+        if (session == null) return result;
+        return session.cheatAddSun(count);
+    }
+
+    public Result<List<String>> cheatReleaseNuke(User user) {
+        Result<List<String>> result = new Result<>();
+        ScoredGameSession session = ownedRunning(user, result);
+        if (session == null) return result;
+        Result<List<String>> nuked = session.cheatReleaseNuke();
+        if (nuked.getStatus()) {
+            Result<List<String>> advanced = session.advance(1);
+            List<String> combined = new ArrayList<>(nuked.getData());
+            if (advanced.getStatus()) {
+                combined.addAll(advanced.getData());
+            }
+            nuked.setData(combined);
+            settleIfTerminal(user, session);
+        }
+        return nuked;
     }
 
     public Result<String> start(User user) {
