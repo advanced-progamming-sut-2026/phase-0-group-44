@@ -25,6 +25,10 @@ public enum Command {
 
     // Game Menu
     MENU_ENTER_CHAPTER("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)$"),
+    MENU_ENTER_CHAPTER_LEVEL("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+?)\\s+-l\\s+(\\d+)$"),
+
+
+    CHEAT_UNLOCK_ALL_LEVELS("^cheat\\s+unlock-all-levels$"),
     MENU_GREENHOUSE("^menu\\s+greenhouse$"),
     MENU_TRAVEL_LOG("^menu\\s+travel-log$"),
     MENU_LEADERBOARD_SORT(

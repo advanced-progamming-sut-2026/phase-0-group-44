@@ -110,4 +110,15 @@ public final class ChapterCatalog {
             return unlockedLabels;
         }
     }
+    public static void unlockAll(User user) {
+        if (user == null) {
+            return;
+        }
+        for (GameWorld world : GameWorld.values()) {
+            user.getUnlockedChapters().add(world.getChapterNumber());
+            for (int level = 1; level <= 4; level++) {
+                unlockLevel(user, world, level);
+            }
+        }
+    }
 }

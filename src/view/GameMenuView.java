@@ -41,6 +41,15 @@ public class GameMenuView extends MenuView {
             return;
         }
 
+        // Must be checked before MENU_ENTER_CHAPTER, since that pattern's
+        // greedy (.+)$ would otherwise swallow " -l <n>" into the chapter name.
+        if (Command.MENU_ENTER_CHAPTER_LEVEL.matches(input)) {
+            Matcher matcher = Command.MENU_ENTER_CHAPTER_LEVEL.getMatcher(input);
+            matcher.matches();
+            openLevel(matcher.group(1), Integer.parseInt(matcher.group(2)));
+            return;
+        }
+
         if (Command.MENU_ENTER_CHAPTER.matches(input)) {
             Matcher matcher = Command.MENU_ENTER_CHAPTER.getMatcher(input);
             matcher.matches();
@@ -89,6 +98,11 @@ public class GameMenuView extends MenuView {
             return;
         }
 
+        if (Command.CHEAT_UNLOCK_ALL_LEVELS.matches(input)) {
+            print(controller.cheatUnlockAllLevels());
+            return;
+        }
+
         if (Command.MENU_LOGOUT.matches(input)) {
             print(mainController.logout());
             return;
@@ -108,6 +122,23 @@ public class GameMenuView extends MenuView {
         }
 
         Result<Level> levelResult = controller.enterLatestPlayableLevel(chapterName);
+        if (!levelResult.getStatus()) {
+            print(levelResult);
+            return;
+        }
+
+        Result<GameSession> startResult =
+                plantSelectionController.beginForPlayer(levelResult.getData());
+        print(startResult);
+    }
+
+    private void openLevel(String chapterName, int levelNumber) {
+        if (plantSelectionController == null) {
+            print(controller.enterLevel(chapterName, levelNumber));
+            return;
+        }
+
+        Result<Level> levelResult = controller.enterLevel(chapterName, levelNumber);
         if (!levelResult.getStatus()) {
             print(levelResult);
             return;

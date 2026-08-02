@@ -301,4 +301,18 @@ public class GameMenuController {
 
         return user;
     }
+    public Result<String> cheatUnlockAllLevels() {
+        Result<String> result = new Result<>();
+        User user = requireUser(result);
+        if (user == null) {
+            return result;
+        }
+        ChapterCatalog.unlockAll(user);
+        userService.updateUser(user);
+
+        result.setStatus(true);
+        result.setData("all levels unlocked");
+        result.appendToMessage("cheat: every chapter and level is now unlocked");
+        return result;
+    }
 }

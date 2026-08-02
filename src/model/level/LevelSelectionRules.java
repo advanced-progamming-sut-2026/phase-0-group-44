@@ -12,7 +12,7 @@ import java.util.Set;
 /** Data-driven plant-selection constraints for one level. */
 public final class LevelSelectionRules {
 
-    public static final int DEFAULT_CAPACITY = 5;
+    public static final int DEFAULT_CAPACITY = 8;
 
     private final int capacity;
     private final Set<PlantType> allowedPlants;
