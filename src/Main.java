@@ -1,29 +1,19 @@
-import controller.App;
-import model.Store;
-import view.MenuRouter;
-
-import java.io.UnsupportedEncodingException;
-import java.util.Scanner;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import screen.PvzGame;
 
 public final class Main {
 
     private Main() {
     }
 
-    public static void main(String[] args) throws UnsupportedEncodingException {
-        App app = new App();
-        System.out.println(app.start().getMessage());
+    public static void main(String[] args) {
+        Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+        config.setTitle("Plants vs Zombies - Mew Edition");
+        config.setWindowedMode(1280, 720);
+        config.useVsync(true);
+        config.setForegroundFPS(60);
 
-        MenuRouter router = new MenuRouter(app);
-        Scanner scanner = new Scanner(System.in);
-
-        System.setOut(new java.io.PrintStream(System.out, true, "UTF-8"));
-
-        while (Store.isRunning() && scanner.hasNextLine()) {
-            router.route(scanner.nextLine());
-        }
-
-        // Reached when input ends without "menu exit": progress is still saved.
-        app.getUserService().shutdown();
+        new Lwjgl3Application(new PvzGame(), config);
     }
 }

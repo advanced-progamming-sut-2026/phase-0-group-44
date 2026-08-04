@@ -22,8 +22,21 @@ sourceSets {
     }
 }
 
+ext {
+    gdxVersion = '1.14.2'
+}
+
 dependencies {
-    implementation files('lib/gson-2.13.1.jar')
+    implementation 'com.google.code.gson:gson:2.13.1'
+
+    // LibGDX core API (رندر، input، math، Scene2D و...)
+    implementation "com.badlogicgames.gdx:gdx:$gdxVersion"
+
+    // بک‌اند دسکتاپ (LWJGL3) — پنجره، OpenGL context، صدا
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+
+    // native library های پلتفرم دسکتاپ (لازم برای اجرا، نه فقط کامپایل)
+    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -39,10 +52,17 @@ java {
 application {
     mainClass = 'Main'
 }
-tasks.named('run') { standardInput = System.in }
+tasks.named('run') {
+    standardInput = System.in
+}
 jar {
     manifest {
         attributes 'Main-Class': application.mainClass.get()
+    }
+    // چون از native libraries استفاده می‌کنیم، jar باید fat/uber jar باشه یا از shadow plugin استفاده کنید
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
 
