@@ -12,8 +12,9 @@ public final class PvzGame extends Game {
         app = new App();
         System.out.println(app.start().getMessage());
 
-        // معادل: Store.getCurrentMenu() بعد از start() یا MAIN است یا REGISTER
-        goToScreenForCurrentMenu();
+        // Cheat menu: dev-only landing screen with a button to every menu,
+        // so each teammate can jump straight to the menu they're building.
+        setScreen(new CheatScreen(this, app));
     }
 
     /** هر Controller بعد از یک اکشن موفق، این متد را صدا می‌زند تا صفحه عوض شود. */

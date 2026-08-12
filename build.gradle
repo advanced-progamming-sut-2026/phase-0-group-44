@@ -14,6 +14,9 @@ sourceSets {
         java {
             srcDirs = ['src']
         }
+        resources {
+            srcDirs = ['pvz-assets']   // or wherever the folder lives, e.g. 'assets'
+        }
     }
     test {
         java {
@@ -54,6 +57,7 @@ application {
 }
 tasks.named('run') {
     standardInput = System.in
+    jvmArgs += ['-XstartOnFirstThread']
 }
 jar {
     manifest {
