@@ -16,7 +16,7 @@ sourceSets {
             srcDirs = ['src']
         }
         resources {
-            srcDirs = ['pvz-assets']   // or wherever the folder lives, e.g. 'assets'
+            srcDirs = ['src/assets']   // or wherever the folder lives, e.g. 'assets'
         }
     }
     test {
@@ -31,6 +31,9 @@ ext {
 }
 
 dependencies {
+    implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+
     implementation 'com.google.code.gson:gson:2.13.1'
 
     testImplementation platform('org.junit:junit-bom:5.10.2')

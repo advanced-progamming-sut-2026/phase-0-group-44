@@ -1,4 +1,3 @@
-/**
 package screen;
 
 import com.badlogic.gdx.Gdx;
@@ -16,14 +15,16 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import controller.App;
 import model.Store;
 import model.enums.MenuName;
+import pvz.skin.PvzSkin;
 
+/**
  * Developer-only entry screen. Lists every {@link MenuName} as a button so
  * each teammate can jump straight into the menu they are working on without
  * needing the rest of the flow (login, previous menus, etc.) to be wired up
  * yet. This screen does not touch any controller logic - it only flips
  * {@link Store#setCurrentMenu(MenuName)} and asks {@link PvzGame} to render
  * whatever screen is currently mapped for that menu.
- *
+ */
 public final class CheatScreen implements Screen {
 
     private final PvzGame game;
@@ -38,7 +39,7 @@ public final class CheatScreen implements Screen {
     @Override
     public void show() {
         stage = new Stage(new ScreenViewport());
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        Skin skin = PvzSkin.get();
         Gdx.input.setInputProcessor(stage);
 
         Table root = new Table();
@@ -100,4 +101,3 @@ public final class CheatScreen implements Screen {
         skin.dispose();
     }
 }
- */

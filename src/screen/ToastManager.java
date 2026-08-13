@@ -21,7 +21,10 @@ public final class ToastManager {
     }
 
     public void showError(String message) {
-        show(message, "red");
+        // نکته: پالت رنگیِ pvz2_skin.json فقط "Red" (حرف اول بزرگ) را
+        // تعریف کرده، نه "red". چون Skin.getColor() نسبت به حروف بزرگ و
+        // کوچک حساس است، "red" یک GdxRuntimeException می‌داد.
+        show(message, "Red");
     }
 
     public void showInfo(String message) {
@@ -29,7 +32,7 @@ public final class ToastManager {
     }
 
     private void show(String message, String colorName) {
-        Label label = new Label(message, skin);
+        Label label = new Label(message, skin, "medium_outline");
         label.setColor(skin.getColor(colorName));
         label.setAlignment(Align.center);
         label.setWrap(true);
