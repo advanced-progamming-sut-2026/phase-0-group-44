@@ -1,0 +1,16 @@
+rootProject.name = 'browser'
+
+if (file('../libpvz').exists()) {
+    println "Local 'libpvz' found. Using composite build."
+    includeBuild '../libpvz'
+} else {
+    println "Local 'libpvz' not found. Falling back to remote repository (e.g., JitPack)."
+}
+
+if (file('../skin').exists()) {
+    println "Local 'skin' found. Using composite build."
+    includeBuild '../skin'
+} else {
+    println "Local 'skin' not found. Falling back to remote repository (e.g., JitPack)."
+}
+

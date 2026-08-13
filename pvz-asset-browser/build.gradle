@@ -1,0 +1,45 @@
+plugins {
+    id 'java-library'
+    id 'application'
+}
+ext { gdxVersion = '1.12.1' }
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+dependencies {
+    implementation 'com.github.pizpizi:libPVZ:v0.1.4'
+    implementation 'com.github.pizpizi:pvz-skin:v0.1.1'
+
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:${gdxVersion}"
+    runtimeOnly "com.badlogicgames.gdx:gdx-platform:${gdxVersion}:natives-desktop"
+    runtimeOnly "com.badlogicgames.gdx:gdx-freetype-platform:${gdxVersion}:natives-desktop"
+}
+application {
+    mainClass = 'pvz.browser.BrowserLauncher'
+    applicationDefaultJvmArgs = [
+        '--enable-native-access=ALL-UNNAMED',
+        '-Dorg.lwjgl.system.JNINativeInterfaceSize=233'
+    ]
+}
+
+tasks.named('run', JavaExec) {
+    systemProperties System.getProperties()
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        attributes(
+            'Main-Class': 'pvz.browser.BrowserLauncher'
+        )
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
