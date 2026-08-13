@@ -1,3 +1,4 @@
+/*
 package screen;
 
 import com.badlogic.gdx.Gdx;
@@ -42,7 +43,7 @@ public final class RegisterScreen implements Screen {
         showAccountDetailsStep();
     }
 
-    /** Step 1: register(username, password, repeatPassword, nickname, email, gender). */
+    /** Step 1: register(username, password, repeatPassword, nickname, email, gender).
     private void showAccountDetailsStep() {
         root.clear();
 
@@ -102,7 +103,7 @@ public final class RegisterScreen implements Screen {
      * catalog text itself isn't exposed as structured data by the controller yet
      * (only as pre-rendered text in Result.getMessage() from register()), so for
      * now the player types the question's number directly.
-     */
+
     private void showSecurityQuestionStep() {
         root.clear();
 
@@ -183,3 +184,4 @@ public final class RegisterScreen implements Screen {
         skin.dispose();
     }
 }
+ */

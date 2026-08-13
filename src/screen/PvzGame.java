@@ -1,3 +1,4 @@
+/*
 package screen;
 
 import com.badlogic.gdx.Game;
@@ -17,7 +18,7 @@ public final class PvzGame extends Game {
         setScreen(new CheatScreen(this, app));
     }
 
-    /** هر Controller بعد از یک اکشن موفق، این متد را صدا می‌زند تا صفحه عوض شود. */
+    /** هر Controller بعد از یک اکشن موفق، این متد را صدا می‌زند تا صفحه عوض شود.
     public void goToScreenForCurrentMenu() {
         switch (model.Store.getCurrentMenu()) {
             case REGISTER -> setScreen(new RegisterScreen(this, app));
@@ -43,3 +44,4 @@ public final class PvzGame extends Game {
         super.dispose();
     }
 }
+ */

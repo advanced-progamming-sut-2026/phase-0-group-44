@@ -7,6 +7,7 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven { url 'https://jitpack.io' }
 }
 
 sourceSets {
@@ -32,18 +33,21 @@ ext {
 dependencies {
     implementation 'com.google.code.gson:gson:2.13.1'
 
-    // LibGDX core API (رندر، input، math، Scene2D و...)
-    implementation "com.badlogicgames.gdx:gdx:$gdxVersion"
-
-    // بک‌اند دسکتاپ (LWJGL3) — پنجره، OpenGL context، صدا
-    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
-
-    // native library های پلتفرم دسکتاپ (لازم برای اجرا، نه فقط کامپایل)
-    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
-
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    implementation "com.badlogicgames.gdx:gdx:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+
+    // libPVZ برای پارس/رندر انیمیشن‌های PAM
+    implementation 'com.github.pizpizi:libPVZ:v0.1.5'
+
+    // پوسته‌ی UI (اختیاری، اگه از Scene2D UI استفاده می‌کنید)
+    implementation 'com.github.pizpizi:pvz-skin:v0.1.1'
+    implementation 'com.github.raeleus.TenPatch:tenpatch:5.2.3'   // پوسته بهش نیاز داره
+
 }
 
 java {
@@ -57,7 +61,9 @@ application {
 }
 tasks.named('run') {
     standardInput = System.in
-    jvmArgs += ['-XstartOnFirstThread']
+    if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
+        jvmArgs += ['-XstartOnFirstThread']
+    }
 }
 jar {
     manifest {

@@ -1,0 +1,6 @@
+[submodule "pvz-skin"]
+	path = pvz-skin
+	url = https://github.com/pizpizi/pvz-skin
+[submodule "libPVZ"]
+	path = libPVZ
+	url = https://github.com/pizpizi/libPVZ

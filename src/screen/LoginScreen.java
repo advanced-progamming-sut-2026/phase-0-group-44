@@ -1,3 +1,4 @@
+/*
 package screen;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
@@ -91,7 +92,7 @@ public final class LoginScreen implements Screen {
         root.add(goToRegisterButton).colspan(2).padTop(10);
     }
 
-    /** Modal, 3-step recovery: forgetPassword -> answer -> newPassword, all in one dialog. */
+    /** Modal, 3-step recovery: forgetPassword -> answer -> newPassword, all in one dialog.
     private void openForgotPasswordDialog() {
         Dialog dialog = new Dialog("Recover password", skin);
         Table content = dialog.getContentTable();
@@ -216,3 +217,4 @@ public final class LoginScreen implements Screen {
         skin.dispose();
     }
 }
+ */

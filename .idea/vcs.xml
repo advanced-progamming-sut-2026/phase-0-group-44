@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/libPVZ" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pvz-asset-browser" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pvz-skin" vcs="Git" />
   </component>
 </project>

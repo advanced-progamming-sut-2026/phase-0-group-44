@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: com.github.raeleus.TenPatch:tenpatch:5.2.3" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="com.github.raeleus.TenPatch" artifactId="tenpatch" version="5.2.3" baseVersion="5.2.3" />
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.raeleus.TenPatch/tenpatch/5.2.3/c0857862ff7a89481cad5d7fedde3925d5aeb6fb/tenpatch-5.2.3.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.raeleus.TenPatch/tenpatch/5.2.3/76be28af989d09e325d44661dd851a7bcca36a8d/tenpatch-5.2.3-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -12,6 +12,9 @@
     <orderEntry type="module" module-name="PVZ2.main" />
     <orderEntry type="library" name="Gradle: com.google.code.gson:gson:2.13.1" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-backend-lwjgl3:1.14.2" level="project" />
+    <orderEntry type="library" name="Gradle: com.github.pizpizi:libPVZ:v0.1.5" level="project" />
+    <orderEntry type="library" name="Gradle: com.github.pizpizi:pvz-skin:v0.1.1" level="project" />
+    <orderEntry type="library" name="Gradle: com.github.raeleus.TenPatch:tenpatch:5.2.3" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx:1.14.2" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-platform:natives-desktop:1.14.2" level="project" />
     <orderEntry type="library" name="Gradle: org.junit.jupiter:junit-jupiter:5.10.2" level="project" />
@@ -66,6 +69,7 @@
     <orderEntry type="library" name="Gradle: org.lwjgl:lwjgl:natives-windows-x86:3.3.3" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.jlayer:jlayer:1.0.1-gdx" level="project" />
     <orderEntry type="library" name="Gradle: org.jcraft:jorbis:0.0.17" level="project" />
+    <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-freetype:1.12.1" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-jnigen-loader:2.5.2" level="project" />
     <orderEntry type="library" name="Gradle: org.junit.jupiter:junit-jupiter-params:5.10.2" level="project" />
     <orderEntry type="library" name="Gradle: org.junit.jupiter:junit-jupiter-api:5.10.2" level="project" />

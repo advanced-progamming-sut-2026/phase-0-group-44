@@ -3,6 +3,7 @@
   <component name="NewModuleRootManager">
     <output url="file://$MODULE_DIR$/../../build/classes/java/main" />
     <exclude-output />
+    <content url="file://$MODULE_DIR$/../../pvz-assets" />
     <content url="file://$MODULE_DIR$/../../src">
       <sourceFolder url="file://$MODULE_DIR$/../../src" isTestSource="false" />
     </content>
@@ -10,6 +11,9 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Gradle: com.google.code.gson:gson:2.13.1" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-backend-lwjgl3:1.14.2" level="project" />
+    <orderEntry type="library" name="Gradle: com.github.pizpizi:libPVZ:v0.1.5" level="project" />
+    <orderEntry type="library" name="Gradle: com.github.pizpizi:pvz-skin:v0.1.1" level="project" />
+    <orderEntry type="library" name="Gradle: com.github.raeleus.TenPatch:tenpatch:5.2.3" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx:1.14.2" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-platform:natives-desktop:1.14.2" level="project" />
     <orderEntry type="library" name="Gradle: com.google.errorprone:error_prone_annotations:2.38.0" level="project" />
@@ -63,6 +67,7 @@
     <orderEntry type="library" name="Gradle: org.lwjgl:lwjgl:natives-windows-x86:3.3.3" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.jlayer:jlayer:1.0.1-gdx" level="project" />
     <orderEntry type="library" name="Gradle: org.jcraft:jorbis:0.0.17" level="project" />
+    <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-freetype:1.12.1" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-jnigen-loader:2.5.2" level="project" />
   </component>
 </module>
