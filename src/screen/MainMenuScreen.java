@@ -19,6 +19,7 @@ import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import controller.App;
 import controller.MainMenuController;
+import controller.MenuController;
 import controller.NewsMenuController;
 import model.Result;
 import model.Store;
@@ -35,6 +36,7 @@ public final class MainMenuScreen implements Screen {
 
     private final PvzGame game;
     private final MainMenuController mainController;
+    private final MenuController menuController;
     private final NewsMenuController newsController;
     private final List<Texture> textures = new ArrayList<>();
 
@@ -47,6 +49,7 @@ public final class MainMenuScreen implements Screen {
     public MainMenuScreen(PvzGame game, App app) {
         this.game = game;
         this.mainController = app.getMainController();
+        this.menuController = app.getMenuController();
         this.newsController = app.getNewsController();
     }
 
@@ -163,7 +166,17 @@ public final class MainMenuScreen implements Screen {
 
     private TextButton buildPlayButton() {
         TextButton playButton = new TextButton("PLAY", skin, "purple");
-        addComingSoonListener(playButton, "Adventure");
+        playButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Result<String> result = menuController.enterMenu("game");
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
+            }
+        });
         return playButton;
     }
 
