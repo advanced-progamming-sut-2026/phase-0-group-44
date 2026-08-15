@@ -17,12 +17,15 @@ public final class PvzGame extends Game {
         setScreen(new CheatScreen(this, app));
     }
 
-    /** هر Controller بعد از یک اکشن موفق، این متد را صدا می‌زند تا صفحه عوض شود. */
+    /**
+     * هر Controller بعد از یک اکشن موفق، این متد را صدا می‌زند
+     * تا صفحه عوض شود.
+     */
     public void goToScreenForCurrentMenu() {
         switch (model.Store.getCurrentMenu()) {
             case REGISTER -> setScreen(new RegisterScreen(this, app));
             case LOGIN -> setScreen(new LoginScreen(this, app));
-        //    case MAIN -> setScreen(new MainMenuScreen(this, app));
+            case MAIN -> setScreen(new MainMenuScreen(this, app));
         //    case GAME -> setScreen(new ChapterSelectScreen(this, app));
         //    case SCORED_GAME -> setScreen(new ScoredGameScreen(this, app));
             // ... بقیه‌ی MenuNameها به مرور اضافه می‌شن

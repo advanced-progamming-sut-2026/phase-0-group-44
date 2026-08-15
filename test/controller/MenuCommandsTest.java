@@ -260,6 +260,34 @@ class MenuCommandsTest {
     }
 
     @Test
+    void unreadCountDoesNotChangeReadState() {
+        user.getNewsList().add(new News("a", "b", NewsType.OTHER));
+        userService.updateUser(user);
+
+        NewsMenuController news = new NewsMenuController(userService);
+        Result<Integer> count = news.getUnreadNewsCount();
+
+        assertTrue(count.getStatus());
+        assertEquals(1, count.getData());
+        assertFalse(reloadUser().getNewsList().get(0).isRead());
+    }
+
+    @Test
+    void markAllAsReadReturnsHowManyEntriesChangedAndPersistsThem() {
+        user.getNewsList().add(new News("a", "b", NewsType.OTHER));
+        user.getNewsList().add(new News("c", "d", NewsType.OTHER));
+        user.getNewsList().get(1).markAsRead();
+        userService.updateUser(user);
+
+        NewsMenuController news = new NewsMenuController(userService);
+        Result<Integer> marked = news.markAllAsRead();
+
+        assertTrue(marked.getStatus());
+        assertEquals(1, marked.getData());
+        assertTrue(reloadUser().getNewsList().stream().allMatch(News::isRead));
+    }
+
+    @Test
     void newsServiceCreatesAnEntryForEachKindOfUnlock() {
         NewsService newsService = new NewsService(userService);
 

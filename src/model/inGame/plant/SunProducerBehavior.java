@@ -41,7 +41,8 @@ public class SunProducerBehavior extends AbstractTimedBehavior {
             return;
         }
         if (engine.plantHasUncollectedSun(plant)) {
-            return; // طبق SunProducer دنیای B: تا جمع نشه، چرخه‌ی بعدی شروع نمی‌شه (تایمر هم پیش نمی‌ره)
+            return; // طبق SunProducer دنیای B: تا جمع نشه،
+            // چرخه‌ی بعدی شروع نمی‌شه (تایمر هم پیش نمی‌ره)
         }
         double interval = plant.getStats().getActionInterval();
         if (!ready(plant, deltaSeconds, interval)) {

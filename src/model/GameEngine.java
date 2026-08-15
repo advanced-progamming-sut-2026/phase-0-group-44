@@ -105,7 +105,8 @@ public class GameEngine {
         this.adventureRuleSystem = system; // فراخوانیِ اضافیِ tick(this) رو حذف کن
     }
 
-    // همسایه‌های یک موقعیت (برای meltIceNearFire) — با استفاده از چیزی که از قبل داریم
+    // همسایه‌های یک موقعیت (برای meltIceNearFire) —
+    // با استفاده از چیزی که از قبل داریم
     public List<Tile> neighboursOf(Position position) {
         List<Tile> result = new ArrayList<>();
         for (Position neighbour : gameMap.positionsInArea(position, 1, 1)) {
@@ -200,7 +201,8 @@ public class GameEngine {
         NONE, SUN_50, PLANT_FOOD
     }
 
-    /** یک رکورد ساده برای صف مرگ‌های زامبی که کنترلرهای بیرونی مصرف می‌کنن. */
+    /** یک رکورد ساده برای صف مرگ‌های
+     * زامبی که کنترلرهای بیرونی مصرف می‌کنن. */
     public record ZombieDeath(long zombieId, ZombieType type, int row, double x) {}
 
     public int getCurrentWave() {
@@ -296,7 +298,8 @@ public class GameEngine {
         }
         sun -= newHead.getCost();
         existing.putState("PEA_POD_HEADS", heads + 1);
-        seedCooldowns.put(type, newHead.getStats().getRecharge());
+        seedCooldowns.put(
+                type, newHead.getStats().getRecharge());
         recordEvent("Stacked Pea Pod head " + (heads + 1) + " at (" + position.getColumn() + ", " + position.getRow() + ").");
         return existing;
     }
@@ -394,8 +397,8 @@ public class GameEngine {
         if (r < 0.95) return SunType.SPECIAL;
         return SunType.RADIOACTIVE;
     }
-
-    /** برای SunProducerBehavior: یک خورشید روی گیاه می‌ذاره که منتظرِ جمع‌شدنه. */
+    /** برای SunProducerBehavior: یک خورشید
+     *  روی گیاه می‌ذاره که منتظرِ جمع‌شدنه. */
     @SuppressWarnings("unchecked")
     public void spawnPlantSun(Plant plant, int amount) {
         if (plant.getPosition() == null) {
@@ -413,12 +416,10 @@ public class GameEngine {
         recordEvent("plant " + plant.getType() + " produced a sun worth " + amount + " at ("
                 + plant.getPosition().getColumn() + ", " + plant.getPosition().getRow() + ")");
     }
-
     public boolean plantHasUncollectedSun(Plant plant) {
         List<?> pending = plant.getState("UNCOLLECTED_SUNS", List.class, null);
         return pending != null && !pending.isEmpty();
     }
-
     /** Cheat: instantly collects every sun currently on the board (falling or landed),
      *  skipping the radioactive-explosion risk a normal pickup would have. Returns the
      *  total value collected. */
