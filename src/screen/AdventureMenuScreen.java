@@ -134,7 +134,17 @@ public final class AdventureMenuScreen implements Screen {
                 HUD_ASSET_ROOT + "greenhouse_normal.png",
                 HUD_ASSET_ROOT + "greenhouse_selected.png"
         );
-        addComingSoonListener(greenhouse, "Greenhouse");
+        greenhouse.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Result<String> result = menuController.enterMenu("greenhouse");
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
+            }
+        });
         left.add(hudIcon(greenhouse, "GREENHOUSE", 64f, 55f));
 
         ImageButton missions = imageButton(
