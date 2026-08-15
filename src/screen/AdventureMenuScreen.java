@@ -4,8 +4,10 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
@@ -63,6 +65,7 @@ public final class AdventureMenuScreen implements Screen {
     private final MenuController menuController;
     private final Map<String, Texture> textures = new LinkedHashMap<>();
 
+    private Texture pathTexture;
     private Stage stage;
     private Skin skin;
     private ToastManager toast;
@@ -373,47 +376,112 @@ public final class AdventureMenuScreen implements Screen {
         rebuild();
     }
 
-    /** Figure-3 style level selector, without the old beige card grid. */
+    /**
+     * Figure-3 inspired level map.  Instead of a second card/list screen, the
+     * selected world stays visible as the visual anchor and the available
+     * stages are placed around it like PVZ2 world-map nodes.
+     */
     private Table buildLevelView() {
         Table content = new Table();
-        content.top().padTop(112f).padLeft(52f).padRight(52f).padBottom(20f);
+        content.top().padTop(103f).padLeft(45f).padRight(45f).padBottom(12f);
 
         User user = Store.getLoggedInUser();
         int completed = completedCoreLevels(user, selectedWorld);
 
-        Label heading = new Label("SELECT A LEVEL", skin, "medium_outline");
-        content.add(heading).colspan(2).padBottom(2f).row();
         Label progress = new Label(
                 completed + " / " + CORE_LEVEL_COUNT + " CORE LEVELS COMPLETE",
                 skin
         );
-        content.add(progress).colspan(2).padBottom(12f).row();
+        progress.setAlignment(Align.center);
+        content.add(progress).padTop(4f).padBottom(2f).row();
 
-        Image worldArt = new Image(loadTexture(ADVENTURE_ASSET_ROOT + worldAsset(selectedWorld)));
-        worldArt.setScaling(Scaling.fit);
-        content.add(worldArt).width(255f).height(420f).padRight(28f);
-        content.add(buildLevelPath()).width(865f).height(420f);
+        Label hint = new Label("Choose an unlocked stage", skin);
+        hint.setColor(0.90f, 0.95f, 1f, 0.92f);
+        hint.setAlignment(Align.center);
+        content.add(hint).padBottom(5f).row();
+
+        content.add(buildLevelMap()).width(1180f).height(505f);
         return content;
     }
 
-    private Table buildLevelPath() {
-        Table path = new Table();
+    /**
+     * A small zig-zag world map, closer to Figure 3 than the previous straight
+     * row of level cards.  The layout is intentionally fixed because each
+     * project chapter currently has four stages (three core stages + boss).
+     */
+    private Group buildLevelMap() {
+        Group map = new Group();
+        map.setSize(1180f, 505f);
+        Image worldArt = new Image(loadTexture(ADVENTURE_ASSET_ROOT + worldAsset(selectedWorld)));
+        worldArt.setScaling(Scaling.fit);
+        worldArt.setColor(1f, 1f, 1f, 0.78f);
+        worldArt.setBounds(388f, 55f, 414f, 414f);
+
         Chapter chapter = AdventureCatalog.chapter(selectedWorld);
         List<Level> levels = chapter.getLevels();
 
-        Table row = new Table();
-        for (int index = 0; index < levels.size(); index++) {
-            row.add(buildLevelNode(levels.get(index))).width(184f).height(305f);
-            if (index < levels.size() - 1) {
-                Label connector = new Label("- - -", skin, "medium_outline");
-                connector.setColor(0.85f, 0.82f, 0.66f, 0.9f);
-                row.add(connector).width(48f).padBottom(118f);
-            }
+        // Positions imitate the floating-island route in Figure 3: stages
+        // climb around the chapter landmark rather than appearing as cards.
+        float[][] positions = {
+                {78f, 252f},
+                {300f, 132f},
+                {690f, 252f},
+                {932f, 132f}
+        };
+
+        int visibleCount = Math.min(levels.size(), positions.length);
+        for (int index = 0; index < visibleCount - 1; index++) {
+            addMapConnector(
+                    map,
+                    positions[index][0] + 80f,
+                    positions[index][1] + 92f,
+                    positions[index + 1][0] + 80f,
+                    positions[index + 1][1] + 92f
+            );
         }
-        path.add(row).expand().center();
-        return path;
+
+        map.addActor(worldArt);
+
+        for (int index = 0; index < visibleCount; index++) {
+            Table node = buildLevelNode(levels.get(index));
+            node.setBounds(positions[index][0], positions[index][1], 162f, 172f);
+            map.addActor(node);
+        }
+
+        return map;
     }
 
+    /** Adds a thin cyan route segment behind two stage nodes. */
+    private void addMapConnector(Group map, float startX, float startY, float endX, float endY) {
+        float dx = endX - startX;
+        float dy = endY - startY;
+        float length = (float) Math.sqrt(dx * dx + dy * dy);
+        float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
+
+        Image line = new Image(levelPathTexture());
+        line.setBounds(startX, startY - 1.5f, length, 4f);
+        line.setOrigin(0f, 2f);
+        line.setRotation(angle);
+        line.setColor(0.33f, 0.84f, 0.98f, 0.78f);
+        map.addActor(line);
+    }
+
+    private Texture levelPathTexture() {
+        if (pathTexture != null) {
+            return pathTexture;
+        }
+        Pixmap pixel = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixel.setColor(Color.WHITE);
+        pixel.fill();
+        pathTexture = new Texture(pixel);
+        pixel.dispose();
+        return pathTexture;
+    }
+
+    /**
+     * Compact map node with a real world-map mini-platform behind the stage
+     * badge, so the icons feel closer to Figure 3 than plain floating caps.
+     */
     private Table buildLevelNode(Level level) {
         User user = Store.getLoggedInUser();
         boolean unlocked = ChapterCatalog.isLevelUnlocked(
@@ -422,45 +490,75 @@ public final class AdventureMenuScreen implements Screen {
                 level.getLevelNumber()
         );
         boolean completed = isLevelCompleted(user, selectedWorld, level.getLevelNumber());
+        boolean boss = level.isBossDeferred();
 
         Table node = new Table();
         node.top();
 
-        Stack buttonStack = new Stack();
-        ImageButton button = levelButton(unlocked);
-        buttonStack.add(button);
+        Stack iconStack = new Stack();
+
+        Table shadowLayer = new Table();
+        Image shadow = new Image(levelPathTexture());
+        shadow.setColor(0f, 0f, 0f, unlocked ? 0.14f : 0.10f);
+        shadowLayer.add(shadow).size(boss ? 92f : 84f, boss ? 9f : 8f).padTop(84f);
+        iconStack.add(shadowLayer);
+
+        Table platformLayer = new Table();
+        Image platform = new Image(loadTexture(ADVENTURE_ASSET_ROOT + levelPlatformAsset(selectedWorld)));
+        platform.setScaling(Scaling.fit);
+        if (!unlocked) {
+            platform.setColor(0.68f, 0.70f, 0.74f, 0.68f);
+        } else if (boss) {
+            platform.setColor(0.92f, 0.92f, 1f, 0.92f);
+        } else if (completed) {
+            platform.setColor(1f, 1f, 1f, 0.98f);
+        } else {
+            platform.setColor(1f, 1f, 1f, 0.90f);
+        }
+        platformLayer.add(platform).size(boss ? 138f : 126f, boss ? 98f : 88f).padTop(18f);
+        iconStack.add(platformLayer);
+
+        ImageButton button = levelButton(unlocked, completed, boss);
+        Table buttonLayer = new Table();
+        buttonLayer.add(button).size(boss ? 74f : 68f, boss ? 56f : 52f).padBottom(18f);
+        iconStack.add(buttonLayer);
 
         Table numberOverlay = new Table();
-        String numberText = level.isBossDeferred()
-                ? "BOSS"
-                : String.valueOf(level.getLevelNumber());
+        String numberText = boss ? "BOSS" : String.valueOf(level.getLevelNumber());
         Label number = new Label(numberText, skin, "medium_outline");
         if (!unlocked) {
             number.setColor(Color.LIGHT_GRAY);
+        } else if (completed) {
+            number.setColor(Color.GOLD);
         }
-        numberOverlay.add(number).padBottom(8f);
-        buttonStack.add(numberOverlay);
+        numberOverlay.add(number).padBottom(17f);
+        iconStack.add(numberOverlay);
 
-        node.add(buttonStack).width(132f).height(102f).padBottom(7f).row();
+        node.add(iconStack).width(158f).height(114f).padBottom(-4f).row();
 
-        Label name = new Label(levelName(level), skin);
+        Label name = new Label(shortLevelName(level), skin);
         name.setWrap(true);
         name.setAlignment(Align.center);
         if (!unlocked) {
             name.setColor(Color.LIGHT_GRAY);
         }
-        node.add(name).width(170f).height(61f).row();
+        node.add(name).width(148f).height(28f).padTop(1f).row();
 
-        Label type = new Label(levelType(level), skin);
-        type.setWrap(true);
-        type.setAlignment(Align.center);
-        type.setColor(level.isBossDeferred() ? Color.GOLD : Color.WHITE);
-        node.add(type).width(170f).height(45f).row();
-
-        String stateText = completed ? "COMPLETED" : (unlocked ? "OPEN" : "LOCKED");
-        Label state = new Label(stateText, skin);
-        state.setColor(completed || unlocked ? Color.GOLD : Color.LIGHT_GRAY);
-        node.add(state).padTop(1f);
+        String statusText = completed
+                ? "COMPLETED"
+                : (!unlocked ? "LOCKED" : compactLevelType(level));
+        Label status = new Label(statusText, skin);
+        status.setAlignment(Align.center);
+        if (completed) {
+            status.setColor(Color.GOLD);
+        } else if (!unlocked) {
+            status.setColor(Color.LIGHT_GRAY);
+        } else if (boss) {
+            status.setColor(Color.GOLD);
+        } else {
+            status.setColor(0.85f, 0.94f, 1f, 1f);
+        }
+        node.add(status).width(148f).height(20f).padTop(-1f);
 
         button.addListener(new ChangeListener() {
             @Override
@@ -471,12 +569,44 @@ public final class AdventureMenuScreen implements Screen {
         return node;
     }
 
-    private ImageButton levelButton(boolean unlocked) {
-        String up = ADVENTURE_ASSET_ROOT + (unlocked ? "level_green.png" : "level_gray.png");
-        String over = ADVENTURE_ASSET_ROOT + (unlocked ? "level_blue.png" : "level_gray.png");
+    private ImageButton levelButton(boolean unlocked, boolean completed, boolean boss) {
+        String up;
+        String over;
+        if (!unlocked) {
+            up = ADVENTURE_ASSET_ROOT + "level_gray.png";
+            over = up;
+        } else if (completed) {
+            up = ADVENTURE_ASSET_ROOT + "level_blue.png";
+            over = ADVENTURE_ASSET_ROOT + "level_green.png";
+        } else if (boss) {
+            up = ADVENTURE_ASSET_ROOT + "level_blue.png";
+            over = ADVENTURE_ASSET_ROOT + "level_green.png";
+        } else {
+            up = ADVENTURE_ASSET_ROOT + "level_green.png";
+            over = ADVENTURE_ASSET_ROOT + "level_blue.png";
+        }
+
         ImageButton button = imageButton(up, over);
-        button.getImageCell().size(118f, 88f);
+        button.getImageCell().size(boss ? 60f : 56f, boss ? 44f : 40f);
         return button;
+    }
+
+    private String shortLevelName(Level level) {
+        if (level.isBossDeferred()) {
+            return "Boss";
+        }
+        String name = levelName(level);
+        // The number is already inside the map node, so avoid repeating it.
+        name = name.replaceFirst("^\\d+\\s*[-:]?\\s*", "");
+        return name.isBlank() ? "Level " + level.getLevelNumber() : name;
+    }
+
+    private String compactLevelType(Level level) {
+        if (level.isBossDeferred()) {
+            return "BONUS BOSS";
+        }
+        String type = levelType(level);
+        return "NORMAL".equals(type) ? "OPEN" : type;
     }
 
     private void chooseLevel(Level level) {
@@ -548,6 +678,15 @@ public final class AdventureMenuScreen implements Screen {
             }
         }
         return result;
+    }
+
+    private String levelPlatformAsset(GameWorld world) {
+        return switch (world) {
+            case ANCIENT_EGYPT -> "platforms/egypt_platform.png";
+            case FROSTBITE_CAVES -> "platforms/ice_platform.png";
+            case BIG_WAVE_BEACH -> "platforms/beach_platform.png";
+            case DARK_AGES -> "platforms/dark_platform.png";
+        };
     }
 
     private String worldAsset(GameWorld world) {
@@ -625,5 +764,9 @@ public final class AdventureMenuScreen implements Screen {
             texture.dispose();
         }
         textures.clear();
+        if (pathTexture != null) {
+            pathTexture.dispose();
+            pathTexture = null;
+        }
     }
 }
