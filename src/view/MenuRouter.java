@@ -75,7 +75,8 @@ public class MenuRouter {
         BoardController board = new BoardController(
                 engine,
                 Store.getActiveSession() == null ? null : Store.getActiveSession().getSelection(),
-                engine.getAdventureState(), // ← دیگه لازم نیست از app.getPlantSpecSource() بگیریم؛ خودِ engine نگه‌ش می‌داره
+                engine.getAdventureState(),
+                // ← دیگه لازم نیست از app.getPlantSpecSource() بگیریم؛ خودِ engine نگه‌ش می‌داره
                 app.getDomainEvents(),
                 Store.getLoggedInUser(),
                 Store.getActiveSession());

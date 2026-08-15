@@ -5,8 +5,6 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.pizpizi/pvz-skin/v0.1.1/2acde0cd4bc4f168b38c1e64676e84fa9490031f/pvz-skin-v0.1.1.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES>
-      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.pizpizi/pvz-skin/v0.1.1/e6591d37b09456be3c99d3496306735b94cf49b5/pvz-skin-v0.1.1-sources.jar!/" />
-    </SOURCES>
+    <SOURCES />
   </library>
 </component>

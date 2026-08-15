@@ -80,6 +80,55 @@ public class NewsMenuController {
         return result;
     }
 
+    /** Returns the unread count without changing any read state. */
+    public Result<Integer> getUnreadNewsCount() {
+        Result<Integer> result = new Result<>();
+        User user = requireUser(result);
+
+        if (user == null) {
+            return result;
+        }
+
+        int unreadCount = 0;
+        for (News news : user.getNewsList()) {
+            if (!news.isRead()) {
+                unreadCount++;
+            }
+        }
+
+        result.setStatus(true);
+        result.setData(unreadCount);
+        result.appendToMessage("unread news: " + unreadCount);
+        return result;
+    }
+
+    /** Marks every currently unread entry as read and persists the change. */
+    public Result<Integer> markAllAsRead() {
+        Result<Integer> result = new Result<>();
+        User user = requireUser(result);
+
+        if (user == null) {
+            return result;
+        }
+
+        int markedCount = 0;
+        for (News news : user.getNewsList()) {
+            if (!news.isRead()) {
+                news.markAsRead();
+                markedCount++;
+            }
+        }
+
+        if (markedCount > 0) {
+            userService.updateUser(user);
+        }
+
+        result.setStatus(true);
+        result.setData(markedCount);
+        result.appendToMessage("marked news as read: " + markedCount);
+        return result;
+    }
+
     private void appendAll(Result<ArrayList<News>> result, ArrayList<News> list) {
         for (int i = 0; i < list.size(); i++) {
             result.appendToMessage(list.get(i).getDisplayText());
@@ -90,7 +139,7 @@ public class NewsMenuController {
         }
     }
 
-    private User requireUser(Result<ArrayList<News>> result) {
+    private User requireUser(Result<?> result) {
         User user = Store.getLoggedInUser();
 
         if (user == null) {

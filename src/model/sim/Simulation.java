@@ -4,7 +4,8 @@ import model.GameEngine;
 import java.util.List;
 
 /**
- * لایه‌ی سازگاریِ نازک: GameplayController رو بدونِ تغییرِ اساسی به GameEngine وصل می‌کنه.
+ * لایه‌ی سازگاریِ نازک: GameplayController
+ * رو بدونِ تغییرِ اساسی به GameEngine وصل می‌کنه.
  * getWorld() مستقیم خودِ GameEngine رو برمی‌گردونه.
  */
 public class Simulation {

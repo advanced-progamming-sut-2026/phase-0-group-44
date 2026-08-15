@@ -5,8 +5,6 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.pizpizi/libPVZ/v0.1.5/b17db9a7f1511897ad49b65b387ab5d364471d7d/libPVZ-v0.1.5.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES>
-      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.pizpizi/libPVZ/v0.1.5/b1bef51ea35739f449b5eba62053245215751c1/libPVZ-v0.1.5-sources.jar!/" />
-    </SOURCES>
+    <SOURCES />
   </library>
 </component>

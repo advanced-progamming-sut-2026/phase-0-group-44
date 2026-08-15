@@ -27,7 +27,8 @@ public class Sun {
         return new Sun(type, tileX, tileY, State.FALLING, fallSeconds, null);
     }
 
-    /** خورشیدی که یک گیاه تولید کرده، با مقدارِ خودِ گیاه (نه مقدارِ ثابتِ نوع). */
+    /** خورشیدی که یک گیاه تولید کرده، با مقدارِ
+     *  خودِ گیاه (نه مقدارِ ثابتِ نوع). */
     public static Sun onPlant(int tileX, int tileY, int value) {
         return new Sun(SunType.NORMAL, tileX, tileY, State.ON_PLANT, 0, value);
     }
@@ -40,7 +41,8 @@ public class Sun {
     public boolean isAt(int x, int y) { return tileX == x && tileY == y; }
     public int getValue() { return customValue != null ? customValue : type.getValue(); }
 
-    /** یک ثانیه/دلتا از سقوط رو جلو می‌بره؛ true اگه تازه فرود اومده باشه. */
+    /** یک ثانیه/دلتا از سقوط رو جلو می‌بره؛
+     *  true اگه تازه فرود اومده باشه. */
     public boolean tickFall(double deltaSeconds) {
         if (state != State.FALLING) {
             return false;

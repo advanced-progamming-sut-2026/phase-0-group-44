@@ -5,8 +5,6 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.badlogicgames.gdx/gdx-backend-lwjgl3/1.14.2/b92aa68b24236fcd63d2158439ce8362ef45c05e/gdx-backend-lwjgl3-1.14.2.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES>
-      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.badlogicgames.gdx/gdx-backend-lwjgl3/1.14.2/de0c393f7536d870b868ad5eef08fb27099211ee/gdx-backend-lwjgl3-1.14.2-sources.jar!/" />
-    </SOURCES>
+    <SOURCES />
   </library>
 </component>
