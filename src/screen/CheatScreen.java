@@ -12,18 +12,19 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import controller.App;
 import model.Store;
 import model.enums.MenuName;
+import model.user.User;
 import pvz.skin.PvzSkin;
 
 /**
- * Developer-only entry screen. Lists every {@link MenuName} as a button so
- * each teammate can jump straight into the menu they are working on without
- * needing the rest of the flow (login, previous menus, etc.) to be wired up
- * yet. This screen does not touch any controller logic - it only flips
- * {@link Store#setCurrentMenu(MenuName)} and asks {@link PvzGame} to render
- * whatever screen is currently mapped for that menu.
+ * Developer-only entry screen.
+ *
+ * <p>Jumping directly to Adventure (or another authenticated menu) used to
+ * leave {@link Store#getLoggedInUser()} null.  That made every chapter look
+ * locked even though the progression code was correct.  The cheat screen now
+ * borrows the first loaded save as a preview user when a developer skips the
+ * login flow.  It never creates or persists a fake account.</p>
  */
 public final class CheatScreen implements Screen {
 
@@ -31,15 +32,16 @@ public final class CheatScreen implements Screen {
 
     private Stage stage;
     private Skin skin;
+    private Label statusLabel;
 
-    public CheatScreen(PvzGame game, App app) {
+    public CheatScreen(PvzGame game, controller.App app) {
         this.game = game;
     }
 
     @Override
     public void show() {
         stage = new Stage(new ScreenViewport());
-        Skin skin = PvzSkin.get();
+        skin = PvzSkin.get();
         Gdx.input.setInputProcessor(stage);
 
         Table root = new Table();
@@ -48,7 +50,14 @@ public final class CheatScreen implements Screen {
         stage.addActor(root);
 
         root.add(new Label("Cheat Menu", skin)).padBottom(20).row();
-        root.add(new Label("Jump to any menu:", skin)).padBottom(10).row();
+        root.add(new Label("Jump to any menu:", skin)).padBottom(8).row();
+
+        statusLabel = new Label(
+                "Authenticated previews use the first saved account if you skip Login.",
+                skin
+        );
+        statusLabel.setWrap(true);
+        root.add(statusLabel).width(520f).padBottom(10f).row();
 
         Table buttonList = new Table();
         buttonList.defaults().pad(6).fillX();
@@ -58,6 +67,9 @@ public final class CheatScreen implements Screen {
             button.addListener(new ChangeListener() {
                 @Override
                 public void changed(ChangeEvent event, Actor actor) {
+                    if (!preparePreviewUser(menu)) {
+                        return;
+                    }
                     Store.setCurrentMenu(menu);
                     game.goToScreenForCurrentMenu();
                 }
@@ -68,6 +80,31 @@ public final class CheatScreen implements Screen {
         ScrollPane scrollPane = new ScrollPane(buttonList, skin);
         scrollPane.setFadeScrollBars(false);
         root.add(scrollPane).expand().fill().row();
+    }
+
+    private boolean preparePreviewUser(MenuName destination) {
+        if (destination == MenuName.REGISTER || destination == MenuName.LOGIN) {
+            Store.setLoggedInUser(null);
+            return true;
+        }
+
+        if (Store.getLoggedInUser() != null) {
+            Store.getLoggedInUser().applyDefaults();
+            return true;
+        }
+
+        if (!Store.getUsers().isEmpty()) {
+            User preview = Store.getUsers().get(0);
+            preview.applyDefaults();
+            Store.setLoggedInUser(preview);
+            statusLabel.setText("Dev preview user: " + preview.getUsername());
+            return true;
+        }
+
+        statusLabel.setText(
+                "No saved account exists. Open Register/Login first, then return to this screen."
+        );
+        return false;
     }
 
     @Override
@@ -83,21 +120,14 @@ public final class CheatScreen implements Screen {
         stage.getViewport().update(width, height, true);
     }
 
-    @Override
-    public void pause() {
-    }
-
-    @Override
-    public void resume() {
-    }
-
-    @Override
-    public void hide() {
-    }
+    @Override public void pause() { }
+    @Override public void resume() { }
+    @Override public void hide() { }
 
     @Override
     public void dispose() {
-        stage.dispose();
-        skin.dispose();
+        if (stage != null) {
+            stage.dispose();
+        }
     }
 }

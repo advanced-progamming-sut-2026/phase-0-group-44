@@ -18,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import controller.App;
@@ -34,22 +35,26 @@ import model.user.User;
 import pvz.skin.PvzSkin;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Graphical Adventure menu for Phase 2.
+ * Phase-2 Adventure screen.
  *
- * <p>The chapter view follows the intent of figure 2: chapter artwork, title,
- * progress and lock state are visible together. Selecting an unlocked chapter
- * switches to the level view, which follows figure 3 with clearly selectable
- * level nodes and locked-state feedback.</p>
+ * <p>The chapter page deliberately behaves like the PVZ2 world selector rather
+ * than a generic settings grid: one world is the focus of a carousel while the
+ * neighbouring worlds remain visible.  The persistent HUD exposes the
+ * Adventure shortcuts (settings, collection, greenhouse, missions and shop)
+ * with PVZ assets, and the wallet stays visible as required by the phase-2
+ * specification.</p>
  */
 public final class AdventureMenuScreen implements Screen {
 
     private static final float VIRTUAL_WIDTH = 1280f;
     private static final float VIRTUAL_HEIGHT = 720f;
     private static final String ADVENTURE_ASSET_ROOT = "ui/adventure/";
+    private static final String HUD_ASSET_ROOT = ADVENTURE_ASSET_ROOT + "hud/";
     private static final String MAIN_MENU_ASSET_ROOT = "ui/mainmenu/";
     private static final int CORE_LEVEL_COUNT = 3;
 
@@ -61,7 +66,9 @@ public final class AdventureMenuScreen implements Screen {
     private Stage stage;
     private Skin skin;
     private ToastManager toast;
+    /** Null while browsing chapters; non-null while browsing that world's levels. */
     private GameWorld selectedWorld;
+    private int chapterCursor;
 
     public AdventureMenuScreen(PvzGame game, App app) {
         this.game = game;
@@ -75,6 +82,7 @@ public final class AdventureMenuScreen implements Screen {
         skin = PvzSkin.get();
         toast = new ToastManager(stage, skin);
         Gdx.input.setInputProcessor(stage);
+        chapterCursor = furthestUnlockedChapterIndex(Store.getLoggedInUser());
         rebuild();
     }
 
@@ -87,8 +95,7 @@ public final class AdventureMenuScreen implements Screen {
 
         root.add(buildBackground());
         root.add(selectedWorld == null ? buildChapterView() : buildLevelView());
-        root.add(buildTopBar());
-        root.add(buildShortcutBar());
+        root.add(buildTopHud());
     }
 
     private Image buildBackground() {
@@ -97,20 +104,62 @@ public final class AdventureMenuScreen implements Screen {
         return background;
     }
 
-    private Table buildTopBar() {
-        Table top = new Table();
-        top.top().pad(14f, 20f, 0f, 20f);
+    /** The PVZ-like persistent Adventure HUD. */
+    private Table buildTopHud() {
+        Table hud = new Table();
+        hud.top().pad(9f, 13f, 0f, 13f);
 
-        top.add(buildBackButton()).size(68f, 64f).left();
+        Table left = new Table();
+        left.defaults().padRight(5f);
+        left.add(hudIcon(buildBackButton(), "BACK", 62f, 60f));
 
-        String title = selectedWorld == null
+        ImageButton settings = imageButton(
+                MAIN_MENU_ASSET_ROOT + "settings_normal.png",
+                MAIN_MENU_ASSET_ROOT + "settings_selected.png"
+        );
+        addComingSoonListener(settings, "Settings");
+        left.add(hudIcon(settings, "SETTINGS", 58f, 55f));
+
+        ImageButton collection = imageButton(
+                HUD_ASSET_ROOT + "collection_normal.png",
+                HUD_ASSET_ROOT + "collection_selected.png"
+        );
+        addComingSoonListener(collection, "Collection / Almanac");
+        left.add(hudIcon(collection, "COLLECTION", 58f, 55f));
+
+        ImageButton greenhouse = imageButton(
+                HUD_ASSET_ROOT + "greenhouse_normal.png",
+                HUD_ASSET_ROOT + "greenhouse_selected.png"
+        );
+        addComingSoonListener(greenhouse, "Greenhouse");
+        left.add(hudIcon(greenhouse, "GREENHOUSE", 64f, 55f));
+
+        ImageButton missions = imageButton(
+                HUD_ASSET_ROOT + "missions_normal.png",
+                HUD_ASSET_ROOT + "missions_selected.png"
+        );
+        addComingSoonListener(missions, "Missions / Travel Log");
+        left.add(hudIcon(missions, "MISSIONS", 58f, 55f));
+
+        hud.add(left).left().top();
+
+        String titleText = selectedWorld == null
                 ? "ADVENTURE"
                 : selectedWorld.getDisplayName().toUpperCase(Locale.ROOT);
-        Label titleLabel = new Label(title, skin, "medium_outline");
-        top.add(titleLabel).expandX().center();
+        Label title = new Label(titleText, skin, "medium_outline");
+        hud.add(title).expandX().top().padTop(9f);
 
-        top.add(buildResourceArea()).right();
-        return top;
+        hud.add(buildWalletAndShop()).right().top();
+        return hud;
+    }
+
+    private Table hudIcon(ImageButton button, String caption, float width, float height) {
+        Table slot = new Table();
+        slot.add(button).size(width, height).row();
+        Label label = new Label(caption, skin);
+        label.setAlignment(Align.center);
+        slot.add(label).width(Math.max(width + 12f, 72f)).padTop(1f);
+        return slot;
     }
 
     private ImageButton buildBackButton() {
@@ -138,110 +187,178 @@ public final class AdventureMenuScreen implements Screen {
         return button;
     }
 
-    private Table buildResourceArea() {
-        Table resources = new Table();
+    private Table buildWalletAndShop() {
+        Table right = new Table();
         User user = Store.getLoggedInUser();
         int gems = user == null ? 0 : user.getGems();
         int coins = user == null ? 0 : user.getCoins();
 
-        resources.add(resourceIcon(MAIN_MENU_ASSET_ROOT + "gem.png", 29f, 38f)).padRight(5f);
-        resources.add(new Label(String.valueOf(gems), skin, "medium_outline")).padRight(16f);
-        resources.add(resourceIcon(MAIN_MENU_ASSET_ROOT + "coin.png", 29f, 29f)).padRight(5f);
-        resources.add(new Label(String.valueOf(coins), skin, "medium_outline"));
-        return resources;
+        right.add(resourceIcon(MAIN_MENU_ASSET_ROOT + "gem.png")).size(31f, 39f).padRight(4f);
+        right.add(new Label(String.valueOf(gems), skin, "medium_outline")).padRight(13f);
+        right.add(resourceIcon(MAIN_MENU_ASSET_ROOT + "coin.png")).size(31f, 31f).padRight(4f);
+        right.add(new Label(String.valueOf(coins), skin, "medium_outline")).padRight(9f);
+
+        ImageButton shop = imageButton(
+                HUD_ASSET_ROOT + "shop_normal.png",
+                HUD_ASSET_ROOT + "shop_selected.png"
+        );
+        addComingSoonListener(
+                shop,
+                "Shop (the Phase-1 route is through Greenhouse; the graphical shortcut is reserved here)"
+        );
+        right.add(hudIcon(shop, "SHOP", 69f, 69f));
+        return right;
     }
 
-    private Image resourceIcon(String path, float width, float height) {
+    private Image resourceIcon(String path) {
         Image image = new Image(loadTexture(path));
         image.setScaling(Scaling.fit);
-        image.setSize(width, height);
         return image;
     }
 
+    /** Figure-2 style world selector. */
     private Table buildChapterView() {
         Table content = new Table();
-        content.top().padTop(92f).padBottom(82f);
+        content.top().padTop(103f).padBottom(16f);
 
-        Label heading = new Label("CHOOSE A CHAPTER", skin, "medium_outline");
-        content.add(heading).padBottom(9f).row();
+        List<Chapter> chapters = AdventureCatalog.chapters();
+        Chapter current = chapters.get(chapterCursor);
 
-        Label hint = new Label(
-                "Choose an unlocked world. Progress shows completed core levels.",
-                skin,
-                "medium_outline"
-        );
-        content.add(hint).padBottom(16f).row();
+        Table carousel = new Table();
+        carousel.defaults().padLeft(8f).padRight(8f);
 
-        Table chapters = new Table();
-        chapters.defaults().pad(0f, 8f, 0f, 8f);
-        for (Chapter chapter : AdventureCatalog.chapters()) {
-            chapters.add(buildChapterCard(chapter)).width(258f).height(474f);
-        }
+        carousel.add(buildCarouselArrow(-1)).size(48f, 48f);
+        carousel.add(buildSideWorld(chapterCursor - 1)).width(205f).height(330f);
+        carousel.add(buildCenterWorld(current)).width(390f).height(420f);
+        carousel.add(buildSideWorld(chapterCursor + 1)).width(205f).height(330f);
+        carousel.add(buildCarouselArrow(1)).size(48f, 48f);
 
-        content.add(chapters);
+        content.add(carousel).height(430f).row();
+        content.add(buildChapterSummary(current)).padTop(1f);
         return content;
     }
 
-    private Table buildChapterCard(Chapter chapter) {
-        GameWorld world = chapter.getWorld();
+    private Actor buildCarouselArrow(int direction) {
+        boolean left = direction < 0;
+        ImageButton button = imageButton(
+                HUD_ASSET_ROOT + (left ? "carousel_left.png" : "carousel_right.png"),
+                HUD_ASSET_ROOT + (left ? "carousel_left_down.png" : "carousel_right_down.png")
+        );
+
+        boolean enabled = direction < 0
+                ? chapterCursor > 0
+                : chapterCursor < AdventureCatalog.chapters().size() - 1;
+        if (!enabled) {
+            button.setTouchable(Touchable.disabled);
+            button.setColor(1f, 1f, 1f, 0.22f);
+            return button;
+        }
+
+        button.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                chapterCursor += direction;
+                rebuild();
+            }
+        });
+        return button;
+    }
+
+    private Actor buildSideWorld(int index) {
+        Table holder = new Table();
+        List<Chapter> chapters = AdventureCatalog.chapters();
+        if (index < 0 || index >= chapters.size()) {
+            return holder;
+        }
+
+        Chapter chapter = chapters.get(index);
         User user = Store.getLoggedInUser();
-        boolean unlocked = ChapterCatalog.isUnlocked(user, world);
+        boolean unlocked = ChapterCatalog.isUnlocked(user, chapter.getWorld());
 
-        Table card = new Table();
-        card.top().pad(10f);
-        card.setTouchable(Touchable.enabled);
-        card.setBackground(skin.getDrawable("image_ui_mainmenu_mm_settings_tab_10"));
+        Stack stack = worldArtStack(chapter.getWorld(), unlocked, false);
+        holder.add(stack).width(170f).height(250f).row();
 
-        Stack artStack = new Stack();
+        Label name = new Label(chapter.getWorld().getDisplayName(), skin);
+        name.setWrap(true);
+        name.setAlignment(Align.center);
+        if (!unlocked) {
+            name.setColor(Color.LIGHT_GRAY);
+        }
+        holder.add(name).width(185f).height(45f).padTop(1f);
+
+        holder.setTouchable(Touchable.enabled);
+        holder.addListener(new ClickListener() {
+            @Override
+            public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                chapterCursor = index;
+                rebuild();
+            }
+        });
+        return holder;
+    }
+
+    private Actor buildCenterWorld(Chapter chapter) {
+        User user = Store.getLoggedInUser();
+        boolean unlocked = ChapterCatalog.isUnlocked(user, chapter.getWorld());
+
+        Table holder = new Table();
+        Stack stack = worldArtStack(chapter.getWorld(), unlocked, true);
+        holder.add(stack).width(330f).height(390f);
+        holder.setTouchable(Touchable.enabled);
+        holder.addListener(new ClickListener() {
+            @Override
+            public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                openChapter(chapter.getWorld());
+            }
+        });
+        return holder;
+    }
+
+    private Stack worldArtStack(GameWorld world, boolean unlocked, boolean central) {
+        Stack stack = new Stack();
         Image art = new Image(loadTexture(ADVENTURE_ASSET_ROOT + worldAsset(world)));
         art.setScaling(Scaling.fit);
         if (!unlocked) {
-            art.setColor(0.42f, 0.42f, 0.42f, 0.72f);
+            art.setColor(0.34f, 0.34f, 0.34f, central ? 0.80f : 0.62f);
+        } else if (!central) {
+            art.setColor(0.78f, 0.78f, 0.78f, 0.84f);
         }
-        artStack.add(art);
+        stack.add(art);
+        return stack;
+    }
+
+    private Table buildChapterSummary(Chapter chapter) {
+        GameWorld world = chapter.getWorld();
+        User user = Store.getLoggedInUser();
+        boolean unlocked = ChapterCatalog.isUnlocked(user, world);
+        int completed = completedCoreLevels(user, world);
+
+        Table summary = new Table();
+        Label name = new Label(world.getDisplayName().toUpperCase(Locale.ROOT), skin, "medium_outline");
+        summary.add(name).row();
+
+        Label progress = new Label(
+                completed + " / " + CORE_LEVEL_COUNT + " CORE LEVELS COMPLETE",
+                skin
+        );
+        summary.add(progress).padTop(2f).row();
 
         if (!unlocked) {
-            Table lockOverlay = new Table();
-            lockOverlay.bottom().padBottom(18f);
             Label locked = new Label("LOCKED", skin, "medium_outline");
             locked.setColor(Color.LIGHT_GRAY);
-            lockOverlay.add(locked);
-            artStack.add(lockOverlay);
+            summary.add(locked).padTop(4f);
+            return summary;
         }
 
-        card.add(artStack).width(210f).height(320f).padBottom(6f).row();
-
-        Label worldName = new Label(
-                world.getDisplayName().toUpperCase(Locale.ROOT),
-                skin,
-                "medium_outline"
-        );
-        worldName.setWrap(true);
-        worldName.setAlignment(com.badlogic.gdx.utils.Align.center);
-        card.add(worldName).width(220f).height(50f).row();
-
-        int completed = completedCoreLevels(user, world);
-        Label progress = new Label(
-                completed + " / " + CORE_LEVEL_COUNT + " CORE LEVELS",
-                skin,
-                "medium_outline"
-        );
-        if (!unlocked) {
-            progress.setColor(Color.LIGHT_GRAY);
-        }
-        card.add(progress).padTop(3f).row();
-
-        Label state = new Label(unlocked ? "OPEN" : "LOCKED", skin, "medium_outline");
-        state.setColor(unlocked ? Color.GOLD : Color.LIGHT_GRAY);
-        card.add(state).padTop(4f);
-
-        card.addListener(new ClickListener() {
+        TextButton enter = new TextButton("ENTER", skin, "purple");
+        enter.addListener(new ChangeListener() {
             @Override
-            public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+            public void changed(ChangeEvent event, Actor actor) {
                 openChapter(world);
             }
         });
-        return card;
+        summary.add(enter).width(165f).height(46f).padTop(5f);
+        return summary;
     }
 
     private void openChapter(GameWorld world) {
@@ -252,56 +369,49 @@ public final class AdventureMenuScreen implements Screen {
         }
 
         selectedWorld = world;
+        chapterCursor = Math.max(0, selectedWorld.getChapterNumber() - 1);
         rebuild();
     }
 
+    /** Figure-3 style level selector, without the old beige card grid. */
     private Table buildLevelView() {
         Table content = new Table();
-        content.top().padTop(100f).padBottom(84f).padLeft(54f).padRight(54f);
-
-        Table worldPanel = new Table();
-        worldPanel.setBackground(skin.getDrawable("image_ui_mainmenu_mm_settings_tab_10"));
-        worldPanel.pad(12f);
-
-        Image worldArt = new Image(loadTexture(ADVENTURE_ASSET_ROOT + worldAsset(selectedWorld)));
-        worldArt.setScaling(Scaling.fit);
-        worldPanel.add(worldArt).width(245f).height(430f).row();
-        worldPanel.add(new Label(selectedWorld.getDisplayName(), skin, "medium_outline"))
-                .padTop(4f);
-
-        content.add(worldPanel).width(285f).height(515f).padRight(24f);
-        content.add(buildLevelPanel()).width(850f).height(515f);
-        return content;
-    }
-
-    private Table buildLevelPanel() {
-        Table panel = new Table();
-        panel.top().pad(22f, 24f, 20f, 24f);
-        panel.setBackground(skin.getDrawable("image_ui_dialog_asset_inner_bkgd_10"));
+        content.top().padTop(112f).padLeft(52f).padRight(52f).padBottom(20f);
 
         User user = Store.getLoggedInUser();
         int completed = completedCoreLevels(user, selectedWorld);
 
-        Label title = new Label("SELECT A LEVEL", skin, "medium_outline");
-        panel.add(title).padBottom(6f).row();
-
+        Label heading = new Label("SELECT A LEVEL", skin, "medium_outline");
+        content.add(heading).colspan(2).padBottom(2f).row();
         Label progress = new Label(
-                selectedWorld.getDisplayName() + "   "
-                        + completed + " / " + CORE_LEVEL_COUNT + " CORE LEVELS COMPLETE",
-                skin,
-                "medium_outline"
+                completed + " / " + CORE_LEVEL_COUNT + " CORE LEVELS COMPLETE",
+                skin
         );
-        panel.add(progress).padBottom(28f).row();
+        content.add(progress).colspan(2).padBottom(12f).row();
 
-        Table nodes = new Table();
-        nodes.defaults().padLeft(6f).padRight(6f);
+        Image worldArt = new Image(loadTexture(ADVENTURE_ASSET_ROOT + worldAsset(selectedWorld)));
+        worldArt.setScaling(Scaling.fit);
+        content.add(worldArt).width(255f).height(420f).padRight(28f);
+        content.add(buildLevelPath()).width(865f).height(420f);
+        return content;
+    }
+
+    private Table buildLevelPath() {
+        Table path = new Table();
         Chapter chapter = AdventureCatalog.chapter(selectedWorld);
-        for (Level level : chapter.getLevels()) {
-            nodes.add(buildLevelNode(level)).width(180f).height(320f);
-        }
+        List<Level> levels = chapter.getLevels();
 
-        panel.add(nodes).growX();
-        return panel;
+        Table row = new Table();
+        for (int index = 0; index < levels.size(); index++) {
+            row.add(buildLevelNode(levels.get(index))).width(184f).height(305f);
+            if (index < levels.size() - 1) {
+                Label connector = new Label("- - -", skin, "medium_outline");
+                connector.setColor(0.85f, 0.82f, 0.66f, 0.9f);
+                row.add(connector).width(48f).padBottom(118f);
+            }
+        }
+        path.add(row).expand().center();
+        return path;
     }
 
     private Table buildLevelNode(Level level) {
@@ -311,6 +421,7 @@ public final class AdventureMenuScreen implements Screen {
                 selectedWorld,
                 level.getLevelNumber()
         );
+        boolean completed = isLevelCompleted(user, selectedWorld, level.getLevelNumber());
 
         Table node = new Table();
         node.top();
@@ -320,7 +431,6 @@ public final class AdventureMenuScreen implements Screen {
         buttonStack.add(button);
 
         Table numberOverlay = new Table();
-        numberOverlay.center();
         String numberText = level.isBossDeferred()
                 ? "BOSS"
                 : String.valueOf(level.getLevelNumber());
@@ -328,28 +438,29 @@ public final class AdventureMenuScreen implements Screen {
         if (!unlocked) {
             number.setColor(Color.LIGHT_GRAY);
         }
-        numberOverlay.add(number).padBottom(9f);
+        numberOverlay.add(number).padBottom(8f);
         buttonStack.add(numberOverlay);
 
-        node.add(buttonStack).width(132f).height(102f).padBottom(8f).row();
+        node.add(buttonStack).width(132f).height(102f).padBottom(7f).row();
 
-        Label name = new Label(levelName(level), skin, "medium_outline");
+        Label name = new Label(levelName(level), skin);
         name.setWrap(true);
-        name.setAlignment(com.badlogic.gdx.utils.Align.center);
+        name.setAlignment(Align.center);
         if (!unlocked) {
             name.setColor(Color.LIGHT_GRAY);
         }
-        node.add(name).width(168f).height(78f).row();
+        node.add(name).width(170f).height(61f).row();
 
-        Label type = new Label(levelType(level), skin, "medium_outline");
+        Label type = new Label(levelType(level), skin);
         type.setWrap(true);
-        type.setAlignment(com.badlogic.gdx.utils.Align.center);
+        type.setAlignment(Align.center);
         type.setColor(level.isBossDeferred() ? Color.GOLD : Color.WHITE);
-        node.add(type).width(168f).height(56f).row();
+        node.add(type).width(170f).height(45f).row();
 
-        Label state = new Label(unlocked ? "UNLOCKED" : "LOCKED", skin, "medium_outline");
-        state.setColor(unlocked ? Color.GOLD : Color.LIGHT_GRAY);
-        node.add(state).padTop(2f);
+        String stateText = completed ? "COMPLETED" : (unlocked ? "OPEN" : "LOCKED");
+        Label state = new Label(stateText, skin);
+        state.setColor(completed || unlocked ? Color.GOLD : Color.LIGHT_GRAY);
+        node.add(state).padTop(1f);
 
         button.addListener(new ChangeListener() {
             @Override
@@ -364,7 +475,6 @@ public final class AdventureMenuScreen implements Screen {
         String up = ADVENTURE_ASSET_ROOT + (unlocked ? "level_green.png" : "level_gray.png");
         String over = ADVENTURE_ASSET_ROOT + (unlocked ? "level_blue.png" : "level_gray.png");
         ImageButton button = imageButton(up, over);
-        button.getImage().setScaling(Scaling.fit);
         button.getImageCell().size(118f, 88f);
         return button;
     }
@@ -390,24 +500,6 @@ public final class AdventureMenuScreen implements Screen {
         );
     }
 
-    private Table buildShortcutBar() {
-        Table shortcuts = new Table();
-        shortcuts.bottom().padBottom(14f);
-
-        TextButton collection = new TextButton("COLLECTION", skin, "brown");
-        addComingSoonListener(collection, "Collection");
-        shortcuts.add(collection).width(170f).height(46f).padRight(8f);
-
-        TextButton greenhouse = new TextButton("GREENHOUSE", skin, "brown");
-        addComingSoonListener(greenhouse, "Greenhouse");
-        shortcuts.add(greenhouse).width(170f).height(46f).padRight(8f);
-
-        TextButton missions = new TextButton("MISSIONS", skin, "brown");
-        addComingSoonListener(missions, "Missions / Travel Log");
-        shortcuts.add(missions).width(190f).height(46f);
-        return shortcuts;
-    }
-
     private void addComingSoonListener(Actor actor, String name) {
         actor.addListener(new ChangeListener() {
             @Override
@@ -431,6 +523,31 @@ public final class AdventureMenuScreen implements Screen {
             return Math.min(CORE_LEVEL_COUNT, Math.max(0, latestLevel));
         }
         return 0;
+    }
+
+    private boolean isLevelCompleted(User user, GameWorld world, int levelNumber) {
+        if (user == null || world == null) {
+            return false;
+        }
+        if (user.getLatestCompletedChapter() > world.getChapterNumber()) {
+            return true;
+        }
+        return user.getLatestCompletedChapter() == world.getChapterNumber()
+                && user.getLatestCompletedLevel() >= levelNumber;
+    }
+
+    private int furthestUnlockedChapterIndex(User user) {
+        if (user == null) {
+            return 0;
+        }
+        List<Chapter> chapters = AdventureCatalog.chapters();
+        int result = 0;
+        for (int index = 0; index < chapters.size(); index++) {
+            if (ChapterCatalog.isUnlocked(user, chapters.get(index).getWorld())) {
+                result = index;
+            }
+        }
+        return result;
     }
 
     private String worldAsset(GameWorld world) {
