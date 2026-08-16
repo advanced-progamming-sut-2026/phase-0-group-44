@@ -159,7 +159,8 @@ public final class MainMenuScreen implements Screen {
         right.defaults().padLeft(12f);
 
         ImageButton settings = imageButton("settings_normal.png", "settings_selected.png");
-        right.add(iconItem("SETTINGS", settings, "Settings"));
+        settings.addListener(settingsListener());
+        right.add(iconItem("SETTINGS", settings, null));
         right.add(iconItem("SCORES", singleStateButton("leaderboard.png"), "Leaderboard"));
         return right;
     }
@@ -249,6 +250,20 @@ public final class MainMenuScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 openNewsDialog();
+            }
+        };
+    }
+    private ChangeListener settingsListener() {
+        return new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Result<String> result = menuController.enterMenu("settings");
+
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
             }
         };
     }
