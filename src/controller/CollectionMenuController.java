@@ -170,6 +170,28 @@ public class CollectionMenuController {
         return result;
     }
 
+    /** Cheat: marks every zombie in the game as seen, bypassing needing to encounter it in a level. */
+    public Result<String> cheatSeeAllZombies(User user) {
+        Result<String> result = new Result<>();
+        if (user == null) {
+            result.appendToMessage("No user is logged in.");
+            return result;
+        }
+        Collection collection = user.getCollection();
+        int added = 0;
+        for (ZombieDefinition definition : zombieRepository.findAll()) {
+            if (!collection.getSeenZombies().contains(definition.getType())) {
+                collection.markZombieAsSeen(definition.getType());
+                added++;
+            }
+        }
+        userService.updateUser(user);
+        result.setStatus(true);
+        result.appendToMessage("marked " + added + " new zombie(s) as seen; collection now has "
+                + zombieRepository.findAll().size() + " zombie(s) total");
+        return result;
+    }
+
     @SuppressWarnings("PMD.ExcessiveMethodLength")
     public Result<PlantCollectionView> purchasePlant(
             User user,
@@ -401,4 +423,3 @@ public class CollectionMenuController {
         return result;
     }
 }
-

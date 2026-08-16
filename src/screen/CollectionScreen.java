@@ -230,8 +230,16 @@ public final class CollectionScreen implements Screen {
                 }
             });
             filterBar.add(upgradeableBox);
+        } else {
+            TextButton showAllZombiesButton = new TextButton("SHOW ALL ZOMBIES", skin, "purple");
+            showAllZombiesButton.addListener(new ChangeListener() {
+                @Override
+                public void changed(ChangeEvent event, Actor actor) {
+                    handleShowAllZombies();
+                }
+            });
+            filterBar.add(showAllZombiesButton).height(44f);
         }
-        // Zombies tab intentionally has no filters (matches spec: only seen/unseen state).
     }
 
     private String[] collectPlantFamilies() {
@@ -350,10 +358,17 @@ public final class CollectionScreen implements Screen {
             }
         }
 
+        List<ZombieDefinition> spottedInOrder = new ArrayList<>();
         int column = 0;
         for (ZombieDefinition definition : allResult.getData()) {
             boolean spotted = seen.contains(definition.getType());
-            panel.add(buildZombieCard(definition, spotted)).size(CARD_SIZE, CARD_SIZE + 24f).pad(6f);
+            if (spotted) {
+                spottedInOrder.add(definition);
+            }
+            int detailIndex = spottedInOrder.size() - 1;
+
+            panel.add(buildZombieCard(definition, spotted, spottedInOrder, detailIndex))
+                    .size(CARD_SIZE, CARD_SIZE + 24f).pad(6f);
             column++;
             if (column == GRID_COLUMNS) {
                 column = 0;
@@ -410,7 +425,8 @@ public final class CollectionScreen implements Screen {
         return card;
     }
 
-    private Table buildZombieCard(ZombieDefinition definition, boolean spotted) {
+    private Table buildZombieCard(ZombieDefinition definition, boolean spotted,
+                                  List<ZombieDefinition> spottedInOrder, int detailIndex) {
         Table card = new Table();
         card.setBackground(skin.getDrawable("image_ui_mainmenu_mm_settings_tab_10"));
 
@@ -425,7 +441,7 @@ public final class CollectionScreen implements Screen {
             card.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
                 @Override
                 public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
-                    openZombieDetail(definition);
+                    game.setScreen(new ZombieDetailScreen(game, app, spottedInOrder, detailIndex));
                 }
             });
         }
@@ -440,11 +456,6 @@ public final class CollectionScreen implements Screen {
     }
 
     // ---------------------------------------------------------------- detail / purchase
-
-    private void openZombieDetail(ZombieDefinition definition) {
-        ZombieDetailDialog dialog = new ZombieDetailDialog(skin, definition);
-        dialog.showCentered(stage);
-    }
 
     private void openPlantPurchase(PlantDefinition definition) {
         Dialog confirm = new Dialog("BUY PLANT", skin) {
@@ -473,6 +484,16 @@ public final class CollectionScreen implements Screen {
 
     private void handlePurchase(PlantDefinition definition) {
         Result<PlantCollectionView> result = controller.purchasePlant(Store.getLoggedInUser(), definition.getName());
+        if (result.getStatus()) {
+            toast.showInfo(result.getMessage());
+            refreshGrid();
+        } else {
+            toast.showError(result.getMessage());
+        }
+    }
+
+    private void handleShowAllZombies() {
+        Result<String> result = controller.cheatSeeAllZombies(Store.getLoggedInUser());
         if (result.getStatus()) {
             toast.showInfo(result.getMessage());
             refreshGrid();

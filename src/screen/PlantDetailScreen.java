@@ -4,12 +4,14 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import controller.App;
@@ -33,7 +35,6 @@ import java.util.Locale;
  * ASSUMPTIONS (flagged because the model doesn't carry this data today):
  *  - "Range" and "Special" have no backing field on PlantDefinition, so those two
  *    rows render their icon + label with a placeholder value ("--").
- *  - There's no "toughness" icon asset, so that row has no icon (blank spacer).
  *  - The yellow flavor/backstory paragraph in the mockup has no matching field
  *    (baseAbility has no public getter today), so it's omitted.
  *  - "Show Mint Stats" is implemented as a pure UI toggle: checked reveals the
@@ -48,12 +49,14 @@ public final class PlantDetailScreen implements Screen {
 
     private static final String ASSET_ROOT = "ui/collection/";
     private static final String PLANT_ICON_ROOT = "ui/collection/plants/";
+    private static final String ADVENTURE_ROOT = "ui/adventure/";
 
     private final PvzGame game;
     private final App app;
     private final CollectionMenuController controller;
     private final List<PlantCollectionView> views;
     private final List<Texture> textures = new ArrayList<>();
+    private Image background;
 
     private int index;
     private boolean showPreview = true;
@@ -78,6 +81,10 @@ public final class PlantDetailScreen implements Screen {
         PvzSkinExtras.ensureDialogStyle(skin);
         toast = new ToastManager(stage, skin);
         Gdx.input.setInputProcessor(stage);
+        background = new Image(loadTexture(ASSET_ROOT + "plantDetailBg.png"));
+        background.setScaling(Scaling.fill);
+        background.setFillParent(true);
+        stage.addActor(background);
         buildScreen();
     }
 
@@ -100,8 +107,8 @@ public final class PlantDetailScreen implements Screen {
 
         Table body = new Table();
         body.top();
-        body.add(buildLeftColumn()).width(360f).top().padRight(24f);
-        body.add(buildRightColumn()).width(560f).top();
+        body.add(buildLeftColumn()).width(660f).top().padRight(24f);
+        body.add(buildRightColumn()).width(760f).top().padTop(-80f);;
 
         Stack withArrows = new Stack();
         withArrows.add(body);
@@ -114,14 +121,14 @@ public final class PlantDetailScreen implements Screen {
         Table topBar = new Table();
         topBar.pad(16f, 20f, 0f, 20f);
 
-        ImageButton backButton = singleStateImageButton(ASSET_ROOT + "buttons_hud_back_selected.png");
+        ImageButton backButton = navArrowButton(ADVENTURE_ROOT + "back_normal.png", ADVENTURE_ROOT + "back_selected.png");
         backButton.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 game.setScreen(new CollectionScreen(game, app));
             }
         });
-        topBar.add(backButton).size(52f, 46f).left();
+        topBar.add(backButton).size(72f, 66f).left();
 
         topBar.add().expandX();
 
@@ -145,18 +152,24 @@ public final class PlantDetailScreen implements Screen {
         column.top();
 
         Table portrait = new Table();
-        portrait.setBackground(skin.getDrawable("image_ui_dialog_asset_inner_bkgd_10"));
+        portrait.setBackground(
+                new TextureRegionDrawable(
+                        new TextureRegion(
+                                loadTexture(ASSET_ROOT + "card_plant_bg_pirate.png")
+                        )
+                )
+        );
 
         Image plantImage = new Image(loadTexture(PLANT_ICON_ROOT
                 + view.getDefinition().getType().name().toLowerCase(Locale.ROOT) + ".png"));
         plantImage.setScaling(Scaling.fit);
-        portrait.add(plantImage).size(260f).pad(20f);
+        portrait.add(plantImage).size(120f).pad(20f);
 
         Stack portraitStack = new Stack();
         portraitStack.add(portrait);
 
         Table levelOverlay = new Table();
-        levelOverlay.bottom().left().pad(0f, 10f, 10f, 0f);
+        levelOverlay.bottom().left().pad(0f, 130f, 10f, 0f);
         levelOverlay.add(new Label("Level " + card.getLevel(), skin, "medium_outline"));
         portraitStack.add(levelOverlay);
 
@@ -171,14 +184,19 @@ public final class PlantDetailScreen implements Screen {
                 toast.showInfo("Seed packet store is not connected yet.");
             }
         });
-        column.add(findMoreButton).width(320f).height(56f).padTop(14f);
+        column.add(findMoreButton).width(320f).height(75f).padTop(14f);
 
         return column;
     }
 
     private Table buildSeedPacketBar(PlantCard card) {
         Table bar = new Table();
-        ProgressBar progressBar = new ProgressBar(0f, Math.max(1, card.getUpgradeSeedPacketCost()), 1f, false, skin);
+
+        Image levelIcon = new Image(loadTexture(ASSET_ROOT + "level_tab_gold.png"));
+        levelIcon.setScaling(Scaling.fit);
+        bar.add(levelIcon).size(48f).padRight(8f);
+
+        ProgressBar progressBar = new ProgressBar(0f, Math.max(1, card.getUpgradeSeedPacketCost()), 4f, false, skin, "xp_yellow");
         progressBar.setValue(card.canUpgrade() ? Math.min(card.getSeedPackets(), card.getUpgradeSeedPacketCost()) : 1f);
 
         Stack stack = new Stack();
@@ -205,7 +223,7 @@ public final class PlantDetailScreen implements Screen {
 
         Table column = new Table();
         column.top().left();
-        column.pad(4f, 10f, 0f, 10f);
+        column.pad(0f, 10f, 0f, 10f);
 
         column.add(new Label(definition.getName(), skin, "big_outline")).left().padBottom(18f).row();
 
@@ -215,7 +233,7 @@ public final class PlantDetailScreen implements Screen {
                 : null;
 
         Table statGrid = new Table();
-        statGrid.defaults().left().pad(6f, 0f, 6f, 30f);
+        statGrid.defaults().left().pad(12f, 0f, 12f, 60f);
 
         statGrid.add(buildStatRow(ASSET_ROOT + "suncost.png", "SUN COST",
                 String.valueOf(currentStats.getCost()),
@@ -224,7 +242,7 @@ public final class PlantDetailScreen implements Screen {
                 String.valueOf(currentStats.getRecharge()), null));
         statGrid.row();
 
-        statGrid.add(buildStatRow(null, "TOUGHNESS",
+        statGrid.add(buildStatRow(ASSET_ROOT + "toughness.png", "TOUGHNESS",
                 String.valueOf(currentStats.getHp()),
                 nextStats == null ? null : String.valueOf(nextStats.getHp())));
         statGrid.add(buildStatRow(ASSET_ROOT + "damage.png", "DAMAGE",
@@ -255,22 +273,45 @@ public final class PlantDetailScreen implements Screen {
         if (iconPath != null) {
             Image icon = new Image(loadTexture(iconPath));
             icon.setScaling(Scaling.fit);
-            row.add(icon).size(40f).padRight(10f);
+            row.add(icon).size(60f).padRight(10f);
         } else {
             Table spacer = new Table();
-            row.add(spacer).size(40f).padRight(10f);
+            row.add(spacer).size(60f).padRight(10f);
         }
 
         Table textColumn = new Table();
         textColumn.left();
-        textColumn.add(new Label(label, skin, "medium_outline")).left().row();
 
-        String valueText = (showPreview && nextValue != null)
-                ? currentValue + " > " + nextValue
-                : currentValue;
-        textColumn.add(new Label(valueText, skin, "medium_outline")).left();
+        textColumn.add(new Label(label, skin, "medium_outline"))
+                .left()
+                .row();
+
+        if (showPreview && nextValue != null) {
+
+            Table valueRow = new Table();
+
+            // مقدار فعلی
+            valueRow.add(new Label(currentValue, skin, "medium_outline"));
+
+            // فلش
+            valueRow.add(new Label(" > ", skin, "medium_outline"));
+
+            // مقدار جدید - سبز
+            Label nextLabel = new Label(nextValue, skin, "medium_outline");
+            nextLabel.setColor(0f, 1f, 0f, 1f);
+
+            valueRow.add(nextLabel);
+
+            textColumn.add(valueRow).left();
+
+        } else {
+
+            textColumn.add(new Label(currentValue, skin, "medium_outline"))
+                    .left();
+        }
 
         row.add(textColumn).left();
+
         return row;
     }
 
@@ -295,13 +336,14 @@ public final class PlantDetailScreen implements Screen {
         return row;
     }
 
+
     private Table buildPlantFoodRow(PlantDefinition definition) {
         Table row = new Table();
         row.left().top();
 
         Image icon = new Image(loadTexture(ASSET_ROOT + "plantfood.png"));
         icon.setScaling(Scaling.fit);
-        row.add(icon).size(34f).padRight(10f).top();
+        row.add(icon).size(58f).padRight(10f).top();
 
         String effect = definition.getPlantFoodEffect() == null ? "" : definition.getPlantFoodEffect();
         Label label = new Label("Plant Food: " + effect, skin, "medium_outline");
@@ -319,6 +361,7 @@ public final class PlantDetailScreen implements Screen {
         ImageButton previousButton = navArrowButton(
                 ASSET_ROOT + "stats_screen_nav_arrow_previous.png",
                 ASSET_ROOT + "stats_screen_nav_arrow_previous_down.png");
+
         previousButton.setVisible(views.size() > 1);
         previousButton.addListener(new ClickListener() {
             @Override
@@ -331,6 +374,7 @@ public final class PlantDetailScreen implements Screen {
         ImageButton nextButton = navArrowButton(
                 ASSET_ROOT + "stats_screen_nav_arrow_next.png",
                 ASSET_ROOT + "stats_screen_nav_arrow_next_down.png");
+
         nextButton.setVisible(views.size() > 1);
         nextButton.addListener(new ClickListener() {
             @Override
@@ -340,11 +384,22 @@ public final class PlantDetailScreen implements Screen {
             }
         });
 
-        overlay.add(previousButton).size(54f, 64f).left().expandX().padLeft(4f);
-        overlay.add(nextButton).size(54f, 64f).right().expandX().padRight(4f);
+        overlay.top().padTop(365f);
+
+        overlay.add(previousButton)
+                .size(54f, 64f)
+                .left()
+                .expandX()
+                .padLeft(-40f);
+
+        overlay.add(nextButton)
+                .size(54f, 64f)
+                .right()
+                .expandX()
+                .padRight(-40f);
+
         return overlay;
     }
-
     private ImageButton navArrowButton(String upPath, String downPath) {
         Texture up = loadTexture(upPath);
         Texture down = loadTexture(downPath);
@@ -352,14 +407,6 @@ public final class PlantDetailScreen implements Screen {
         style.imageUp = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(up);
         style.imageDown = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(down);
         style.imageOver = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(down);
-        return new ImageButton(style);
-    }
-
-    private ImageButton singleStateImageButton(String path) {
-        Texture texture = loadTexture(path);
-        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
-        style.imageUp = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(texture);
-        style.imageDown = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(texture);
         return new ImageButton(style);
     }
 
