@@ -28,6 +28,7 @@ public final class PvzGame extends Game {
             case MAIN -> setScreen(new MainMenuScreen(this, app));
             case GAME -> setScreen(new AdventureMenuScreen(this, app));
             case GREENHOUSE -> setScreen(new GreenhouseScreen(this, app));
+            case SHOP -> setScreen(new ShopScreen(this, app));
         //    case SCORED_GAME -> setScreen(new ScoredGameScreen(this, app));
             // ... بقیه‌ی MenuNameها به مرور اضافه می‌شن
             default -> setScreen(new RegisterScreen(this, app));
