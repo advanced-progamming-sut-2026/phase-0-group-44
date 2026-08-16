@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import pvz.libpvz.pam.PamPlayer;
 
-/** Small Scene2D wrapper around libPVZ's PAM renderer for greenhouse plants. */
+/** Small Scene2D wrapper around libPVZ's PAM renderer for greenhouse/shop plants. */
 public final class PamPlantActor extends Actor {
     private final PamPlayer player;
     private final String pamPath;
@@ -14,6 +14,18 @@ public final class PamPlantActor extends Actor {
     private final float yOffset;
     private float stateTime;
 
+    /**
+     * Backward-compatible constructor used by ShopScreen and older callers.
+     */
+    public PamPlantActor(PamPlayer player, String pamPath, String clip,
+                         float scale, float yOffset) {
+        this(player, pamPath, clip, scale, 0f, yOffset);
+    }
+
+    /**
+     * Constructor used by the final GreenhouseScreen, where individual plant
+     * families can be tuned horizontally as well as vertically.
+     */
     public PamPlantActor(PamPlayer player, String pamPath, String clip,
                          float scale, float xOffset, float yOffset) {
         this.player = player;
@@ -38,7 +50,8 @@ public final class PamPlantActor extends Actor {
         }
 
         float centerX = getX() + getWidth() * 0.5f + xOffset;
-        float centerY = getY() + getHeight() * 0.57f + yOffset;
-        player.draw(batch, pamPath, clip, stateTime, centerX, centerY, scale, scale, true);
+        float centerY = getY() + getHeight() * 0.60f + yOffset;
+        player.draw(batch, pamPath, clip, stateTime,
+                centerX, centerY, scale, scale, true);
     }
 }

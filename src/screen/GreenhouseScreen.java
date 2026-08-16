@@ -478,7 +478,12 @@ public final class GreenhouseScreen implements Screen {
         shop.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                toast.showInfo("Shop screen is not connected yet. Locked greenhouse pots still use the existing purchase logic.");
+                Result<String> result = menuController.enterMenu("shop");
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
             }
         });
         resourceRow.add(shopWithSale(shop)).width(70f).height(78f);
