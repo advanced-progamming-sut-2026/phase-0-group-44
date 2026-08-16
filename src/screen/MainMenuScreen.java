@@ -105,7 +105,20 @@ public final class MainMenuScreen implements Screen {
     private Table buildProfileArea() {
         Table profileArea = new Table();
         TextButton profileButton = new TextButton(profileCaption(), skin, "brown");
-        addComingSoonListener(profileButton, "Profile");
+        profileButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+
+                Result<String> result =
+                        menuController.enterMenu("profile");
+
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
+            }
+        });
         profileArea.add(profileButton).height(48f).padRight(8f);
 
         TextButton logoutButton = new TextButton("LOG OUT", skin, "brown");
