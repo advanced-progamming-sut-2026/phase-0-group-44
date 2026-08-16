@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-opengl/3.3.3/2096f6b94b2d68745d858fbfe53aacf5f0c8074c/lwjgl-opengl-3.3.3-natives-linux-arm64.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-opengl/3.3.3/3353d0b2cac91b84088b01711d33cc403893450b/lwjgl-opengl-3.3.3-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>
