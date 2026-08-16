@@ -381,38 +381,16 @@ public final class CollectionScreen implements Screen {
 
     private Table buildPlantCard(PlantDefinition definition, PlantCollectionView view, boolean unlocked,
                                  List<PlantCollectionView> unlockedInOrder, int detailIndex) {
-        Table card = new Table();
-        card.setBackground(skin.getDrawable("image_ui_mainmenu_mm_settings_tab_10"));
-
-        Stack iconStack = new Stack();
-        Image icon = icon(loadPlantIcon(definition.getType()), CARD_SIZE - 12f, CARD_SIZE - 12f);
-        if (!unlocked) {
-            icon.setColor(0.45f, 0.45f, 0.45f, 1f);
-        }
-        iconStack.add(icon);
-
-        if (unlocked) {
-            Table levelTag = new Table();
-            levelTag.top().left();
-            levelTag.add(new Label("LV" + view.getCard().getLevel(), skin, "medium_outline"));
-            iconStack.add(levelTag);
-        }
-
-        card.add(iconStack).size(CARD_SIZE - 12f).padTop(6f).row();
-
-        String bottomText = unlocked
+        PlantCardWidget widget = new PlantCardWidget(skin, CARD_SIZE - 12f, cardNormalBg(), cardGoldBg());
+        widget.setIcon(loadPlantIcon(definition.getType()));
+        widget.setLocked(!unlocked);
+        widget.setBoosted(unlocked && isBoosted(definition.getType()));
+        widget.setTopBadge(unlocked ? "LV" + view.getCard().getLevel() : "");
+        widget.setBottomLabel(unlocked
                 ? view.getCard().getSeedPackets() + "/" + view.getCard().getUpgradeSeedPacketCost()
-                : "LOCKED";
-        Label bottomLabel = new Label(bottomText, skin, "medium_outline");
-        card.add(bottomLabel).padTop(2f);
+                : "LOCKED");
 
-        card.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                // no-op; click handled via ClickListener below (TextButton-free card).
-            }
-        });
-        card.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
+        widget.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
             @Override
             public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
                 if (unlocked) {
@@ -422,7 +400,27 @@ public final class CollectionScreen implements Screen {
                 }
             }
         });
-        return card;
+        return widget;
+    }
+
+    /** Reflects a persistent greenhouse-style boost (User.getPlantBoosts()); the
+     *  transient diamond boost from an in-progress plant selection is not shown
+     *  here since it only exists within PlantSelectionScreen's active session. */
+    private boolean isBoosted(PlantType type) {
+        User user = Store.getLoggedInUser();
+        if (user == null) {
+            return false;
+        }
+        Integer stored = user.getPlantBoosts().get(type);
+        return stored != null && stored > 0;
+    }
+
+    private Texture cardNormalBg() {
+        return loadTexture(ASSET_ROOT + "normalBg.png");
+    }
+
+    private Texture cardGoldBg() {
+        return loadTexture(ASSET_ROOT + "goldBg.png");
     }
 
     private Table buildZombieCard(ZombieDefinition definition, boolean spotted,
@@ -454,6 +452,7 @@ public final class CollectionScreen implements Screen {
         image.setSize(width, height);
         return image;
     }
+
 
     // ---------------------------------------------------------------- detail / purchase
 

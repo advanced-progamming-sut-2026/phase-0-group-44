@@ -17,6 +17,7 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import controller.App;
 import controller.CollectionMenuController;
 import model.Store;
+import model.enums.PlantCategory;
 import model.user.PlantCard;
 import model.inGame.plant.PlantCollectionView;
 import model.inGame.plant.PlantDefinition;
@@ -56,7 +57,6 @@ public final class PlantDetailScreen implements Screen {
     private final CollectionMenuController controller;
     private final List<PlantCollectionView> views;
     private final List<Texture> textures = new ArrayList<>();
-    private Image background;
 
     private int index;
     private boolean showPreview = true;
@@ -65,6 +65,7 @@ public final class PlantDetailScreen implements Screen {
     private Skin skin;
     private ToastManager toast;
     private Table root;
+    private Image background;
 
     public PlantDetailScreen(PvzGame game, App app, List<PlantCollectionView> views, int index) {
         this.game = game;
@@ -250,7 +251,8 @@ public final class PlantDetailScreen implements Screen {
                 nextStats == null ? null : String.valueOf(nextStats.getDamage())));
         statGrid.row();
 
-        statGrid.add(buildStatRow(ASSET_ROOT + "range.png", "RANGE", "--", null));
+        statGrid.add(buildStatRow(ASSET_ROOT + "range.png", "RANGE",
+                trajectoryLabel(definition.getCategory()), null));
         statGrid.add(buildStatRow(ASSET_ROOT + "special.png", "SPECIAL", "--", null));
 
         column.add(statGrid).left().padBottom(16f).row();
@@ -266,6 +268,19 @@ public final class PlantDetailScreen implements Screen {
 
         return column;
     }
+
+    private String trajectoryLabel(PlantCategory category) {
+        if (category == null) {
+            return "--";
+        }
+        return switch (category) {
+            case LOBBER -> "Lobbed";
+            case SHOOTER, STRIKE_THROUGH -> "Straight";
+            case HOMING -> "Homing";
+            default -> "N/A";
+        };
+    }
+
 
     private Table buildStatRow(String iconPath, String label, String currentValue, String nextValue) {
         Table row = new Table();
@@ -335,7 +350,6 @@ public final class PlantDetailScreen implements Screen {
         row.add(mintStatsBox);
         return row;
     }
-
 
     private Table buildPlantFoodRow(PlantDefinition definition) {
         Table row = new Table();
