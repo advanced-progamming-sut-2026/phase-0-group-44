@@ -42,6 +42,7 @@ public final class CollectionScreen implements Screen {
     private static final String ASSET_ROOT = "ui/collection/";
     private static final String PLANT_ICON_ROOT = ASSET_ROOT + "plants/";
     private static final String ZOMBIE_ICON_ROOT = ASSET_ROOT + "zombies/";
+    private static final String MAIN_MENU_ASSET_ROOT = "ui/mainmenu/";
     private static final int GRID_COLUMNS = 8;
     private static final float CARD_SIZE = 78f;
 
@@ -49,6 +50,7 @@ public final class CollectionScreen implements Screen {
     private enum LockFilter { ALL, UNLOCKED, LOCKED }
 
     private final PvzGame game;
+    private final App app;
     private final CollectionMenuController controller;
     private final MainMenuController mainController;
     private final List<Texture> textures = new ArrayList<>();
@@ -72,6 +74,7 @@ public final class CollectionScreen implements Screen {
 
     public CollectionScreen(PvzGame game, App app) {
         this.game = game;
+        this.app = app;
         this.controller = app.getCollectionController();
         this.mainController = app.getMainController();
     }
@@ -131,9 +134,9 @@ public final class CollectionScreen implements Screen {
         int gems = user == null ? 0 : user.getGems();
         int coins = user == null ? 0 : user.getCoins();
 
-        resources.add(icon(loadTexture(ASSET_ROOT + "gem.png"), 30f, 39f)).padRight(5f);
+        resources.add(icon(loadTexture(MAIN_MENU_ASSET_ROOT + "gem.png"), 30f, 39f)).padRight(5f);
         resources.add(new Label(String.valueOf(gems), skin, "medium_outline")).padRight(18f);
-        resources.add(icon(loadTexture(ASSET_ROOT + "coin.png"), 30f, 30f)).padRight(5f);
+        resources.add(icon(loadTexture(MAIN_MENU_ASSET_ROOT + "coin.png"), 30f, 30f)).padRight(5f);
         resources.add(new Label(String.valueOf(coins), skin, "medium_outline"));
         return resources;
     }
@@ -283,6 +286,7 @@ public final class CollectionScreen implements Screen {
             }
         }
 
+        List<PlantCollectionView> unlockedInOrder = new ArrayList<>();
         int column = 0;
         boolean any = false;
         for (PlantDefinition definition : allResult.getData()) {
@@ -294,8 +298,13 @@ public final class CollectionScreen implements Screen {
             }
             any = true;
 
-            panel.add(buildPlantCard(definition, view, unlocked)).size(CARD_SIZE, CARD_SIZE + 24f)
-                    .pad(6f);
+            if (unlocked) {
+                unlockedInOrder.add(view);
+            }
+            int detailIndex = unlockedInOrder.size() - 1;
+
+            panel.add(buildPlantCard(definition, view, unlocked, unlockedInOrder, detailIndex))
+                    .size(CARD_SIZE, CARD_SIZE + 24f).pad(6f);
             column++;
             if (column == GRID_COLUMNS) {
                 column = 0;
@@ -355,7 +364,8 @@ public final class CollectionScreen implements Screen {
 
     // ---------------------------------------------------------------- cards
 
-    private Table buildPlantCard(PlantDefinition definition, PlantCollectionView view, boolean unlocked) {
+    private Table buildPlantCard(PlantDefinition definition, PlantCollectionView view, boolean unlocked,
+                                 List<PlantCollectionView> unlockedInOrder, int detailIndex) {
         Table card = new Table();
         card.setBackground(skin.getDrawable("image_ui_mainmenu_mm_settings_tab_10"));
 
@@ -391,7 +401,7 @@ public final class CollectionScreen implements Screen {
             @Override
             public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
                 if (unlocked) {
-                    openPlantDetail(view);
+                    game.setScreen(new PlantDetailScreen(game, app, unlockedInOrder, detailIndex));
                 } else {
                     openPlantPurchase(definition);
                 }
@@ -431,11 +441,6 @@ public final class CollectionScreen implements Screen {
 
     // ---------------------------------------------------------------- detail / purchase
 
-    private void openPlantDetail(PlantCollectionView view) {
-        PlantDetailDialog dialog = new PlantDetailDialog(skin, view, this::handleUpgrade);
-        dialog.showCentered(stage);
-    }
-
     private void openZombieDetail(ZombieDefinition definition) {
         ZombieDetailDialog dialog = new ZombieDetailDialog(skin, definition);
         dialog.showCentered(stage);
@@ -468,17 +473,6 @@ public final class CollectionScreen implements Screen {
 
     private void handlePurchase(PlantDefinition definition) {
         Result<PlantCollectionView> result = controller.purchasePlant(Store.getLoggedInUser(), definition.getName());
-        if (result.getStatus()) {
-            toast.showInfo(result.getMessage());
-            refreshGrid();
-        } else {
-            toast.showError(result.getMessage());
-        }
-    }
-
-    private void handleUpgrade(PlantCollectionView view) {
-        Result<PlantCollectionView> result =
-                controller.upgradePlant(Store.getLoggedInUser(), view.getDefinition().getName());
         if (result.getStatus()) {
             toast.showInfo(result.getMessage());
             refreshGrid();
