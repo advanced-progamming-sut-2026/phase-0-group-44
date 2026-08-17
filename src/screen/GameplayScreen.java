@@ -36,21 +36,38 @@ import model.GameEngine;
 import model.Result;
 import model.Store;
 import model.config.GameWorld;
+import model.enums.MenuName;
+import model.enums.PlantType;
+import model.inGame.GameOutcome;
 import model.inGame.GameSession;
 import model.inGame.Sun;
 import model.sim.Simulation;
+import model.sim.adventure.AdventureInitializer;
+import model.sim.adventure.AdventureRuleSystem;
+import model.sim.wave.WaveSystem;
+import model.sim.zombie.ChapterZombieSpecSource;
+import model.sim.zombie.DefaultZombieSpecSource;
 import model.sim.sun.SunType;
+import model.inGame.zombie.ZombieRegistry;
+import model.user.User;
 import pvz.libpvz.pam.PamPlayer;
 import pvz.libpvz.textures.TextureBank;
 import pvz.skin.PvzSkin;
 import screen.gameplay.BattlefieldChapterEffects;
 import screen.gameplay.BattlefieldEnvironmentLayer;
 import screen.gameplay.BattlefieldLayout;
+import screen.gameplay.BattlefieldMissionObjectives;
+import screen.gameplay.BattlefieldMissionStartLayer;
+import screen.gameplay.BattlefieldPauseOutcomeLayer;
+import screen.gameplay.BattlefieldSpecialLevelLayer;
 import screen.gameplay.BattlefieldTheme;
 import screen.gameplay.PamEnvironmentActor;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
+import util.SeededRandomSource;
 
 /**
  * Phase-2 battlefield screen: shared environment, gameplay HUD and interaction tools.
@@ -86,11 +103,13 @@ public final class GameplayScreen implements Screen {
     private BattlefieldLayout layout;
     private BattlefieldEnvironmentLayer environmentLayer;
     private BattlefieldChapterEffects chapterEffects;
+    private BattlefieldSpecialLevelLayer specialLevelLayer;
     private Group entityLayer;
     private Group pickupLayer;
     private Group interactionLayer;
     private Group hudLayer;
-    private Group pauseOverlay;
+    private BattlefieldPauseOutcomeLayer pauseOutcomeLayer;
+    private BattlefieldMissionStartLayer missionStartLayer;
 
     private PamEnvironmentActor hoverHighlight;
     private PamEnvironmentActor selectedHighlight;
@@ -115,6 +134,10 @@ public final class GameplayScreen implements Screen {
     private ToolMode toolMode = ToolMode.NONE;
     private String pickupSignature = "";
     private float messageSeconds;
+    private float tickAccumulator;
+    private boolean outcomeShown;
+    private boolean missionIntroActive;
+    private GameEngine finishedEngine;
 
     private enum ToolMode {
         NONE,
@@ -190,6 +213,10 @@ public final class GameplayScreen implements Screen {
         paused = false;
         toolMode = ToolMode.NONE;
         pickupSignature = "";
+        tickAccumulator = 0f;
+        outcomeShown = false;
+        missionIntroActive = true;
+        finishedEngine = null;
 
         layout = new BattlefieldLayout(theme, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(buildBackground());
@@ -205,6 +232,20 @@ public final class GameplayScreen implements Screen {
         );
         environmentLayer.sync(engine(), previewMode);
         stage.addActor(environmentLayer);
+
+        specialLevelLayer = new BattlefieldSpecialLevelLayer(
+                layout,
+                whiteTexture,
+                loadTexture(HUD_ROOT + "sun.png"),
+                loadTexture(HUD_ROOT + "progress_head.png"),
+                skin,
+                pamPlayer,
+                pamRoot,
+                this::showAction
+        );
+        specialLevelLayer.sync(
+                engine(), Store.getActiveSession(), previewMode, gameplayController);
+        stage.addActor(specialLevelLayer.boardLayer());
 
         chapterEffects = new BattlefieldChapterEffects(
                 theme, layout, whiteTexture, runeTexture,
@@ -230,9 +271,45 @@ public final class GameplayScreen implements Screen {
         hudLayer = buildHud();
         stage.addActor(hudLayer);
 
-        pauseOverlay = buildPauseOverlay();
-        pauseOverlay.setVisible(false);
-        stage.addActor(pauseOverlay);
+        // Special-level objective cards and START WAVE sit above the common HUD,
+        // while their board markers were inserted below entityLayer.
+        stage.addActor(specialLevelLayer.hudLayer());
+
+        BattlefieldMissionObjectives.MissionInfo missionInfo =
+                BattlefieldMissionObjectives.forSession(
+                        Store.getActiveSession(), theme.world());
+
+        pauseOutcomeLayer = new BattlefieldPauseOutcomeLayer(
+                whiteTexture,
+                loadTexture(HUD_ROOT + "pause_board_reference.png"),
+                loadTexture(HUD_ROOT + "result_win.png"),
+                loadTexture(HUD_ROOT + "progress_head.png"),
+                loadTexture(HUD_ROOT + "objective_bullet.png"),
+                loadTexture(HUD_ROOT + "button_brown.png"),
+                loadTexture(HUD_ROOT + "button_brown_down.png"),
+                loadTexture(HUD_ROOT + "button_purple_ref.png"),
+                loadTexture(HUD_ROOT + "button_purple_ref_down.png"),
+                skin,
+                previewMode,
+                missionInfo,
+                this::resumeFromPause,
+                this::restartCurrentSession,
+                this::saveAndExitGameplay,
+                this::leaveGameplay
+        );
+        stage.addActor(pauseOutcomeLayer.root());
+
+        missionStartLayer = new BattlefieldMissionStartLayer(
+                whiteTexture,
+                loadTexture(HUD_ROOT + "objectives_board_reference.png"),
+                loadTexture(HUD_ROOT + "objective_bullet.png"),
+                loadTexture(HUD_ROOT + "button_purple_ref.png"),
+                loadTexture(HUD_ROOT + "button_purple_ref_down.png"),
+                skin,
+                this::continueFromMissionIntro
+        );
+        missionStartLayer.show(missionInfo);
+        stage.addActor(missionStartLayer.root());
     }
 
     /** Public integration hook for plant/zombie/projectile actors. */
@@ -438,49 +515,181 @@ public final class GameplayScreen implements Screen {
         return button;
     }
 
-    private Group buildPauseOverlay() {
-        Group group = new Group();
-        group.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
-
-        Image shade = new Image(whiteTexture);
-        shade.setColor(0f, 0f, 0f, 0.55f);
-        shade.setBounds(0f, 0f, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
-        group.addActor(shade);
-
-        Image panel = new Image(loadTexture(HUD_ROOT + "pause_panel.png"));
-        panel.setScaling(Scaling.stretch);
-        panel.setBounds(450f, 215f, 380f, 310f);
-        group.addActor(panel);
-
-        Label title = new Label("PAUSED", skin, "medium_outline");
-        title.setAlignment(Align.center);
-        title.setBounds(500f, 430f, 280f, 55f);
-        group.addActor(title);
-
-        TextButton resume = new TextButton("RESUME", skin, "purple");
-        resume.setBounds(535f, 340f, 210f, 52f);
-        resume.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                togglePause();
-            }
-        });
-        group.addActor(resume);
-
-        if (previewMode) {
-            Label hint = new Label("DEV PREVIEW  •  1 / 2 / 3 / 4 WORLD  •  E EFFECT", skin);
-            hint.setAlignment(Align.center);
-            hint.setWrap(true);
-            hint.setBounds(485f, 275f, 310f, 50f);
-            group.addActor(hint);
+    private void togglePause() {
+        if (outcomeShown || missionIntroActive) {
+            return;
         }
-        return group;
+        paused = !paused;
+        if (pauseOutcomeLayer != null) {
+            pauseOutcomeLayer.setPaused(paused);
+        }
+        if (paused || outcomeShown) {
+            toolMode = ToolMode.NONE;
+            updateToolButtonState();
+        }
     }
 
-    private void togglePause() {
-        paused = !paused;
-        if (pauseOverlay != null) {
-            pauseOverlay.setVisible(paused);
+    private void continueFromMissionIntro() {
+        if (!missionIntroActive) {
+            return;
+        }
+        missionIntroActive = false;
+        tickAccumulator = 0f;
+        if (missionStartLayer != null) {
+            missionStartLayer.hide();
+        }
+    }
+
+    private void saveAndExitGameplay() {
+        if (!previewMode) {
+            // The current model persists user/progression data, not a resumable
+            // mid-battle snapshot. Save the supported persistent state before exit.
+            app.getUserService().saveUsers();
+        }
+        leaveGameplay();
+    }
+
+    private void resumeFromPause() {
+        if (!paused || outcomeShown) {
+            return;
+        }
+        paused = false;
+        if (pauseOutcomeLayer != null) {
+            pauseOutcomeLayer.setPaused(false);
+        }
+    }
+
+    private void showOutcome(GameOutcome outcome) {
+        if (outcome == null || outcome == GameOutcome.RUNNING || outcomeShown) {
+            return;
+        }
+        outcomeShown = true;
+        paused = true;
+        toolMode = ToolMode.NONE;
+        updateToolButtonState();
+
+        String levelName = theme.world().getDisplayName();
+        GameSession session = Store.getActiveSession();
+        if (session != null && session.getLevel() != null
+                && session.getLevel().getName() != null) {
+            levelName = session.getLevel().getName();
+        }
+
+        if (pauseOutcomeLayer != null) {
+            pauseOutcomeLayer.showOutcome(outcome, levelName);
+        }
+        if (hoverHighlight != null) {
+            hoverHighlight.setVisible(false);
+        }
+        if (toolCursor != null) {
+            toolCursor.setVisible(false);
+        }
+    }
+
+    private void leaveGameplay() {
+        if (previewMode) {
+            game.setScreen(new CheatScreen(game, app));
+            return;
+        }
+        Store.setActiveSimulation(null);
+        Store.setActiveSession(null);
+        Store.setCurrentMenu(MenuName.GAME);
+        game.goToScreenForCurrentMenu();
+    }
+
+    private void restartCurrentSession() {
+        if (previewMode) {
+            rebuildScene();
+            return;
+        }
+
+        GameSession previous = Store.getActiveSession();
+        User user = Store.getLoggedInUser();
+        if (previous == null || previous.getLevel() == null || user == null) {
+            leaveGameplay();
+            return;
+        }
+
+        Set<PlantType> pendingBoosts = new LinkedHashSet<>();
+        for (PlantType type : previous.getSelection().getChosen()) {
+            Integer stored = user.getPlantBoosts().get(type);
+            if (stored != null && stored > 0) {
+                pendingBoosts.add(type);
+            }
+        }
+
+        GameSession freshSession = new GameSession(
+                previous.getLevel(),
+                previous.getSelection(),
+                previous.getDifficulty(),
+                pendingBoosts
+        );
+
+        GameEngine freshEngine = new GameEngine();
+        if (previous.getLevel().getAdventureConfig() != null) {
+            AdventureInitializer.initialize(
+                    freshEngine,
+                    previous.getLevel().getAdventureConfig(),
+                    user,
+                    new SeededRandomSource()
+            );
+            freshEngine.setSkySunEnabled(
+                    previous.getLevel().getAdventureConfig().isSkySunEnabled());
+            freshEngine.setAdventureRuleSystem(new AdventureRuleSystem());
+        }
+
+        if (previous.getLevel().getWaveConfig() != null) {
+            freshEngine.setWaveSystem(new WaveSystem(
+                    previous.getLevel().getWaveConfig(),
+                    new ChapterZombieSpecSource(
+                            new DefaultZombieSpecSource(ZombieRegistry.getDefault()),
+                            previous.getLevel().getName()
+                    )
+            ));
+        }
+
+        Store.setActiveSession(freshSession);
+        Store.setActiveSimulation(new Simulation(freshEngine));
+        Store.setCurrentMenu(MenuName.GAMEPLAY);
+
+        previewMode = false;
+        theme = BattlefieldTheme.forWorld(previous.getLevel().getWorld());
+        initializeGameplayControllers();
+        rebuildScene();
+    }
+
+    private void advanceGameplay(float delta) {
+        if (previewMode || paused || missionIntroActive || outcomeShown || gameplayController == null) {
+            return;
+        }
+
+        GameEngine liveEngine = engine();
+        if (liveEngine == null) {
+            return;
+        }
+        if (!liveEngine.isRunning()) {
+            finishedEngine = liveEngine;
+            showOutcome(liveEngine.getOutcome());
+            return;
+        }
+
+        tickAccumulator += Math.min(delta, 0.25f);
+        int ticks = (int) (tickAccumulator * GameEngine.TICKS_PER_SECOND);
+        if (ticks <= 0) {
+            return;
+        }
+
+        // Avoid a huge simulation catch-up after dragging/resizing the window.
+        ticks = Math.min(ticks, 4);
+        tickAccumulator -= ticks / (float) GameEngine.TICKS_PER_SECOND;
+
+        gameplayController.advanceTime(ticks);
+
+        // GameplayController performs rewards/conclusion and may clear Store's
+        // active simulation, but the captured engine still carries the outcome.
+        if (liveEngine.getOutcome() != GameOutcome.RUNNING) {
+            finishedEngine = liveEngine;
+            showOutcome(liveEngine.getOutcome());
         }
     }
 
@@ -633,7 +842,7 @@ public final class GameplayScreen implements Screen {
         if (hoverHighlight == null) {
             return;
         }
-        if (paused) {
+        if (paused || missionIntroActive || outcomeShown) {
             hoverHighlight.setVisible(false);
             if (toolCursor != null) {
                 toolCursor.setVisible(false);
@@ -793,12 +1002,19 @@ public final class GameplayScreen implements Screen {
             pamTextures.update();
         }
 
-        environmentLayer.sync(engine(), previewMode);
+        advanceGameplay(delta);
+
+        GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
+        environmentLayer.sync(displayEngine, previewMode);
         if (chapterEffects != null) {
-            chapterEffects.sync(engine(), previewMode);
+            chapterEffects.sync(displayEngine, previewMode);
+        }
+        if (specialLevelLayer != null) {
+            specialLevelLayer.sync(
+                    displayEngine, Store.getActiveSession(), previewMode, gameplayController);
         }
         syncPickups();
-        stage.act(delta);
+        stage.act(paused && !outcomeShown ? 0f : delta);
         updateHud();
         updatePointerHighlights();
         stage.draw();
@@ -839,6 +1055,12 @@ public final class GameplayScreen implements Screen {
     private final class BattlefieldKeys extends InputAdapter {
         @Override
         public boolean keyDown(int keycode) {
+            if (missionIntroActive) {
+                if (keycode == Input.Keys.ENTER || keycode == Input.Keys.SPACE) {
+                    continueFromMissionIntro();
+                }
+                return true;
+            }
             if (keycode == Input.Keys.ESCAPE) {
                 togglePause();
                 return true;
@@ -856,6 +1078,21 @@ public final class GameplayScreen implements Screen {
             if (keycode == Input.Keys.E && previewMode && chapterEffects != null) {
                 chapterEffects.previewPulse();
                 showAction("");
+                return true;
+            }
+            if (keycode == Input.Keys.T && previewMode && specialLevelLayer != null) {
+                specialLevelLayer.cyclePreview();
+                if (actionLabel != null) {
+                    actionLabel.setText("");
+                }
+                return true;
+            }
+            if (keycode == Input.Keys.V && previewMode) {
+                showOutcome(GameOutcome.WON);
+                return true;
+            }
+            if (keycode == Input.Keys.B && previewMode) {
+                showOutcome(GameOutcome.LOST);
                 return true;
             }
             if (!previewMode) {
