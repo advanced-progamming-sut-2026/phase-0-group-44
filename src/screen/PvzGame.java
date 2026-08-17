@@ -30,9 +30,7 @@ public final class PvzGame extends Game {
             case GREENHOUSE -> setScreen(new GreenhouseScreen(this, app));
             case SHOP -> setScreen(new ShopScreen(this, app));
             case COLLECTION -> setScreen(new CollectionScreen(this, app));
-            case PLANT_SELECTION -> setScreen(new PlantSelectionScreen(this, app));
-            case SETTINGS -> setScreen(new SettingsScreen(this, app));
-            case PROFILE -> setScreen(new ProfileScreen(this, app));
+            case GAMEPLAY -> setScreen(new GameplayScreen(this, app));
         //    case SCORED_GAME -> setScreen(new ScoredGameScreen(this, app));
             // ... بقیه‌ی MenuNameها به مرور اضافه می‌شن
             default -> setScreen(new RegisterScreen(this, app));
