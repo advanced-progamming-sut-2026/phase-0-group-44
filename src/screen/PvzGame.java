@@ -34,6 +34,13 @@ public final class PvzGame extends Game {
             case TRAVEL_LOG -> setScreen(new TravelLogScreen(this, app));
             case SETTINGS -> setScreen(new SettingsScreen(this,app));
             case PROFILE -> setScreen(new ProfileScreen(this,app));
+            case LEADERBOARD ->
+                    setScreen(
+                            new LeaderboardScreen(
+                                    this,
+                                    app
+                            )
+                    );
         //    case SCORED_GAME -> setScreen(new ScoredGameScreen(this, app));
             // ... بقیه‌ی MenuNameها به مرور اضافه می‌شن
             default -> setScreen(new RegisterScreen(this, app));

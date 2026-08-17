@@ -55,6 +55,7 @@ public final class MenuGraph {
                 MenuName.NETWORK,
                 MenuName.NEWS,
                 MenuName.PROFILE,
+                MenuName.LEADERBOARD,
                 MenuName.SCORED_GAME
         ));
         entries.put(MenuName.GAME, EnumSet.of(
@@ -73,6 +74,10 @@ public final class MenuGraph {
         entries.put(MenuName.SHOP, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.PLANT_SELECTION, EnumSet.noneOf(MenuName.class));
         entries.put(MenuName.GAMEPLAY, EnumSet.noneOf(MenuName.class));
+        entries.put(
+                MenuName.LEADERBOARD,
+                EnumSet.noneOf(MenuName.class)
+        );
 
         return Collections.unmodifiableMap(entries);
     }
@@ -96,6 +101,10 @@ public final class MenuGraph {
         exits.put(MenuName.SHOP, MenuExit.returnTo(MenuName.GREENHOUSE));
         exits.put(MenuName.PLANT_SELECTION, MenuExit.returnTo(MenuName.GAME));
         exits.put(MenuName.GAMEPLAY, MenuExit.returnTo(MenuName.GAME));
+        exits.put(
+                MenuName.LEADERBOARD,
+                MenuExit.returnTo(MenuName.MAIN)
+        );
 
         return Collections.unmodifiableMap(exits);
     }

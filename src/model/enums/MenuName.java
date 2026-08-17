@@ -16,7 +16,8 @@ public enum MenuName {
     SCORED_GAME("scored-game"),
     SHOP("shop"),
     PLANT_SELECTION("plant-selection"),
-    GAMEPLAY("gameplay");
+    GAMEPLAY("gameplay"),
+    LEADERBOARD("leaderboard");
 
     private final String token;
 

@@ -17,6 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
+
 import controller.App;
 import controller.MainMenuController;
 import controller.MenuController;
@@ -29,319 +30,1026 @@ import pvz.skin.PvzSkin;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Graphical Phase-2 main menu, inspired by figure 1 of the specification. */
+/**
+ * Graphical Phase-2 main menu,
+ * inspired by figure 1 of the specification.
+ */
 public final class MainMenuScreen implements Screen {
 
-    private static final String ASSET_ROOT = "ui/mainmenu/";
+    private static final String ASSET_ROOT =
+            "ui/mainmenu/";
 
     private final PvzGame game;
     private final MainMenuController mainController;
     private final MenuController menuController;
     private final NewsMenuController newsController;
-    private final List<Texture> textures = new ArrayList<>();
+
+    private final List<Texture> textures =
+            new ArrayList<>();
 
     private Stage stage;
     private Skin skin;
+
     private ToastManager toast;
+
     private Label unreadBadge;
+
     private NewsDialog newsDialog;
 
-    public MainMenuScreen(PvzGame game, App app) {
+    public MainMenuScreen(
+            PvzGame game,
+            App app
+    ) {
         this.game = game;
-        this.mainController = app.getMainController();
-        this.menuController = app.getMenuController();
-        this.newsController = app.getNewsController();
+
+        this.mainController =
+                app.getMainController();
+
+        this.menuController =
+                app.getMenuController();
+
+        this.newsController =
+                app.getNewsController();
     }
+
+    // =========================================================
+    // SHOW
+    // =========================================================
 
     @Override
     public void show() {
-        stage = new Stage(new ScreenViewport());
-        skin = PvzSkin.get();
-        PvzSkinExtras.ensureDialogStyle(skin);
-        toast = new ToastManager(stage, skin);
-        Gdx.input.setInputProcessor(stage);
+
+        stage =
+                new Stage(
+                        new ScreenViewport()
+                );
+
+        skin =
+                PvzSkin.get();
+
+        PvzSkinExtras.ensureDialogStyle(
+                skin
+        );
+
+        toast =
+                new ToastManager(
+                        stage,
+                        skin
+                );
+
+        Gdx.input.setInputProcessor(
+                stage
+        );
+
         buildScreen();
+
         refreshUnreadBadge();
     }
 
+    // =========================================================
+    // BUILD SCREEN
+    // =========================================================
+
     private void buildScreen() {
-        Stack root = new Stack();
+
+        Stack root =
+                new Stack();
+
         root.setFillParent(true);
+
         stage.addActor(root);
-        root.add(buildBackground());
-        root.add(buildCenterContent());
-        root.add(buildTopBar());
-        root.add(buildBottomBar());
+
+        /*
+         * Background
+         */
+
+        root.add(
+                buildBackground()
+        );
+
+        /*
+         * Center content
+         */
+
+        root.add(
+                buildCenterContent()
+        );
+
+        /*
+         * Top menu bar
+         */
+
+        root.add(
+                buildTopBar()
+        );
+
+        /*
+         * Bottom navigation
+         */
+
+        root.add(
+                buildBottomBar()
+        );
     }
 
+    // =========================================================
+    // BACKGROUND
+    // =========================================================
+
     private Image buildBackground() {
-        Image background = new Image(loadTexture("background.png"));
-        background.setScaling(Scaling.fill);
+
+        Image background =
+                new Image(
+                        loadTexture(
+                                "background.png"
+                        )
+                );
+
+        background.setScaling(
+                Scaling.fill
+        );
+
         return background;
     }
 
+    // =========================================================
+    // CENTER CONTENT
+    // =========================================================
+
     private Table buildCenterContent() {
-        Table content = new Table();
-        content.center().padTop(30f).padBottom(105f);
 
-        Image logo = new Image(loadTexture("logo.png"));
-        logo.setScaling(Scaling.fit);
-        content.add(logo).width(520f).height(88f).padBottom(24f).row();
+        Table content =
+                new Table();
 
-        Image banner = new Image(loadTexture("banner_offline.png"));
-        banner.setScaling(Scaling.fit);
-        content.add(banner).width(620f).height(215f);
+        content
+                .center()
+                .padTop(30f)
+                .padBottom(105f);
+
+        /*
+         * Logo
+         */
+
+        Image logo =
+                new Image(
+                        loadTexture(
+                                "logo.png"
+                        )
+                );
+
+        logo.setScaling(
+                Scaling.fit
+        );
+
+        content.add(logo)
+                .width(520f)
+                .height(88f)
+                .padBottom(24f)
+                .row();
+
+        /*
+         * Offline banner
+         */
+
+        Image banner =
+                new Image(
+                        loadTexture(
+                                "banner_offline.png"
+                        )
+                );
+
+        banner.setScaling(
+                Scaling.fit
+        );
+
+        content.add(banner)
+                .width(620f)
+                .height(215f);
+
         return content;
     }
 
+    // =========================================================
+    // TOP BAR
+    // =========================================================
+
     private Table buildTopBar() {
-        Table topBar = new Table();
-        topBar.top().pad(18f, 22f, 0f, 22f);
-        topBar.add(buildProfileArea()).expandX().left();
-        topBar.add(buildResourceArea()).right();
+
+        Table topBar =
+                new Table();
+
+        topBar
+                .top()
+                .pad(
+                        18f,
+                        22f,
+                        0f,
+                        22f
+                );
+
+        /*
+         * Profile / logout
+         */
+
+        topBar.add(
+                        buildProfileArea()
+                )
+                .expandX()
+                .left();
+
+        /*
+         * Resources
+         */
+
+        topBar.add(
+                        buildResourceArea()
+                )
+                .right();
+
         return topBar;
     }
 
+    // =========================================================
+    // PROFILE AREA
+    // =========================================================
+
     private Table buildProfileArea() {
-        Table profileArea = new Table();
-        TextButton profileButton = new TextButton(profileCaption(), skin, "brown");
-        profileButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
 
-                Result<String> result =
-                        menuController.enterMenu("profile");
+        Table profileArea =
+                new Table();
 
-                if (result.getStatus()) {
-                    game.goToScreenForCurrentMenu();
-                } else {
-                    toast.showError(result.getMessage());
-                }
-            }
-        });
-        profileArea.add(profileButton).height(48f).padRight(8f);
+        /*
+         * Profile
+         */
 
-        TextButton logoutButton = new TextButton("LOG OUT", skin, "brown");
-        logoutButton.addListener(logoutListener());
-        profileArea.add(logoutButton).height(48f);
+        TextButton profileButton =
+                new TextButton(
+                        profileCaption(),
+                        skin,
+                        "brown"
+                );
+
+        addComingSoonListener(
+                profileButton,
+                "Profile"
+        );
+
+        profileArea.add(profileButton)
+                .height(48f)
+                .padRight(8f);
+
+        /*
+         * Logout
+         */
+
+        TextButton logoutButton =
+                new TextButton(
+                        "LOG OUT",
+                        skin,
+                        "brown"
+                );
+
+        logoutButton.addListener(
+                logoutListener()
+        );
+
+        profileArea.add(logoutButton)
+                .height(48f);
+
         return profileArea;
     }
 
-    private Table buildResourceArea() {
-        Table resources = new Table();
-        User user = Store.getLoggedInUser();
-        int gems = user == null ? 0 : user.getGems();
-        int coins = user == null ? 0 : user.getCoins();
+    // =========================================================
+    // RESOURCE AREA
+    // =========================================================
 
-        resources.add(resourceIcon("gem.png", 30f, 39f)).padRight(5f);
-        resources.add(new Label(String.valueOf(gems), skin, "medium_outline")).padRight(18f);
-        resources.add(resourceIcon("coin.png", 30f, 30f)).padRight(5f);
-        resources.add(new Label(String.valueOf(coins), skin, "medium_outline"));
+    private Table buildResourceArea() {
+
+        Table resources =
+                new Table();
+
+        User user =
+                Store.getLoggedInUser();
+
+        int gems =
+                user == null
+                        ? 0
+                        : user.getGems();
+
+        int coins =
+                user == null
+                        ? 0
+                        : user.getCoins();
+
+        /*
+         * Gems
+         */
+
+        resources.add(
+                resourceIcon(
+                        "gem.png",
+                        30f,
+                        39f
+                )
+        ).padRight(5f);
+
+        resources.add(
+                new Label(
+                        String.valueOf(gems),
+                        skin,
+                        "medium_outline"
+                )
+        ).padRight(18f);
+
+        /*
+         * Coins
+         */
+
+        resources.add(
+                resourceIcon(
+                        "coin.png",
+                        30f,
+                        30f
+                )
+        ).padRight(5f);
+
+        resources.add(
+                new Label(
+                        String.valueOf(coins),
+                        skin,
+                        "medium_outline"
+                )
+        );
+
         return resources;
     }
 
-    private Image resourceIcon(String fileName, float width, float height) {
-        Image image = new Image(loadTexture(fileName));
-        image.setScaling(Scaling.fit);
-        image.setSize(width, height);
+    private Image resourceIcon(
+            String fileName,
+            float width,
+            float height
+    ) {
+
+        Image image =
+                new Image(
+                        loadTexture(
+                                fileName
+                        )
+                );
+
+        image.setScaling(
+                Scaling.fit
+        );
+
+        image.setSize(
+                width,
+                height
+        );
+
         return image;
     }
 
+    // =========================================================
+    // BOTTOM BAR
+    // =========================================================
+
     private Table buildBottomBar() {
-        Table bottomBar = new Table();
-        bottomBar.bottom().pad(0f, 28f, 22f, 28f);
-        bottomBar.add(buildLeftNavigation()).expandX().left();
-        bottomBar.add(buildPlayButton()).width(220f).height(64f).padBottom(2f);
-        bottomBar.add(buildRightNavigation()).expandX().right();
+
+        Table bottomBar =
+                new Table();
+
+        bottomBar
+                .bottom()
+                .pad(
+                        0f,
+                        28f,
+                        22f,
+                        28f
+                );
+
+        /*
+         * Left navigation
+         */
+
+        bottomBar.add(
+                        buildLeftNavigation()
+                )
+                .expandX()
+                .left();
+
+        /*
+         * Play button
+         */
+
+        bottomBar.add(
+                        buildPlayButton()
+                )
+                .width(220f)
+                .height(64f)
+                .padBottom(2f);
+
+        /*
+         * Right navigation
+         */
+
+        bottomBar.add(
+                        buildRightNavigation()
+                )
+                .expandX()
+                .right();
+
         return bottomBar;
     }
 
-    private Table buildLeftNavigation() {
-        Table left = new Table();
-        left.defaults().padRight(12f);
-        left.add(iconItem("NETWORK", singleStateButton("network_button.png"), "Network"));
+    // =========================================================
+    // LEFT NAVIGATION
+    // =========================================================
 
-        ImageButton newsButton = imageButton("news_normal.png", "news_selected.png");
-        newsButton.addListener(newsListener());
-        left.add(iconItem("NEWS", newsButton, null));
+    private Table buildLeftNavigation() {
+
+        Table left =
+                new Table();
+
+        left.defaults()
+                .padRight(12f);
+
+        /*
+         * Network
+         */
+
+        left.add(
+                iconItem(
+                        "NETWORK",
+                        singleStateButton(
+                                "network_button.png"
+                        ),
+                        "Network"
+                )
+        );
+
+        /*
+         * News
+         */
+
+        ImageButton newsButton =
+                imageButton(
+                        "news_normal.png",
+                        "news_selected.png"
+                );
+
+        newsButton.addListener(
+                newsListener()
+        );
+
+        left.add(
+                iconItem(
+                        "NEWS",
+                        newsButton,
+                        null
+                )
+        );
+
         return left;
     }
 
-    private Table buildRightNavigation() {
-        Table right = new Table();
-        right.defaults().padLeft(12f);
+    // =========================================================
+    // RIGHT NAVIGATION
+    // =========================================================
 
-        ImageButton settings = imageButton("settings_normal.png", "settings_selected.png");
-        settings.addListener(settingsListener());
-        right.add(iconItem("SETTINGS", settings, null));
-        right.add(iconItem("SCORES", singleStateButton("leaderboard.png"), "Leaderboard"));
+    private Table buildRightNavigation() {
+
+        Table right =
+                new Table();
+
+        right.defaults()
+                .padLeft(12f);
+
+        /*
+         * Settings
+         */
+
+        ImageButton settings =
+                imageButton(
+                        "settings_normal.png",
+                        "settings_selected.png"
+                );
+
+        right.add(
+                iconItem(
+                        "SETTINGS",
+                        settings,
+                        "Settings"
+                )
+        );
+
+        /*
+         * Leaderboard
+         */
+
+        ImageButton leaderboard =
+                singleStateButton(
+                        "iconLeaderboard.png"
+                );
+
+        leaderboard.addListener(
+                leaderboardListener()
+        );
+
+        right.add(
+                iconItem(
+                        "leaderboard",
+                        leaderboard,
+                        null
+                )
+        );
+
         return right;
     }
 
+    // =========================================================
+    // PLAY
+    // =========================================================
+
     private TextButton buildPlayButton() {
-        TextButton playButton = new TextButton("PLAY", skin, "purple");
-        playButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                Result<String> result = menuController.enterMenu("game");
-                if (result.getStatus()) {
-                    game.goToScreenForCurrentMenu();
-                } else {
-                    toast.showError(result.getMessage());
+
+        TextButton playButton =
+                new TextButton(
+                        "PLAY",
+                        skin,
+                        "purple"
+                );
+
+        playButton.addListener(
+                new ChangeListener() {
+
+                    @Override
+                    public void changed(
+                            ChangeEvent event,
+                            Actor actor
+                    ) {
+
+                        Result<String> result =
+                                menuController.enterMenu(
+                                        "game"
+                                );
+
+                        if (result.getStatus()) {
+
+                            game.goToScreenForCurrentMenu();
+
+                        } else {
+
+                            toast.showError(
+                                    result.getMessage()
+                            );
+                        }
+                    }
                 }
-            }
-        });
+        );
+
         return playButton;
     }
 
-    private Table iconItem(String caption, ImageButton button, String comingSoonName) {
+    // =========================================================
+    // ICON ITEM
+    // =========================================================
+
+    private Table iconItem(
+            String caption,
+            ImageButton button,
+            String comingSoonName
+    ) {
+
         if (comingSoonName != null) {
-            addComingSoonListener(button, comingSoonName);
+
+            addComingSoonListener(
+                    button,
+                    comingSoonName
+            );
         }
 
-        Stack buttonStack = new Stack();
-        buttonStack.add(button);
-        if ("NEWS".equals(caption)) {
-            buttonStack.add(buildUnreadBadgeOverlay());
+        Stack buttonStack =
+                new Stack();
+
+        buttonStack.add(
+                button
+        );
+
+        /*
+         * News unread badge
+         */
+
+        if (
+                "NEWS".equals(
+                        caption
+                )
+        ) {
+
+            buttonStack.add(
+                    buildUnreadBadgeOverlay()
+            );
         }
 
-        Table item = new Table();
-        item.add(buttonStack).width(82f).height(78f).row();
-        item.add(new Label(caption, skin, "medium_outline")).padTop(2f);
+        Table item =
+                new Table();
+
+        item.add(buttonStack)
+                .width(82f)
+                .height(78f)
+                .row();
+
+        item.add(
+                        new Label(
+                                caption,
+                                skin,
+                                "medium_outline"
+                        )
+                )
+                .padTop(2f);
+
         return item;
     }
 
-    private Table buildUnreadBadgeOverlay() {
-        unreadBadge = new Label("", skin, "medium_outline");
-        unreadBadge.setColor(com.badlogic.gdx.graphics.Color.RED);
+    // =========================================================
+    // NEWS BADGE
+    // =========================================================
 
-        Table overlay = new Table();
-        overlay.top().right();
-        overlay.add(unreadBadge).padTop(-2f).padRight(-3f);
+    private Table buildUnreadBadgeOverlay() {
+
+        unreadBadge =
+                new Label(
+                        "",
+                        skin,
+                        "medium_outline"
+                );
+
+        unreadBadge.setColor(
+                com.badlogic.gdx.graphics.Color.RED
+        );
+
+        Table overlay =
+                new Table();
+
+        overlay
+                .top()
+                .right();
+
+        overlay.add(
+                        unreadBadge
+                )
+                .padTop(-2f)
+                .padRight(-3f);
+
         return overlay;
     }
 
-    private ImageButton singleStateButton(String fileName) {
-        Texture texture = loadTexture(fileName);
-        return makeImageButton(texture, texture);
+    // =========================================================
+    // IMAGE BUTTON HELPERS
+    // =========================================================
+
+    private ImageButton singleStateButton(
+            String fileName
+    ) {
+
+        Texture texture =
+                loadTexture(
+                        fileName
+                );
+
+        return makeImageButton(
+                texture,
+                texture
+        );
     }
 
-    private ImageButton imageButton(String normalFile, String selectedFile) {
-        return makeImageButton(loadTexture(normalFile), loadTexture(selectedFile));
+    private ImageButton imageButton(
+            String normalFile,
+            String selectedFile
+    ) {
+
+        return makeImageButton(
+                loadTexture(normalFile),
+                loadTexture(selectedFile)
+        );
     }
 
-    private ImageButton makeImageButton(Texture normal, Texture selected) {
-        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
-        style.imageUp = new TextureRegionDrawable(normal);
-        style.imageOver = new TextureRegionDrawable(selected);
-        style.imageDown = new TextureRegionDrawable(selected);
-        return new ImageButton(style);
+    private ImageButton makeImageButton(
+            Texture normal,
+            Texture selected
+    ) {
+
+        ImageButton.ImageButtonStyle style =
+                new ImageButton.ImageButtonStyle();
+
+        style.imageUp =
+                new TextureRegionDrawable(
+                        normal
+                );
+
+        style.imageOver =
+                new TextureRegionDrawable(
+                        selected
+                );
+
+        style.imageDown =
+                new TextureRegionDrawable(
+                        selected
+                );
+
+        return new ImageButton(
+                style
+        );
     }
 
-    private Texture loadTexture(String fileName) {
-        Texture texture = new Texture(Gdx.files.internal(ASSET_ROOT + fileName));
-        textures.add(texture);
+    // =========================================================
+    // TEXTURE LOADER
+    // =========================================================
+
+    private Texture loadTexture(
+            String fileName
+    ) {
+
+        Texture texture =
+                new Texture(
+                        Gdx.files.internal(
+                                ASSET_ROOT
+                                        + fileName
+                        )
+                );
+
+        textures.add(
+                texture
+        );
+
         return texture;
     }
 
+    // =========================================================
+    // LOGOUT
+    // =========================================================
+
     private ChangeListener logoutListener() {
+
         return new ChangeListener() {
+
             @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                Result<String> result = mainController.logout();
+            public void changed(
+                    ChangeEvent event,
+                    Actor actor
+            ) {
+
+                Result<String> result =
+                        mainController.logout();
+
                 if (result.getStatus()) {
+
                     game.goToScreenForCurrentMenu();
+
                 } else {
-                    toast.showError(result.getMessage());
+
+                    toast.showError(
+                            result.getMessage()
+                    );
                 }
             }
         };
     }
 
-    private ChangeListener newsListener() {
+    // =========================================================
+    // LEADERBOARD
+    // =========================================================
+
+    private ChangeListener leaderboardListener() {
+
         return new ChangeListener() {
+
             @Override
-            public void changed(ChangeEvent event, Actor actor) {
+            public void changed(
+                    ChangeEvent event,
+                    Actor actor
+            ) {
+
+                Result<String> result =
+                        menuController.enterMenu(
+                                "leaderboard"
+                        );
+
+                if (result.getStatus()) {
+
+                    game.goToScreenForCurrentMenu();
+
+                } else {
+
+                    toast.showError(
+                            result.getMessage()
+                    );
+                }
+            }
+        };
+    }
+
+    // =========================================================
+    // NEWS
+    // =========================================================
+
+    private ChangeListener newsListener() {
+
+        return new ChangeListener() {
+
+            @Override
+            public void changed(
+                    ChangeEvent event,
+                    Actor actor
+            ) {
+
                 openNewsDialog();
             }
         };
     }
-    private ChangeListener settingsListener() {
-        return new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                Result<String> result = menuController.enterMenu("settings");
 
-                if (result.getStatus()) {
-                    game.goToScreenForCurrentMenu();
-                } else {
-                    toast.showError(result.getMessage());
+    // =========================================================
+    // COMING SOON
+    // =========================================================
+
+    private void addComingSoonListener(
+            Actor actor,
+            String screenName
+    ) {
+
+        actor.addListener(
+                new ChangeListener() {
+
+                    @Override
+                    public void changed(
+                            ChangeEvent event,
+                            Actor source
+                    ) {
+
+                        toast.showInfo(
+                                screenName
+                                        + " screen is not connected yet."
+                        );
+                    }
                 }
-            }
-        };
+        );
     }
 
-    private void addComingSoonListener(Actor actor, String screenName) {
-        actor.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor source) {
-                toast.showInfo(screenName + " screen is not connected yet.");
-            }
-        });
-    }
+    // =========================================================
+    // NEWS DIALOG
+    // =========================================================
 
     private void openNewsDialog() {
-        if (newsDialog != null && newsDialog.hasParent()) {
+
+        if (
+                newsDialog != null
+                        && newsDialog.hasParent()
+        ) {
             return;
         }
-        newsDialog = new NewsDialog(skin, newsController, this::refreshUnreadBadge);
-        newsDialog.showCentered(stage);
+
+        newsDialog =
+                new NewsDialog(
+                        skin,
+                        newsController,
+                        this::refreshUnreadBadge
+                );
+
+        newsDialog.showCentered(
+                stage
+        );
     }
 
     private void refreshUnreadBadge() {
+
         if (unreadBadge == null) {
             return;
         }
-        Result<Integer> result = newsController.getUnreadNewsCount();
-        int count = result.getStatus() && result.getData() != null ? result.getData() : 0;
-        unreadBadge.setText(count > 0 ? String.valueOf(count) : "");
-        unreadBadge.setVisible(count > 0);
+
+        Result<Integer> result =
+                newsController.getUnreadNewsCount();
+
+        int count =
+                result.getStatus()
+                        && result.getData() != null
+                        ? result.getData()
+                        : 0;
+
+        unreadBadge.setText(
+                count > 0
+                        ? String.valueOf(count)
+                        : ""
+        );
+
+        unreadBadge.setVisible(
+                count > 0
+        );
     }
 
+    // =========================================================
+    // PROFILE CAPTION
+    // =========================================================
+
     private String profileCaption() {
-        User user = Store.getLoggedInUser();
-        if (user == null || user.getUsername() == null || user.getUsername().isBlank()) {
+
+        User user =
+                Store.getLoggedInUser();
+
+        if (
+                user == null
+                        || user.getUsername() == null
+                        || user.getUsername().isBlank()
+        ) {
+
             return "PROFILE";
         }
+
         return user.getUsername();
     }
 
+    // =========================================================
+    // RENDER
+    // =========================================================
+
     @Override
-    public void render(float delta) {
-        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-        stage.act(delta);
+    public void render(
+            float delta
+    ) {
+
+        Gdx.gl.glClearColor(
+                0f,
+                0f,
+                0f,
+                1f
+        );
+
+        Gdx.gl.glClear(
+                GL20.GL_COLOR_BUFFER_BIT
+        );
+
+        stage.act(
+                delta
+        );
+
         stage.draw();
     }
 
+    // =========================================================
+    // RESIZE
+    // =========================================================
+
     @Override
-    public void resize(int width, int height) {
-        stage.getViewport().update(width, height, true);
-        if (newsDialog != null && newsDialog.hasParent()) {
-            newsDialog.centerOn(stage);
+    public void resize(
+            int width,
+            int height
+    ) {
+
+        stage.getViewport()
+                .update(
+                        width,
+                        height,
+                        true
+                );
+
+        if (
+                newsDialog != null
+                        && newsDialog.hasParent()
+        ) {
+
+            newsDialog.centerOn(
+                    stage
+            );
         }
     }
 
-    @Override public void pause() { }
-    @Override public void resume() { }
-    @Override public void hide() { }
+    @Override
+    public void pause() {
+    }
+
+    @Override
+    public void resume() {
+    }
+
+    @Override
+    public void hide() {
+    }
+
+    // =========================================================
+    // DISPOSE
+    // =========================================================
 
     @Override
     public void dispose() {
+
         if (stage != null) {
+
             stage.dispose();
         }
-        for (Texture texture : textures) {
+
+        for (
+                Texture texture
+                : textures
+        ) {
+
             texture.dispose();
         }
     }
