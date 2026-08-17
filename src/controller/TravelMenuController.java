@@ -144,6 +144,19 @@ public class TravelMenuController {
         return currentPage;
     }
 
+    /**
+     * Supplies the graphical Travel Log with the same ordered quest instances
+     * used by the command-line renderer.  The screen never edits progress
+     * directly; claiming still goes through {@link #claim(int)}.
+     */
+    public List<QuestInstance> getActiveQuests(TravelLogPage page) {
+        User user = Store.getLoggedInUser();
+        if (user == null || page == null || page == TravelLogPage.MINIGAME) {
+            return List.of();
+        }
+        return questService.getActiveQuests(user, page.getCategory());
+    }
+
     private String render(User user, TravelLogPage page) {
         if (page == TravelLogPage.MINIGAME) {
             return renderMiniGames(user);
@@ -215,5 +228,14 @@ public class TravelMenuController {
             result.appendToMessage("no user is logged in");
         }
         return user;
+    }
+    public List<MiniGameStatus> getMiniGameStatuses() {
+        User user = Store.getLoggedInUser();
+
+        if (user == null || miniGames == null) {
+            return List.of();
+        }
+
+        return miniGames.list(user);
     }
 }

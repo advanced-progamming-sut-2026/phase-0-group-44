@@ -166,7 +166,17 @@ public final class AdventureMenuScreen implements Screen {
                 HUD_ASSET_ROOT + "missions_normal.png",
                 HUD_ASSET_ROOT + "missions_selected.png"
         );
-        addComingSoonListener(missions, "Missions / Travel Log");
+        missions.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Result<String> result = gameController.travelLog();
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
+            }
+        });
         left.add(hudIcon(missions, "MISSIONS", 58f, 55f));
 
         hud.add(left).left().top();
