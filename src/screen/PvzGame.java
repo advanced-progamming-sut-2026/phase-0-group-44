@@ -32,6 +32,8 @@ public final class PvzGame extends Game {
             case COLLECTION -> setScreen(new CollectionScreen(this, app));
             case GAMEPLAY -> setScreen(new GameplayScreen(this, app));
             case TRAVEL_LOG -> setScreen(new TravelLogScreen(this, app));
+            case SETTINGS -> setScreen(new SettingsScreen(this,app));
+            case PROFILE -> setScreen(new ProfileScreen(this,app));
         //    case SCORED_GAME -> setScreen(new ScoredGameScreen(this, app));
             // ... بقیه‌ی MenuNameها به مرور اضافه می‌شن
             default -> setScreen(new RegisterScreen(this, app));
