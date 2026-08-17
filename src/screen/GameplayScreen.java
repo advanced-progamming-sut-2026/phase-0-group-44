@@ -55,6 +55,7 @@ import pvz.libpvz.textures.TextureBank;
 import pvz.skin.PvzSkin;
 import screen.gameplay.BattlefieldChapterEffects;
 import screen.gameplay.BattlefieldEnvironmentLayer;
+import screen.gameplay.BattlefieldFrostbiteStateLayer;
 import screen.gameplay.BattlefieldLayout;
 import screen.gameplay.BattlefieldMissionObjectives;
 import screen.gameplay.BattlefieldMissionStartLayer;
@@ -102,6 +103,7 @@ public final class GameplayScreen implements Screen {
     private BattlefieldTheme theme;
     private BattlefieldLayout layout;
     private BattlefieldEnvironmentLayer environmentLayer;
+    private BattlefieldFrostbiteStateLayer frostbiteStateLayer;
     private BattlefieldChapterEffects chapterEffects;
     private BattlefieldSpecialLevelLayer specialLevelLayer;
     private Group entityLayer;
@@ -226,6 +228,8 @@ public final class GameplayScreen implements Screen {
                 layout,
                 whiteTexture,
                 runeTexture,
+                loadTexture("ui/gameplay/frostbite/slippery_up.png"),
+                loadTexture("ui/gameplay/frostbite/slippery_down.png"),
                 skin,
                 pamPlayer,
                 pamRoot
@@ -257,8 +261,22 @@ public final class GameplayScreen implements Screen {
         entityLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(entityLayer);
 
-        // Front chapter effects sit above plant/zombie actors but below pickups,
-        // interaction cursors and HUD.
+        // Frostbite front-state visuals sit over future plant/zombie actors:
+        // plant remains visible inside its ice shell, while frozen zombies are
+        // intentionally hidden by a full ice block per the Phase-2 specification.
+        frostbiteStateLayer = new BattlefieldFrostbiteStateLayer(
+                theme,
+                layout,
+                whiteTexture,
+                loadTexture("ui/gameplay/frostbite/frozen_zombie_block.png"),
+                pamPlayer,
+                pamRoot
+        );
+        frostbiteStateLayer.sync(engine(), previewMode);
+        stage.addActor(frostbiteStateLayer);
+
+        // Front chapter effects (including icy wind) sit above entity-state ice,
+        // but below pickups, interaction cursors and HUD.
         stage.addActor(chapterEffects.frontLayer());
 
         pickupLayer = new Group();
@@ -289,6 +307,9 @@ public final class GameplayScreen implements Screen {
                 loadTexture(HUD_ROOT + "button_brown_down.png"),
                 loadTexture(HUD_ROOT + "button_purple_ref.png"),
                 loadTexture(HUD_ROOT + "button_purple_ref_down.png"),
+                loadTexture(HUD_ROOT + "audio_slider_track.png"),
+                loadTexture(HUD_ROOT + "audio_slider_fill.png"),
+                loadTexture(HUD_ROOT + "audio_slider_knob.png"),
                 skin,
                 previewMode,
                 missionInfo,
@@ -1006,6 +1027,9 @@ public final class GameplayScreen implements Screen {
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
         environmentLayer.sync(displayEngine, previewMode);
+        if (frostbiteStateLayer != null) {
+            frostbiteStateLayer.sync(displayEngine, previewMode);
+        }
         if (chapterEffects != null) {
             chapterEffects.sync(displayEngine, previewMode);
         }

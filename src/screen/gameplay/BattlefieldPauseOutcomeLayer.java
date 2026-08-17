@@ -8,6 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Slider;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
@@ -32,6 +33,9 @@ public final class BattlefieldPauseOutcomeLayer {
     private final Texture victoryTexture;
     private final Texture defeatTexture;
     private final Texture bulletTexture;
+    private final Texture audioTrackTexture;
+    private final Texture audioFillTexture;
+    private final Texture audioKnobTexture;
     private final Skin skin;
     private final boolean previewMode;
     private final BattlefieldMissionObjectives.MissionInfo missionInfo;
@@ -53,6 +57,10 @@ public final class BattlefieldPauseOutcomeLayer {
     private final TextButton retryButton;
     private final TextButton continueButton;
 
+    // UI-ready audio controls. These intentionally do not call an audio system yet.
+    private Slider musicSlider;
+    private Slider sfxSlider;
+
     public BattlefieldPauseOutcomeLayer(
             Texture whiteTexture,
             Texture pauseBoardTexture,
@@ -63,6 +71,9 @@ public final class BattlefieldPauseOutcomeLayer {
             Texture brownButtonDown,
             Texture purpleButton,
             Texture purpleButtonDown,
+            Texture audioTrackTexture,
+            Texture audioFillTexture,
+            Texture audioKnobTexture,
             Skin skin,
             boolean previewMode,
             BattlefieldMissionObjectives.MissionInfo missionInfo,
@@ -76,6 +87,9 @@ public final class BattlefieldPauseOutcomeLayer {
         this.victoryTexture = victoryTexture;
         this.defeatTexture = defeatTexture;
         this.bulletTexture = bulletTexture;
+        this.audioTrackTexture = audioTrackTexture;
+        this.audioFillTexture = audioFillTexture;
+        this.audioKnobTexture = audioKnobTexture;
         this.skin = skin;
         this.previewMode = previewMode;
         this.missionInfo = missionInfo;
@@ -175,6 +189,10 @@ public final class BattlefieldPauseOutcomeLayer {
 
         addObjectives(missionInfo.objectives(), x + 115f, y + 208f, 460f);
 
+        // Audio controls are fully interactive UI now, but intentionally remain
+        // disconnected from the audio engine until that system is integrated.
+        addAudioControls(x, y);
+
         TextButton saveExit = new TextButton(
                 previewMode ? "EXIT PREVIEW" : "SAVE & EXIT", brownStyle);
         saveExit.setBounds(x + 32f, y + 38f, 185f, 58f);
@@ -191,6 +209,43 @@ public final class BattlefieldPauseOutcomeLayer {
         resume.setBounds(x + 432f, y + 38f, 185f, 58f);
         resume.addListener(click(resumeAction));
         pauseGroup.addActor(resume);
+    }
+
+    private void addAudioControls(float panelX, float panelY) {
+        Slider.SliderStyle style = new Slider.SliderStyle();
+        style.background = new TextureRegionDrawable(new TextureRegion(audioTrackTexture));
+        style.knobBefore = new TextureRegionDrawable(new TextureRegion(audioFillTexture));
+        style.knob = new TextureRegionDrawable(new TextureRegion(audioKnobTexture));
+
+        Label musicLabel = new Label("MUSIC", skin, "medium_outline");
+        musicLabel.setAlignment(Align.right);
+        musicLabel.setBounds(panelX + 120f, panelY + 138f, 140f, 32f);
+        pauseGroup.addActor(musicLabel);
+
+        musicSlider = new Slider(0f, 1f, 0.01f, false, style);
+        musicSlider.setValue(0.80f);
+        musicSlider.setBounds(panelX + 278f, panelY + 141f, 250f, 26f);
+        pauseGroup.addActor(musicSlider);
+
+        Label sfxLabel = new Label("SOUND FX", skin, "medium_outline");
+        sfxLabel.setAlignment(Align.right);
+        sfxLabel.setBounds(panelX + 120f, panelY + 105f, 140f, 32f);
+        pauseGroup.addActor(sfxLabel);
+
+        sfxSlider = new Slider(0f, 1f, 0.01f, false, style);
+        sfxSlider.setValue(0.80f);
+        sfxSlider.setBounds(panelX + 278f, panelY + 108f, 250f, 26f);
+        pauseGroup.addActor(sfxSlider);
+    }
+
+    /** Current pause-menu value, ready for the future audio-manager connection. */
+    public float getMusicVolumeUiValue() {
+        return musicSlider == null ? 0.80f : musicSlider.getValue();
+    }
+
+    /** Current pause-menu value, ready for the future audio-manager connection. */
+    public float getSfxVolumeUiValue() {
+        return sfxSlider == null ? 0.80f : sfxSlider.getValue();
     }
 
     private void addObjectives(List<String> objectives, float x, float y, float width) {
