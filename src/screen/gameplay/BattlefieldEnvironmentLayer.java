@@ -100,17 +100,17 @@ public final class BattlefieldEnvironmentLayer extends Group {
             return;
         }
         switch (terrain) {
-            case WATER -> addTint(cell, new Color(0.18f, 0.75f, 1f, 0.24f));
-            case LOW_TIDE -> addTint(cell, new Color(0.12f, 0.70f, 0.72f, 0.11f));
+            case WATER -> addTint(cell, new Color(0.18f, 0.75f, 1f, 0.14f));
+            case LOW_TIDE -> addTint(cell, new Color(0.12f, 0.70f, 0.72f, 0.06f));
             case SLIPPERY_UP -> {
                 addTint(cell, new Color(0.68f, 0.93f, 1f, 0.10f));
-                if (!addPam(cell, FROST_SLIDER_UP_PAM, "active_idle", 0.58f, 0f, -2f)) {
+                if (!addPam(cell, FROST_SLIDER_UP_PAM, "idle", 0.54f, 0f, -2f)) {
                     addDirectionMarker(cell, "^");
                 }
             }
             case SLIPPERY_DOWN -> {
                 addTint(cell, new Color(0.68f, 0.93f, 1f, 0.10f));
-                if (!addPam(cell, FROST_SLIDER_DOWN_PAM, "active_idle", 0.58f, 0f, 2f)) {
+                if (!addPam(cell, FROST_SLIDER_DOWN_PAM, "idle", 0.54f, 0f, 2f)) {
                     addDirectionMarker(cell, "v");
                 }
             }
@@ -119,7 +119,7 @@ public final class BattlefieldEnvironmentLayer extends Group {
                 addNecromancy(cell);
                 // The supplied Dark Ages tombstone spawn effect gives necromancy
                 // a PVZ-native visual instead of relying only on a procedural rune.
-                addPam(cell, DARK_SPAWN_PAM, "animation", 0.40f, 0f, -2f);
+                addPam(cell, DARK_SPAWN_PAM, "animation", 0.16f, 0f, -5f);
             }
             default -> {
                 // The official background already supplies the normal terrain art.
@@ -147,7 +147,7 @@ public final class BattlefieldEnvironmentLayer extends Group {
     private void addNecromancy(Rectangle cell) {
         addTint(cell, new Color(0.48f, 0.22f, 0.72f, 0.18f));
         Image rune = new Image(runeTexture);
-        float size = Math.min(cell.width, cell.height) * 0.70f;
+        float size = Math.min(cell.width, cell.height) * 0.56f;
         rune.setBounds(cell.x + (cell.width - size) * 0.5f,
                 cell.y + (cell.height - size) * 0.5f, size, size);
         rune.setColor(0.68f, 0.38f, 1f, 0.72f);
@@ -244,9 +244,28 @@ public final class BattlefieldEnvironmentLayer extends Group {
             if (used) {
                 continue;
             }
+
             Rectangle bounds = layout.mowerBounds(row);
-            if (!addPam(bounds, theme.mowerPam(), "idle", theme.mowerScale(), 0f, 0f)) {
+            String clip = "idle";
+            float scale = theme.mowerScale();
+            if (theme.world() == GameWorld.FROSTBITE_CAVES) {
+                scale *= 1.24f;
+            } else if (theme.world() == GameWorld.BIG_WAVE_BEACH) {
+                scale *= 1.18f;
+            }
+
+            boolean rendered = addPam(bounds, theme.mowerPam(), clip, scale, 0f, 0f);
+            if (!rendered) {
                 addFallbackMower(bounds);
+                continue;
+            }
+
+            // These two supplied mower idle clips are intentionally quite soft.
+            // Drawing the same native PAM a second time makes them read clearly
+            // against the bright ice/sand without replacing them with generated art.
+            if (theme.world() == GameWorld.FROSTBITE_CAVES
+                    || theme.world() == GameWorld.BIG_WAVE_BEACH) {
+                addPam(bounds, theme.mowerPam(), clip, scale, 0f, 0f);
             }
         }
     }
@@ -271,12 +290,12 @@ public final class BattlefieldEnvironmentLayer extends Group {
         Rectangle board = layout.boardBounds();
         float x = board.x + firstWaterColumn * layout.cellWidth();
         Rectangle tideBounds = new Rectangle(
-                x - layout.cellWidth() * 0.55f,
-                board.y - 8f,
-                layout.cellWidth() * 1.10f,
-                board.height + 16f
+                x - layout.cellWidth() * 0.16f,
+                board.y,
+                layout.cellWidth() * 0.32f,
+                board.height
         );
-        if (!addPam(tideBounds, BEACH_TIDE_PAM, "idle", 0.57f, 0f, 0f)) {
+        if (!addPam(tideBounds, BEACH_TIDE_PAM, "idle", 0.22f, 0f, 0f)) {
             Image line = new Image(whiteTexture);
             line.setColor(0.82f, 0.98f, 1f, 0.72f);
             line.setBounds(x - 2f, board.y, 4f, board.height);
