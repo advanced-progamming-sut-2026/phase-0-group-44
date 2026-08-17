@@ -26,11 +26,13 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import controller.App;
 import controller.GameMenuController;
 import controller.MenuController;
+import controller.PlantSelectionController;
 import model.Result;
 import model.Store;
 import model.config.AdventureCatalog;
 import model.config.ChapterCatalog;
 import model.config.GameWorld;
+import model.inGame.GameSession;
 import model.level.Chapter;
 import model.level.Level;
 import model.user.User;
@@ -63,6 +65,7 @@ public final class AdventureMenuScreen implements Screen {
     private final PvzGame game;
     private final GameMenuController gameController;
     private final MenuController menuController;
+    private final PlantSelectionController plantSelectionController;
     private final Map<String, Texture> textures = new LinkedHashMap<>();
 
     private Texture pathTexture;
@@ -77,6 +80,7 @@ public final class AdventureMenuScreen implements Screen {
         this.game = game;
         this.gameController = app.getGameController();
         this.menuController = app.getMenuController();
+        this.plantSelectionController = app.getPlantSelectionController();
     }
 
     @Override
@@ -127,6 +131,17 @@ public final class AdventureMenuScreen implements Screen {
                 HUD_ASSET_ROOT + "collection_normal.png",
                 HUD_ASSET_ROOT + "collection_selected.png"
         );
+        collection.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Result<String> result = menuController.enterMenu("collection");
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
+            }
+        });
         addComingSoonListener(collection, "Collection / Almanac");
         left.add(hudIcon(collection, "COLLECTION", 58f, 55f));
 
@@ -634,6 +649,12 @@ public final class AdventureMenuScreen implements Screen {
             return;
         }
 
+        Result<GameSession> selectionResult = plantSelectionController.beginForPlayer(result.getData());
+        if (selectionResult.getStatus()) {
+            game.goToScreenForCurrentMenu();
+        } else {
+            toast.showError(selectionResult.getMessage());
+        }
         toast.showInfo(
                 result.getData().getName()
                         + " is ready. Plant selection will open here once its Phase-2 screen is connected."

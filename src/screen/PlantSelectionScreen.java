@@ -13,10 +13,10 @@ import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import controller.App;
 import controller.CollectionMenuController;
+import controller.MenuController;
 import controller.PlantSelectionController;
 import model.Result;
 import model.Store;
-import model.enums.MenuName;
 import model.enums.PlantType;
 import model.inGame.GameSession;
 import model.inGame.PlantSelection;
@@ -68,6 +68,7 @@ public final class PlantSelectionScreen implements Screen {
     private final App app;
     private final PlantSelectionController controller;
     private final CollectionMenuController collectionController;
+    private final MenuController menuController;
     private final List<Texture> textures = new ArrayList<>();
     private final Map<String, Texture> iconCache = new LinkedHashMap<>();
 
@@ -86,6 +87,7 @@ public final class PlantSelectionScreen implements Screen {
         this.app = app;
         this.controller = app.getPlantSelectionController();
         this.collectionController = app.getCollectionController();
+        this.menuController = app.getMenuController();
     }
 
     @Override
@@ -146,8 +148,12 @@ public final class PlantSelectionScreen implements Screen {
         backButton.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                Store.setCurrentMenu(MenuName.MAIN);
-                game.goToScreenForCurrentMenu();
+                Result<String> result = menuController.exitMenu();
+                if (result.getStatus()) {
+                    game.goToScreenForCurrentMenu();
+                } else {
+                    toast.showError(result.getMessage());
+                }
             }
         });
         topBar.add(backButton).height(46f).left();

@@ -15,9 +15,9 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import controller.App;
 import controller.CollectionMenuController;
 import controller.MainMenuController;
+import controller.MenuController;
 import model.Result;
 import model.Store;
-import model.enums.MenuName;
 import model.enums.PlantType;
 import model.enums.ZombieType;
 import model.inGame.plant.PlantCollectionView;
@@ -53,6 +53,7 @@ public final class CollectionScreen implements Screen {
     private final App app;
     private final CollectionMenuController controller;
     private final MainMenuController mainController;
+    private final MenuController menuController;
     private final List<Texture> textures = new ArrayList<>();
     private final Map<String, Texture> iconCache = new LinkedHashMap<>();
 
@@ -77,6 +78,7 @@ public final class CollectionScreen implements Screen {
         this.app = app;
         this.controller = app.getCollectionController();
         this.mainController = app.getMainController();
+        this.menuController = app.getMenuController();
     }
 
     @Override
@@ -117,7 +119,7 @@ public final class CollectionScreen implements Screen {
         backButton.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                goBackToMainMenu();
+                goBackToAdventure();
             }
         });
         topBar.add(backButton).height(46f).left();
@@ -141,9 +143,16 @@ public final class CollectionScreen implements Screen {
         return resources;
     }
 
-    private void goBackToMainMenu() {
-        Store.setCurrentMenu(MenuName.MAIN);
-        game.goToScreenForCurrentMenu();
+    /** Collection is opened from the Adventure screen's HUD; MenuGraph already
+     *  knows COLLECTION exits back to GAME, so defer to it instead of
+     *  hardcoding the destination here. */
+    private void goBackToAdventure() {
+        Result<String> result = menuController.exitMenu();
+        if (result.getStatus()) {
+            game.goToScreenForCurrentMenu();
+        } else {
+            toast.showError(result.getMessage());
+        }
     }
 
     // ---------------------------------------------------------------- tabs
