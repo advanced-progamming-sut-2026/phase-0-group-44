@@ -30,16 +30,13 @@ import pvz.skin.PvzSkin;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Graphical Phase-2 main menu,
- * inspired by figure 1 of the specification.
- */
 public final class MainMenuScreen implements Screen {
 
     private static final String ASSET_ROOT =
             "ui/mainmenu/";
 
     private final PvzGame game;
+
     private final MainMenuController mainController;
     private final MenuController menuController;
     private final NewsMenuController newsController;
@@ -60,6 +57,7 @@ public final class MainMenuScreen implements Screen {
             PvzGame game,
             App app
     ) {
+
         this.game = game;
 
         this.mainController =
@@ -136,7 +134,7 @@ public final class MainMenuScreen implements Screen {
         );
 
         /*
-         * Top menu bar
+         * Top bar
          */
 
         root.add(
@@ -208,7 +206,7 @@ public final class MainMenuScreen implements Screen {
                 .row();
 
         /*
-         * Offline banner
+         * Banner
          */
 
         Image banner =
@@ -248,7 +246,7 @@ public final class MainMenuScreen implements Screen {
                 );
 
         /*
-         * Profile / logout
+         * Profile / Logout
          */
 
         topBar.add(
@@ -258,7 +256,7 @@ public final class MainMenuScreen implements Screen {
                 .left();
 
         /*
-         * Resources
+         * Gems / Coins
          */
 
         topBar.add(
@@ -279,7 +277,7 @@ public final class MainMenuScreen implements Screen {
                 new Table();
 
         /*
-         * Profile
+         * PROFILE BUTTON
          */
 
         TextButton profileButton =
@@ -289,17 +287,18 @@ public final class MainMenuScreen implements Screen {
                         "brown"
                 );
 
-        addComingSoonListener(
-                profileButton,
-                "Profile"
+        profileButton.addListener(
+                profileListener()
         );
 
-        profileArea.add(profileButton)
+        profileArea.add(
+                        profileButton
+                )
                 .height(48f)
                 .padRight(8f);
 
         /*
-         * Logout
+         * LOG OUT
          */
 
         TextButton logoutButton =
@@ -313,7 +312,9 @@ public final class MainMenuScreen implements Screen {
                 logoutListener()
         );
 
-        profileArea.add(logoutButton)
+        profileArea.add(
+                        logoutButton
+                )
                 .height(48f);
 
         return profileArea;
@@ -428,7 +429,7 @@ public final class MainMenuScreen implements Screen {
                 );
 
         /*
-         * Left navigation
+         * Left side
          */
 
         bottomBar.add(
@@ -438,7 +439,7 @@ public final class MainMenuScreen implements Screen {
                 .left();
 
         /*
-         * Play button
+         * Play
          */
 
         bottomBar.add(
@@ -449,7 +450,7 @@ public final class MainMenuScreen implements Screen {
                 .padBottom(2f);
 
         /*
-         * Right navigation
+         * Right side
          */
 
         bottomBar.add(
@@ -474,21 +475,28 @@ public final class MainMenuScreen implements Screen {
                 .padRight(12f);
 
         /*
-         * Network
+         * NETWORK
          */
+
+        ImageButton networkButton =
+                singleStateButton(
+                        "network_button.png"
+                );
+
+        addComingSoonListener(
+                networkButton,
+                "Network"
+        );
 
         left.add(
                 iconItem(
                         "NETWORK",
-                        singleStateButton(
-                                "network_button.png"
-                        ),
-                        "Network"
+                        networkButton
                 )
         );
 
         /*
-         * News
+         * NEWS
          */
 
         ImageButton newsButton =
@@ -504,8 +512,7 @@ public final class MainMenuScreen implements Screen {
         left.add(
                 iconItem(
                         "NEWS",
-                        newsButton,
-                        null
+                        newsButton
                 )
         );
 
@@ -525,41 +532,43 @@ public final class MainMenuScreen implements Screen {
                 .padLeft(12f);
 
         /*
-         * Settings
+         * SETTINGS
          */
 
-        ImageButton settings =
+        ImageButton settingsButton =
                 imageButton(
                         "settings_normal.png",
                         "settings_selected.png"
                 );
 
+        settingsButton.addListener(
+                settingsListener()
+        );
+
         right.add(
                 iconItem(
                         "SETTINGS",
-                        settings,
-                        "Settings"
+                        settingsButton
                 )
         );
 
         /*
-         * Leaderboard
+         * LEADERBOARD
          */
 
-        ImageButton leaderboard =
+        ImageButton leaderboardButton =
                 singleStateButton(
                         "iconLeaderboard.png"
                 );
 
-        leaderboard.addListener(
+        leaderboardButton.addListener(
                 leaderboardListener()
         );
 
         right.add(
                 iconItem(
-                        "leaderboard",
-                        leaderboard,
-                        null
+                        "SCORES",
+                        leaderboardButton
                 )
         );
 
@@ -616,17 +625,8 @@ public final class MainMenuScreen implements Screen {
 
     private Table iconItem(
             String caption,
-            ImageButton button,
-            String comingSoonName
+            ImageButton button
     ) {
-
-        if (comingSoonName != null) {
-
-            addComingSoonListener(
-                    button,
-                    comingSoonName
-            );
-        }
 
         Stack buttonStack =
                 new Stack();
@@ -636,7 +636,7 @@ public final class MainMenuScreen implements Screen {
         );
 
         /*
-         * News unread badge
+         * Add unread badge on NEWS only
          */
 
         if (
@@ -653,17 +653,22 @@ public final class MainMenuScreen implements Screen {
         Table item =
                 new Table();
 
-        item.add(buttonStack)
+        item.add(
+                        buttonStack
+                )
                 .width(82f)
                 .height(78f)
                 .row();
 
+        Label captionLabel =
+                new Label(
+                        caption,
+                        skin,
+                        "medium_outline"
+                );
+
         item.add(
-                        new Label(
-                                caption,
-                                skin,
-                                "medium_outline"
-                        )
+                        captionLabel
                 )
                 .padTop(2f);
 
@@ -728,8 +733,12 @@ public final class MainMenuScreen implements Screen {
     ) {
 
         return makeImageButton(
-                loadTexture(normalFile),
-                loadTexture(selectedFile)
+                loadTexture(
+                        normalFile
+                ),
+                loadTexture(
+                        selectedFile
+                )
         );
     }
 
@@ -762,7 +771,7 @@ public final class MainMenuScreen implements Screen {
     }
 
     // =========================================================
-    // TEXTURE LOADER
+    // TEXTURE
     // =========================================================
 
     private Texture loadTexture(
@@ -785,10 +794,10 @@ public final class MainMenuScreen implements Screen {
     }
 
     // =========================================================
-    // LOGOUT
+    // PROFILE
     // =========================================================
 
-    private ChangeListener logoutListener() {
+    private ChangeListener profileListener() {
 
         return new ChangeListener() {
 
@@ -799,7 +808,42 @@ public final class MainMenuScreen implements Screen {
             ) {
 
                 Result<String> result =
-                        mainController.logout();
+                        menuController.enterMenu(
+                                "profile"
+                        );
+
+                if (result.getStatus()) {
+
+                    game.goToScreenForCurrentMenu();
+
+                } else {
+
+                    toast.showError(
+                            result.getMessage()
+                    );
+                }
+            }
+        };
+    }
+
+    // =========================================================
+    // SETTINGS
+    // =========================================================
+
+    private ChangeListener settingsListener() {
+
+        return new ChangeListener() {
+
+            @Override
+            public void changed(
+                    ChangeEvent event,
+                    Actor actor
+            ) {
+
+                Result<String> result =
+                        menuController.enterMenu(
+                                "settings"
+                        );
 
                 if (result.getStatus()) {
 
@@ -849,6 +893,37 @@ public final class MainMenuScreen implements Screen {
     }
 
     // =========================================================
+    // LOGOUT
+    // =========================================================
+
+    private ChangeListener logoutListener() {
+
+        return new ChangeListener() {
+
+            @Override
+            public void changed(
+                    ChangeEvent event,
+                    Actor actor
+            ) {
+
+                Result<String> result =
+                        mainController.logout();
+
+                if (result.getStatus()) {
+
+                    game.goToScreenForCurrentMenu();
+
+                } else {
+
+                    toast.showError(
+                            result.getMessage()
+                    );
+                }
+            }
+        };
+    }
+
+    // =========================================================
     // NEWS
     // =========================================================
 
@@ -867,43 +942,13 @@ public final class MainMenuScreen implements Screen {
         };
     }
 
-    // =========================================================
-    // COMING SOON
-    // =========================================================
-
-    private void addComingSoonListener(
-            Actor actor,
-            String screenName
-    ) {
-
-        actor.addListener(
-                new ChangeListener() {
-
-                    @Override
-                    public void changed(
-                            ChangeEvent event,
-                            Actor source
-                    ) {
-
-                        toast.showInfo(
-                                screenName
-                                        + " screen is not connected yet."
-                        );
-                    }
-                }
-        );
-    }
-
-    // =========================================================
-    // NEWS DIALOG
-    // =========================================================
-
     private void openNewsDialog() {
 
         if (
                 newsDialog != null
                         && newsDialog.hasParent()
         ) {
+
             return;
         }
 
@@ -942,6 +987,33 @@ public final class MainMenuScreen implements Screen {
 
         unreadBadge.setVisible(
                 count > 0
+        );
+    }
+
+    // =========================================================
+    // COMING SOON
+    // =========================================================
+
+    private void addComingSoonListener(
+            Actor actor,
+            String screenName
+    ) {
+
+        actor.addListener(
+                new ChangeListener() {
+
+                    @Override
+                    public void changed(
+                            ChangeEvent event,
+                            Actor source
+                    ) {
+
+                        toast.showInfo(
+                                screenName
+                                        + " screen is not connected yet."
+                        );
+                    }
+                }
         );
     }
 
@@ -1052,5 +1124,7 @@ public final class MainMenuScreen implements Screen {
 
             texture.dispose();
         }
+
+        textures.clear();
     }
 }
