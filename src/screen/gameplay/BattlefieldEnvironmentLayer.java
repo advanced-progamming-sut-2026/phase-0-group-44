@@ -51,6 +51,10 @@ public final class BattlefieldEnvironmentLayer extends Group {
     private final Texture runeTexture;
     private final Texture slipperyUpTexture;
     private final Texture slipperyDownTexture;
+    private final Texture necromancyTexture;
+    private final Texture darkGraveNoopTexture;
+    private final Texture darkGraveSunTexture;
+    private final Texture darkGravePlantFoodTexture;
     private final Skin skin;
     private final PamPlayer pamPlayer;
     private final FileHandle pamRoot;
@@ -64,6 +68,10 @@ public final class BattlefieldEnvironmentLayer extends Group {
             Texture runeTexture,
             Texture slipperyUpTexture,
             Texture slipperyDownTexture,
+            Texture necromancyTexture,
+            Texture darkGraveNoopTexture,
+            Texture darkGraveSunTexture,
+            Texture darkGravePlantFoodTexture,
             Skin skin,
             PamPlayer pamPlayer,
             FileHandle pamRoot
@@ -74,6 +82,10 @@ public final class BattlefieldEnvironmentLayer extends Group {
         this.runeTexture = runeTexture;
         this.slipperyUpTexture = slipperyUpTexture;
         this.slipperyDownTexture = slipperyDownTexture;
+        this.necromancyTexture = necromancyTexture;
+        this.darkGraveNoopTexture = darkGraveNoopTexture;
+        this.darkGraveSunTexture = darkGraveSunTexture;
+        this.darkGravePlantFoodTexture = darkGravePlantFoodTexture;
         this.skin = skin;
         this.pamPlayer = pamPlayer;
         this.pamRoot = pamRoot;
@@ -92,6 +104,7 @@ public final class BattlefieldEnvironmentLayer extends Group {
         // Big Wave Beach always has the ocean immediately to the right of the lawn.
         // It is drawn first so tile/obstacle actors remain above it.
         addBeachSeaBody();
+        addDarkAgesAtmosphere();
 
         for (int row = 0; row < BattlefieldLayout.ROWS; row++) {
             for (int column = 0; column < BattlefieldLayout.COLUMNS; column++) {
@@ -123,16 +136,35 @@ public final class BattlefieldEnvironmentLayer extends Group {
             case SLIPPERY_UP -> addSlipperyTile(cell, true);
             case SLIPPERY_DOWN -> addSlipperyTile(cell, false);
             case FROZEN -> addTint(cell, new Color(0.62f, 0.88f, 1f, 0.22f));
-            case NECROMANCY -> {
-                addNecromancy(cell);
-                // The supplied Dark Ages tombstone spawn effect gives necromancy
-                // a PVZ-native visual instead of relying only on a procedural rune.
-                addPam(cell, DARK_SPAWN_PAM, "animation", 0.16f, 0f, -5f);
-            }
+            case NECROMANCY -> addNecromancy(cell);
             default -> {
                 // The official background already supplies the normal terrain art.
             }
         }
+    }
+
+    private void addDarkAgesAtmosphere() {
+        if (theme.world() != GameWorld.DARK_AGES) {
+            return;
+        }
+        Rectangle board = layout.boardBounds();
+
+        // Cool violet moonlight unifies the board without hiding the official art.
+        Image moonWash = new Image(whiteTexture);
+        moonWash.setColor(0.12f, 0.08f, 0.26f, 0.055f);
+        moonWash.setBounds(board.x, board.y, board.width, board.height);
+        addActor(moonWash);
+
+        // Soft edge shadows make the center playfield read like a gloomy graveyard.
+        Image leftShade = new Image(whiteTexture);
+        leftShade.setColor(0.02f, 0.01f, 0.05f, 0.10f);
+        leftShade.setBounds(board.x, board.y, 16f, board.height);
+        addActor(leftShade);
+
+        Image rightShade = new Image(whiteTexture);
+        rightShade.setColor(0.02f, 0.01f, 0.05f, 0.08f);
+        rightShade.setBounds(board.x + board.width - 14f, board.y, 14f, board.height);
+        addActor(rightShade);
     }
 
     private void addSlipperyTile(Rectangle cell, boolean up) {
@@ -193,17 +225,44 @@ public final class BattlefieldEnvironmentLayer extends Group {
     }
 
     private void addNecromancy(Rectangle cell) {
-        addTint(cell, new Color(0.48f, 0.22f, 0.72f, 0.18f));
-        Image rune = new Image(runeTexture);
-        float size = Math.min(cell.width, cell.height) * 0.56f;
-        rune.setBounds(cell.x + (cell.width - size) * 0.5f,
-                cell.y + (cell.height - size) * 0.5f, size, size);
-        rune.setColor(0.68f, 0.38f, 1f, 0.72f);
-        rune.addAction(Actions.forever(Actions.sequence(
-                Actions.alpha(0.38f, 0.85f),
-                Actions.alpha(0.86f, 0.85f)
-        )));
-        addActor(rune);
+        // Dark Ages has a dedicated state layer above this generic environment layer.
+        // Let that layer own the cursed-ground art so the sigil is not double-rendered.
+        if (theme.world() == GameWorld.DARK_AGES) {
+            return;
+        }
+
+        addTint(cell, new Color(0.27f, 0.05f, 0.39f, 0.10f));
+
+        if (necromancyTexture != null) {
+            Image sigil = new Image(necromancyTexture);
+            sigil.setScaling(Scaling.fit);
+            float size = Math.min(cell.width, cell.height) * 0.96f;
+            sigil.setBounds(
+                    cell.x + (cell.width - size) * 0.5f,
+                    cell.y + (cell.height - size) * 0.5f,
+                    size, size
+            );
+            sigil.setColor(1f, 1f, 1f, 0.58f);
+            sigil.addAction(Actions.forever(Actions.sequence(
+                    Actions.alpha(0.42f, 1.10f),
+                    Actions.alpha(0.66f, 1.10f)
+            )));
+            addActor(sigil);
+        } else {
+            Image rune = new Image(runeTexture);
+            float size = Math.min(cell.width, cell.height) * 0.70f;
+            rune.setBounds(cell.x + (cell.width - size) * 0.5f,
+                    cell.y + (cell.height - size) * 0.5f, size, size);
+            rune.setColor(0.74f, 0.30f, 1f, 0.72f);
+            addActor(rune);
+        }
+
+        // Tiny corner glints remain visible when a grave/zombie covers the center.
+        Color edge = new Color(0.72f, 0.28f, 1f, 0.48f);
+        float w = cell.width * 0.18f;
+        float h = 2f;
+        addThinBar(cell.x + 5f, cell.y + 5f, w, h, edge);
+        addThinBar(cell.x + cell.width - w - 5f, cell.y + cell.height - 7f, w, h, edge);
     }
 
     private void addObstacle(
@@ -230,6 +289,12 @@ public final class BattlefieldEnvironmentLayer extends Group {
     }
 
     private void addGrave(Rectangle cell, String payload) {
+        // Dark Ages graves are rendered by BattlefieldDarkAgesStateLayer.
+        // Avoid drawing a second grave/glow underneath the generated grave artwork.
+        if (theme.world() == GameWorld.DARK_AGES) {
+            return;
+        }
+
         String pam;
         float scale;
         if (theme.world() == GameWorld.DARK_AGES) {
@@ -673,7 +738,8 @@ public final class BattlefieldEnvironmentLayer extends Group {
             return ObstacleType.GRAVE;
         }
         if (theme.world() == GameWorld.DARK_AGES
-                && ((row == 1 && column == 5) || (row == 3 && column == 6))) {
+                && ((row == 1 && column == 4) || (row == 3 && column == 6))) {
+            // dark_graves_per_wave = 2 in the real Phase-1 chapter config.
             return ObstacleType.GRAVE;
         }
         return ObstacleType.NONE;
@@ -684,7 +750,7 @@ public final class BattlefieldEnvironmentLayer extends Group {
             Tile tile = engine.getGameMap().getTile(row, column);
             return tile.getObstaclePayload();
         }
-        if (theme.world() == GameWorld.DARK_AGES && row == 1 && column == 5) {
+        if (theme.world() == GameWorld.DARK_AGES && row == 1 && column == 4) {
             return "SUN_50";
         }
         if (theme.world() == GameWorld.DARK_AGES && row == 3 && column == 6) {
@@ -718,7 +784,8 @@ public final class BattlefieldEnvironmentLayer extends Group {
                 yield TerrainType.NORMAL_BEACH;
             }
             case DARK_AGES -> {
-                if (row == 2 && column == 4) {
+                // Exact Phase-1 config: necromancy = 4:1;6:3 (column:row).
+                if ((row == 1 && column == 4) || (row == 3 && column == 6)) {
                     yield TerrainType.NECROMANCY;
                 }
                 yield TerrainType.NORMAL_DARK_AGES;

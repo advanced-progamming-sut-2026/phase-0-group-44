@@ -49,6 +49,8 @@ public final class BattlefieldChapterEffects {
     private final Texture whiteTexture;
     private final Texture runeTexture;
     private final Texture streakTexture;
+    private final Texture necromancyActiveAuraTexture;
+    private final Texture necromancyActiveSigilTexture;
     private final PamPlayer pamPlayer;
     private final FileHandle pamRoot;
     private final Group rearLayer = new Group();
@@ -58,12 +60,20 @@ public final class BattlefieldChapterEffects {
     private int eventCursor;
     private int lastWaterColumns = -1;
 
+    // DEV PREVIEW only: demonstrate every legal Egypt tornado advance (1..4 cells)
+    // on different lanes without touching the real WaveSystem.
+    private int egyptPreviewIndex;
+    private int lastEgyptPreviewAdvance = 3;
+    private int lastEgyptPreviewLane = 2;
+
     public BattlefieldChapterEffects(
             BattlefieldTheme theme,
             BattlefieldLayout layout,
             Texture whiteTexture,
             Texture runeTexture,
             Texture streakTexture,
+            Texture necromancyActiveAuraTexture,
+            Texture necromancyActiveSigilTexture,
             PamPlayer pamPlayer,
             FileHandle pamRoot
     ) {
@@ -72,6 +82,8 @@ public final class BattlefieldChapterEffects {
         this.whiteTexture = whiteTexture;
         this.runeTexture = runeTexture;
         this.streakTexture = streakTexture;
+        this.necromancyActiveAuraTexture = necromancyActiveAuraTexture;
+        this.necromancyActiveSigilTexture = necromancyActiveSigilTexture;
         this.pamPlayer = pamPlayer;
         this.pamRoot = pamRoot;
         rearLayer.setSize(1280f, 720f);
@@ -112,7 +124,17 @@ public final class BattlefieldChapterEffects {
     /** Developer-only visual replay; does not mutate Store, GameEngine or terrain. */
     public void previewPulse() {
         switch (theme.world()) {
-            case ANCIENT_EGYPT -> spawnSandstorm(2, 3);
+            case ANCIENT_EGYPT -> {
+                // Phase-1 final-wave tornado logic advances a carried zombie by
+                // exactly 1..4 columns. Cycle all four possibilities in DEV preview.
+                int[] lanes = {2, 0, 4, 1};
+                int[] advances = {3, 1, 4, 2};
+                int index = egyptPreviewIndex % advances.length;
+                lastEgyptPreviewLane = lanes[index];
+                lastEgyptPreviewAdvance = advances[index];
+                egyptPreviewIndex = (egyptPreviewIndex + 1) % advances.length;
+                spawnSandstorm(lastEgyptPreviewLane, lastEgyptPreviewAdvance);
+            }
             case FROSTBITE_CAVES -> {
                 spawnWind(1, 0f);
                 spawnWind(3, 0.12f);
@@ -120,6 +142,14 @@ public final class BattlefieldChapterEffects {
             case BIG_WAVE_BEACH -> spawnTideTransition(2, 4);
             case DARK_AGES -> spawnDarkBurst(2, 4);
         }
+    }
+
+    public int getLastEgyptPreviewAdvance() {
+        return lastEgyptPreviewAdvance;
+    }
+
+    public int getLastEgyptPreviewLane() {
+        return lastEgyptPreviewLane;
     }
 
     private void processEvent(String event) {
@@ -174,45 +204,251 @@ public final class BattlefieldChapterEffects {
                 || row < 0 || row >= BattlefieldLayout.ROWS) {
             return;
         }
+
         Rectangle board = layout.boardBounds();
-        Rectangle cell = layout.cellBounds(row, 0);
-        float width = layout.cellWidth() * 3.8f;
-        float height = cell.height * 1.95f;
-        float startX = board.x + board.width + width * 0.12f;
-        int targetColumn = Math.max(0,
-                Math.min(BattlefieldLayout.COLUMNS - 1, BattlefieldLayout.COLUMNS - advance));
-        float endCenter = layout.columnCenterX(targetColumn);
-        float endX = endCenter - width * 0.50f;
-        float y = cell.y - cell.height * 0.48f;
+        Rectangle laneCell = layout.cellBounds(row, 0);
 
-        // Keep the supplied PVZ sandstorm PAMs as the core effect, but make them
-        // materially larger so they read against the bright Egypt board.
-        addMovingPam(rearLayer, SANDSTORM_REAR_PAM, "loop", 0.92f,
-                startX, y, width, height, endX, y, 1.15f, 0f);
-        addMovingPam(frontLayer, SANDSTORM_TOP_PAM, "loop", 0.92f,
-                startX + 22f, y, width, height, endX + 10f, y, 1.15f, 0.03f);
+        // WaveSystem may only choose 1..4. Clamp visuals defensively without
+        // changing the model/event itself.
+        int resolvedAdvance = Math.max(1, Math.min(4, advance));
+        /*
+         * IMPORTANT MODEL ALIGNMENT:
+         *
+         * WaveSystem does NOT spawn the carried zombie at a tile center.
+         * It stores continuous zombie x as:
+         *
+         *     spawnX = columns - advance
+         *
+         * so with a 9-column board the legal tornado x values are
+         * 8.0, 7.0, 6.0 and 5.0.
+         *
+         * The previous visual converted that value into a column and then used
+         * that column's CENTER, shifting the tornado +0.5 cell to the right.
+         * Draw against the exact continuous model x instead.
+         */
+        float modelSpawnX = BattlefieldLayout.COLUMNS - resolvedAdvance;
+        float targetCenterX = board.x + modelSpawnX * layout.cellWidth();
+        float laneCenterY = laneCell.y + laneCell.height * 0.5f;
 
-        // Fast sand/dust streaks make the direction and affected lane readable
-        // without covering the board with a rectangular color block.
-        for (int i = 0; i < 12; i++) {
-            float streakY = cell.y + 8f + (i % 6) * (cell.height - 16f) / 5f;
-            float streakW = 42f + (i % 4) * 18f;
-            float streakH = 3f + (i % 3);
-            float delay = (i % 5) * 0.035f;
-            Color color = (i % 2 == 0)
-                    ? new Color(1f, 0.82f, 0.38f, 0.72f)
-                    : new Color(1f, 0.95f, 0.72f, 0.58f);
-            addMovingFlowStreak(frontLayer, color,
-                    board.x + board.width + i * 13f, streakY,
-                    streakW, Math.max(8f, streakH * 2.2f),
-                    endCenter - streakW * 0.5f - i * 5f,
-                    streakY + ((i % 3) - 1) * 8f,
-                    1.02f + (i % 3) * 0.08f, delay,
-                    -7f + (i % 4) * 4f);
+        // A one-cell visual landing footprint centered on the real continuous x.
+        Rectangle targetCell = new Rectangle(
+                targetCenterX - layout.cellWidth() * 0.5f,
+                laneCell.y,
+                layout.cellWidth(),
+                laneCell.height
+        );
+
+        // Only used by the small residual rune pulse.
+        int targetColumn = Math.max(
+                0,
+                Math.min(
+                        BattlefieldLayout.COLUMNS - 1,
+                        (int) Math.floor(modelSpawnX)
+                )
+        );
+
+        /*
+         * Core PVZ sandstorm.
+         *
+         * The Phase-2 document explicitly says continuous tornado movement is not
+         * required; the important requirement is that the player understands why
+         * a zombie appeared several cells forward. We therefore show:
+         *
+         *   board edge -> moving sandstorm -> concentrated landing vortex
+         *
+         * ending on the exact cell implied by the real Phase-1 "advance" value.
+         */
+        float stormWidth = layout.cellWidth() * 2.70f;
+
+        /*
+         * Keep the tornado visually lane-sized.  The old 1.68-cell height looked
+         * acceptable in the middle row, but on rows 4/5 it extended beneath the
+         * lawn and appeared vertically misplaced.
+         */
+        float stormHeight = laneCell.height * 1.22f;
+        float startX = board.x + board.width + stormWidth * 0.16f;
+        float endX = targetCenterX - stormWidth * 0.49f;
+
+        float desiredStormY = laneCenterY - stormHeight * 0.5f;
+        float minStormY = board.y + 2f;
+        float maxStormY = board.y + board.height - stormHeight - 2f;
+
+        // Clamp only the actor bounds; the landing vortex remains centered on
+        // the exact model lane/cell position.
+        float stormY = Math.max(minStormY, Math.min(maxStormY, desiredStormY));
+
+        /*
+         * SANDSTORM_REAR/TOP are not visually centered inside their PAM origin.
+         * On model row 4 (the bottom visible lawn row) the artwork's funnel/base
+         * hangs below the lawn even though the Scene2D actor bounds are valid.
+         *
+         * Correct the PAM DRAW ORIGIN only for that bottom row.  Do not move the
+         * logical landing cell, model spawn x, streaks, rune, or other rows.
+         */
+        float sandstormRenderYOffset =
+                row == BattlefieldLayout.ROWS - 1
+                        ? laneCell.height * 0.55f
+                        : 0f;
+
+        addMovingPam(
+                rearLayer,
+                SANDSTORM_REAR_PAM,
+                "loop",
+                0.88f,
+                startX,
+                stormY,
+                stormWidth,
+                stormHeight,
+                endX,
+                stormY,
+                1.05f,
+                0f,
+                sandstormRenderYOffset
+        );
+        addMovingPam(
+                frontLayer,
+                SANDSTORM_TOP_PAM,
+                "loop",
+                0.90f,
+                startX + 12f,
+                stormY,
+                stormWidth,
+                stormHeight,
+                endX + 6f,
+                stormY,
+                1.05f,
+                0.025f,
+                sandstormRenderYOffset
+        );
+
+        // Sand streaks travel only through the affected lane. Their slightly curved
+        // end points read as turbulent wind instead of debug-like parallel lines.
+        for (int i = 0; i < 10; i++) {
+            float fraction = (i % 5) / 4f;
+            float streakY = laneCell.y + 12f
+                    + fraction * Math.max(12f, laneCell.height - 24f);
+            float streakW = 34f + (i % 4) * 15f;
+            float streakH = 7f + (i % 2) * 2f;
+            float startStreakX = board.x + board.width + 18f + i * 16f;
+            float endStreakX = targetCenterX
+                    - targetCell.width * (0.12f + (i % 3) * 0.08f)
+                    - streakW * 0.50f;
+            float endStreakY = streakY + ((i % 4) - 1.5f) * 6f;
+
+            Color sand = (i % 3 == 0)
+                    ? new Color(1f, 0.93f, 0.67f, 0.70f)
+                    : new Color(0.94f, 0.66f, 0.26f, 0.64f);
+
+            addMovingFlowStreak(
+                    frontLayer,
+                    sand,
+                    startStreakX,
+                    streakY,
+                    streakW,
+                    streakH,
+                    endStreakX,
+                    endStreakY,
+                    0.90f + (i % 3) * 0.07f,
+                    (i % 5) * 0.025f,
+                    -10f + (i % 5) * 5f
+            );
         }
 
-        // Brief golden target pulse at the cell the tornado carried toward.
-        addRunePulse(row, targetColumn, new Color(1f, 0.72f, 0.16f, 0.72f), 1.35f);
+        // A short-lived funnel forms exactly where the carried zombie enters.
+        addEgyptLandingVortex(targetCell);
+
+        // Small dust flashes on the entry boundary and destination give the effect
+        // a clear "from outside the lawn -> into this cell" visual grammar.
+        addEdgeFlash(
+                board.x + board.width - 5f,
+                laneCell.y + laneCell.height * 0.18f,
+                4f,
+                laneCell.height * 0.64f,
+                new Color(1f, 0.80f, 0.32f, 0.55f),
+                0f
+        );
+
+        // Retain the existing circular pulse, but reduce it so it behaves like
+        // residual magic/sand at the landing position rather than a target UI.
+        addRunePulse(
+                row,
+                targetColumn,
+                new Color(1f, 0.70f, 0.18f, 0.50f),
+                0.82f
+        );
+    }
+
+    /**
+     * Builds a brief layered funnel from soft horizontal sand bands.
+     * It is deliberately transient: Phase 2 only needs the reason for the
+     * advanced zombie spawn to be visually understandable.
+     */
+    private void addEgyptLandingVortex(Rectangle cell) {
+        float centerX = cell.x + cell.width * 0.5f;
+        float baseY = cell.y + cell.height * 0.10f;
+
+        for (int i = 0; i < 7; i++) {
+            float level = i / 6f;
+            float width = cell.width * (0.70f - level * 0.36f);
+            float height = 6f + (i % 2) * 2f;
+            float x = centerX - width * 0.5f
+                    + ((i % 2 == 0) ? -3f : 3f);
+            float y = baseY + level * cell.height * 0.70f;
+
+            Image band = new Image(streakTexture != null ? streakTexture : whiteTexture);
+            band.setColor(
+                    i % 2 == 0
+                            ? new Color(1f, 0.82f, 0.37f, 0f)
+                            : new Color(1f, 0.94f, 0.72f, 0f)
+            );
+            band.setBounds(x, y, width, height);
+            band.setOrigin(width * 0.5f, height * 0.5f);
+            band.setRotation(i % 2 == 0 ? -8f : 8f);
+
+            float delay = 0.54f + i * 0.025f;
+            band.addAction(Actions.sequence(
+                    Actions.delay(delay),
+                    Actions.parallel(
+                            Actions.alpha(i % 2 == 0 ? 0.82f : 0.68f, 0.10f),
+                            Actions.rotateBy(i % 2 == 0 ? -54f : 54f, 0.34f)
+                    ),
+                    Actions.parallel(
+                            Actions.moveBy(
+                                    i % 2 == 0 ? 7f : -7f,
+                                    cell.height * 0.05f,
+                                    0.34f
+                            ),
+                            Actions.scaleTo(0.78f, 0.78f, 0.34f),
+                            Actions.alpha(0f, 0.34f),
+                            Actions.rotateBy(i % 2 == 0 ? -58f : 58f, 0.34f)
+                    ),
+                    Actions.removeActor()
+            ));
+            frontLayer.addActor(band);
+        }
+
+        // Low dust skirt grounds the funnel on the lawn.
+        for (int i = 0; i < 5; i++) {
+            float w = cell.width * (0.18f + i * 0.07f);
+            Image dust = new Image(streakTexture != null ? streakTexture : whiteTexture);
+            dust.setColor(new Color(0.92f, 0.61f, 0.22f, 0f));
+            dust.setBounds(
+                    centerX - w * 0.5f + (i - 2) * 5f,
+                    cell.y + 6f + (i % 2) * 4f,
+                    w,
+                    7f
+            );
+            dust.addAction(Actions.sequence(
+                    Actions.delay(0.72f + i * 0.025f),
+                    Actions.alpha(0.54f, 0.08f),
+                    Actions.parallel(
+                            Actions.moveBy((i - 2) * 5f, 8f, 0.32f),
+                            Actions.alpha(0f, 0.32f)
+                    ),
+                    Actions.removeActor()
+            ));
+            rearLayer.addActor(dust);
+        }
     }
 
     private void spawnWind(int row, float delay) {
@@ -309,6 +545,45 @@ public final class BattlefieldChapterEffects {
             return;
         }
         Rectangle cell = layout.cellBounds(row, column);
+
+        // Generated Dark-Ages art is used only during a REAL necromancy/grave event,
+        // so the quiet ground marker and the active spawn state remain distinct.
+        if (necromancyActiveAuraTexture != null) {
+            Image aura = new Image(necromancyActiveAuraTexture);
+            float size = Math.min(cell.width, cell.height) * 1.42f;
+            aura.setBounds(cell.x + (cell.width - size) * 0.5f,
+                    cell.y + (cell.height - size) * 0.5f, size, size);
+            aura.setOrigin(size * 0.5f, size * 0.5f);
+            aura.setColor(1f, 1f, 1f, 0f);
+            aura.addAction(Actions.sequence(
+                    Actions.parallel(
+                            Actions.alpha(0.78f, 0.16f),
+                            Actions.scaleTo(1.08f, 1.08f, 0.36f),
+                            Actions.rotateBy(18f, 0.36f)
+                    ),
+                    Actions.parallel(
+                            Actions.alpha(0f, 0.72f),
+                            Actions.scaleTo(1.22f, 1.22f, 0.72f),
+                            Actions.rotateBy(22f, 0.72f)
+                    ),
+                    Actions.removeActor()
+            ));
+            frontLayer.addActor(aura);
+        }
+        if (necromancyActiveSigilTexture != null) {
+            Image sigil = new Image(necromancyActiveSigilTexture);
+            float size = Math.min(cell.width, cell.height) * 1.08f;
+            sigil.setBounds(cell.x + (cell.width - size) * 0.5f,
+                    cell.y + (cell.height - size) * 0.5f, size, size);
+            sigil.setColor(1f, 1f, 1f, 0f);
+            sigil.addAction(Actions.sequence(
+                    Actions.alpha(0.90f, 0.12f),
+                    Actions.delay(0.28f),
+                    Actions.alpha(0f, 0.55f),
+                    Actions.removeActor()
+            ));
+            frontLayer.addActor(sigil);
+        }
 
         // Two expanding supplied-style rune pulses create a clear high-contrast
         // necromancy target even on Dark Ages' purple/blue tiles.
@@ -473,7 +748,33 @@ public final class BattlefieldChapterEffects {
             float duration,
             float delay
     ) {
-        PamEnvironmentActor actor = pamActor(path, clip, scale);
+        addMovingPam(
+                layer, path, clip, scale,
+                startX, startY, width, height,
+                endX, endY, duration, delay,
+                0f
+        );
+    }
+
+    private void addMovingPam(
+            Group layer,
+            String path,
+            String clip,
+            float scale,
+            float startX,
+            float startY,
+            float width,
+            float height,
+            float endX,
+            float endY,
+            float duration,
+            float delay,
+            float renderYOffset
+    ) {
+        PamEnvironmentActor actor = pamActor(
+                path, clip, scale,
+                0f, renderYOffset
+        );
         if (actor == null) {
             return;
         }
@@ -487,6 +788,16 @@ public final class BattlefieldChapterEffects {
     }
 
     private PamEnvironmentActor pamActor(String path, String clip, float scale) {
+        return pamActor(path, clip, scale, 0f, 0f);
+    }
+
+    private PamEnvironmentActor pamActor(
+            String path,
+            String clip,
+            float scale,
+            float xOffset,
+            float yOffset
+    ) {
         if (pamPlayer == null || pamRoot == null || path == null) {
             return null;
         }
@@ -495,6 +806,8 @@ public final class BattlefieldChapterEffects {
         if (!direct.exists() && !images.exists()) {
             return null;
         }
-        return new PamEnvironmentActor(pamPlayer, path, clip, scale, 0f, 0f);
+        return new PamEnvironmentActor(
+                pamPlayer, path, clip, scale, xOffset, yOffset
+        );
     }
 }

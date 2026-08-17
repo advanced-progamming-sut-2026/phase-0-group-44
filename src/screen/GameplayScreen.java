@@ -54,6 +54,7 @@ import pvz.libpvz.pam.PamPlayer;
 import pvz.libpvz.textures.TextureBank;
 import pvz.skin.PvzSkin;
 import screen.gameplay.BattlefieldChapterEffects;
+import screen.gameplay.BattlefieldDarkAgesStateLayer;
 import screen.gameplay.BattlefieldEnvironmentLayer;
 import screen.gameplay.BattlefieldFrostbiteStateLayer;
 import screen.gameplay.BattlefieldLayout;
@@ -103,6 +104,7 @@ public final class GameplayScreen implements Screen {
     private BattlefieldTheme theme;
     private BattlefieldLayout layout;
     private BattlefieldEnvironmentLayer environmentLayer;
+    private BattlefieldDarkAgesStateLayer darkAgesStateLayer;
     private BattlefieldFrostbiteStateLayer frostbiteStateLayer;
     private BattlefieldChapterEffects chapterEffects;
     private BattlefieldSpecialLevelLayer specialLevelLayer;
@@ -230,12 +232,31 @@ public final class GameplayScreen implements Screen {
                 runeTexture,
                 loadTexture("ui/gameplay/frostbite/slippery_up.png"),
                 loadTexture("ui/gameplay/frostbite/slippery_down.png"),
+                loadTexture("ui/gameplay/dark_ages/necromancy_tile.png"),
+                loadTexture("ui/gameplay/dark_ages/grave_noop.png"),
+                loadTexture("ui/gameplay/dark_ages/grave_sun.png"),
+                loadTexture("ui/gameplay/dark_ages/grave_plant_food.png"),
                 skin,
                 pamPlayer,
                 pamRoot
         );
         environmentLayer.sync(engine(), previewMode);
         stage.addActor(environmentLayer);
+
+        // Dedicated Dark Ages presentation sits above the generic environment layer.
+        // This guarantees generated cursed-ground/grave art is visible even if the
+        // generic renderer also supplies older PAM fallback visuals underneath.
+        darkAgesStateLayer = new BattlefieldDarkAgesStateLayer(
+                theme,
+                layout,
+                whiteTexture,
+                loadTexture("ui/gameplay/dark_ages/necromancy_tile.png"),
+                loadTexture("ui/gameplay/dark_ages/grave_noop.png"),
+                loadTexture("ui/gameplay/dark_ages/grave_sun.png"),
+                loadTexture("ui/gameplay/dark_ages/grave_plant_food.png")
+        );
+        darkAgesStateLayer.sync(engine(), previewMode);
+        stage.addActor(darkAgesStateLayer);
 
         specialLevelLayer = new BattlefieldSpecialLevelLayer(
                 layout,
@@ -254,6 +275,8 @@ public final class GameplayScreen implements Screen {
         chapterEffects = new BattlefieldChapterEffects(
                 theme, layout, whiteTexture, runeTexture,
                 loadTexture(HUD_ROOT + "effect_streak.png"),
+                loadTexture("ui/gameplay/dark_ages/necromancy_active_aura.png"),
+                loadTexture("ui/gameplay/dark_ages/necromancy_active_sigil.png"),
                 pamPlayer, pamRoot);
         stage.addActor(chapterEffects.rearLayer());
 
@@ -769,7 +792,16 @@ public final class GameplayScreen implements Screen {
 
         float ratio;
         if (previewMode) {
-            previewLabel.setText("DEV PREVIEW");
+            if (theme == BattlefieldTheme.DARK_AGES && darkAgesStateLayer != null) {
+                previewLabel.setText(
+                        "DEV PREVIEW  •  WAVE " + darkAgesStateLayer.getPreviewWave()
+                                + "  •  N NEXT  •  SHIFT+N PREV");
+            } else if (theme == BattlefieldTheme.ANCIENT_EGYPT) {
+                previewLabel.setText(
+                        "DEV PREVIEW  •  E TORNADO  •  PHASE-1 ADVANCE 1–4 CELLS");
+            } else {
+                previewLabel.setText("DEV PREVIEW");
+            }
             waveLabel.setText("");
             ratio = 0.22f;
         } else {
@@ -1027,6 +1059,9 @@ public final class GameplayScreen implements Screen {
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
         environmentLayer.sync(displayEngine, previewMode);
+        if (darkAgesStateLayer != null) {
+            darkAgesStateLayer.sync(displayEngine, previewMode);
+        }
         if (frostbiteStateLayer != null) {
             frostbiteStateLayer.sync(displayEngine, previewMode);
         }
@@ -1101,7 +1136,36 @@ public final class GameplayScreen implements Screen {
             }
             if (keycode == Input.Keys.E && previewMode && chapterEffects != null) {
                 chapterEffects.previewPulse();
-                showAction("");
+                if (theme == BattlefieldTheme.ANCIENT_EGYPT) {
+                    showAction(
+                            "EGYPT TORNADO  •  LANE "
+                                    + (chapterEffects.getLastEgyptPreviewLane() + 1)
+                                    + "  •  CARRIED "
+                                    + chapterEffects.getLastEgyptPreviewAdvance()
+                                    + " CELL"
+                                    + (chapterEffects.getLastEgyptPreviewAdvance() == 1 ? "" : "S")
+                    );
+                } else {
+                    showAction("");
+                }
+                return true;
+            }
+            if (keycode == Input.Keys.N
+                    && previewMode
+                    && theme == BattlefieldTheme.DARK_AGES
+                    && darkAgesStateLayer != null) {
+                boolean backwards =
+                        Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)
+                                || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
+
+                int wave = backwards
+                        ? darkAgesStateLayer.previousPreviewWave()
+                        : darkAgesStateLayer.nextPreviewWave();
+
+                // Re-sync immediately so the grave pair visibly changes on this key press.
+                darkAgesStateLayer.sync(engine(), true);
+                showAction("DARK AGES  •  PREVIEW WAVE " + wave
+                        + (backwards ? "  •  PREVIOUS" : "  •  NEXT"));
                 return true;
             }
             if (keycode == Input.Keys.T && previewMode && specialLevelLayer != null) {
