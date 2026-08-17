@@ -33,6 +33,12 @@ public final class BattlefieldEnvironmentLayer extends Group {
             "768/FULL/GRAVESTONES/DARK_PLANTFOOD/DARK_PLANTFOOD.PAM";
     private static final String FROST_ICE_PAM =
             "768/FULL/EFFECTS/FROSTBITE_ICE_BLOCK_PLANT/FROSTBITE_ICE_BLOCK_PLANT.PAM";
+    private static final String FROST_SLIDER_UP_PAM =
+            "768/FULL/EFFECTS/TILESLIDER_ICEAGE_UP/TILESLIDER_ICEAGE_UP.PAM";
+    private static final String FROST_SLIDER_DOWN_PAM =
+            "768/FULL/EFFECTS/TILESLIDER_ICEAGE_DOWN/TILESLIDER_ICEAGE_DOWN.PAM";
+    private static final String DARK_SPAWN_PAM =
+            "768/FULL/EFFECTS/TOMBSTONE_DARK_SPAWN_EFFECT/TOMBSTONE_DARK_SPAWN_EFFECT.PAM";
     private static final String BEACH_TIDE_PAM =
             "768/FULL/BACKGROUNDS/WATER_TIDE_LINE/WATER_TIDE_LINE.PAM";
 
@@ -97,15 +103,24 @@ public final class BattlefieldEnvironmentLayer extends Group {
             case WATER -> addTint(cell, new Color(0.18f, 0.75f, 1f, 0.24f));
             case LOW_TIDE -> addTint(cell, new Color(0.12f, 0.70f, 0.72f, 0.11f));
             case SLIPPERY_UP -> {
-                addTint(cell, new Color(0.68f, 0.93f, 1f, 0.24f));
-                addDirectionMarker(cell, "^");
+                addTint(cell, new Color(0.68f, 0.93f, 1f, 0.10f));
+                if (!addPam(cell, FROST_SLIDER_UP_PAM, "active_idle", 0.58f, 0f, -2f)) {
+                    addDirectionMarker(cell, "^");
+                }
             }
             case SLIPPERY_DOWN -> {
-                addTint(cell, new Color(0.68f, 0.93f, 1f, 0.24f));
-                addDirectionMarker(cell, "v");
+                addTint(cell, new Color(0.68f, 0.93f, 1f, 0.10f));
+                if (!addPam(cell, FROST_SLIDER_DOWN_PAM, "active_idle", 0.58f, 0f, 2f)) {
+                    addDirectionMarker(cell, "v");
+                }
             }
-            case FROZEN -> addTint(cell, new Color(0.62f, 0.88f, 1f, 0.31f));
-            case NECROMANCY -> addNecromancy(cell);
+            case FROZEN -> addTint(cell, new Color(0.62f, 0.88f, 1f, 0.22f));
+            case NECROMANCY -> {
+                addNecromancy(cell);
+                // The supplied Dark Ages tombstone spawn effect gives necromancy
+                // a PVZ-native visual instead of relying only on a procedural rune.
+                addPam(cell, DARK_SPAWN_PAM, "animation", 0.40f, 0f, -2f);
+            }
             default -> {
                 // The official background already supplies the normal terrain art.
             }
@@ -156,7 +171,7 @@ public final class BattlefieldEnvironmentLayer extends Group {
             return;
         }
         if (obstacle == ObstacleType.ICE) {
-            if (!addPam(cell, FROST_ICE_PAM, "idle", 0.46f, 0f, -4f)) {
+            if (!addPam(cell, FROST_ICE_PAM, "freeze_idle", 0.42f, 0f, -4f)) {
                 addFallbackBadge(cell, "ICE", new Color(0.70f, 0.94f, 1f, 0.55f));
             }
         }
@@ -204,8 +219,16 @@ public final class BattlefieldEnvironmentLayer extends Group {
             float xOffset,
             float yOffset
     ) {
-        if (pamPlayer == null || pamRoot == null || pamPath == null
-                || !pamRoot.child(pamPath).exists()) {
+        if (pamPlayer == null || pamRoot == null || pamPath == null) {
+            return false;
+        }
+        // pvz-asset-browser stores PAM files under IMAGES/768/..., but libPVZ
+        // intentionally receives paths beginning at 768/... (the same convention
+        // already used successfully by GreenhouseScreen). The old guard checked
+        // the wrong physical location, so every valid PAM fell back to a box.
+        FileHandle direct = pamRoot.child(pamPath);
+        FileHandle imagesPath = pamRoot.child("IMAGES").child(pamPath);
+        if (!direct.exists() && !imagesPath.exists()) {
             return false;
         }
         PamEnvironmentActor actor = new PamEnvironmentActor(
