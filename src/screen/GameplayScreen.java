@@ -43,6 +43,7 @@ import model.sim.sun.SunType;
 import pvz.libpvz.pam.PamPlayer;
 import pvz.libpvz.textures.TextureBank;
 import pvz.skin.PvzSkin;
+import screen.gameplay.BattlefieldChapterEffects;
 import screen.gameplay.BattlefieldEnvironmentLayer;
 import screen.gameplay.BattlefieldLayout;
 import screen.gameplay.BattlefieldTheme;
@@ -84,6 +85,7 @@ public final class GameplayScreen implements Screen {
     private BattlefieldTheme theme;
     private BattlefieldLayout layout;
     private BattlefieldEnvironmentLayer environmentLayer;
+    private BattlefieldChapterEffects chapterEffects;
     private Group entityLayer;
     private Group pickupLayer;
     private Group interactionLayer;
@@ -204,9 +206,19 @@ public final class GameplayScreen implements Screen {
         environmentLayer.sync(engine(), previewMode);
         stage.addActor(environmentLayer);
 
+        chapterEffects = new BattlefieldChapterEffects(
+                theme, layout, whiteTexture, runeTexture,
+                loadTexture(HUD_ROOT + "effect_streak.png"),
+                pamPlayer, pamRoot);
+        stage.addActor(chapterEffects.rearLayer());
+
         entityLayer = new Group();
         entityLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(entityLayer);
+
+        // Front chapter effects sit above plant/zombie actors but below pickups,
+        // interaction cursors and HUD.
+        stage.addActor(chapterEffects.frontLayer());
 
         pickupLayer = new Group();
         pickupLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
@@ -456,7 +468,7 @@ public final class GameplayScreen implements Screen {
         group.addActor(resume);
 
         if (previewMode) {
-            Label hint = new Label("DEV PREVIEW  •  1 / 2 / 3 / 4 SWITCH WORLD", skin);
+            Label hint = new Label("DEV PREVIEW  •  1 / 2 / 3 / 4 WORLD  •  E EFFECT", skin);
             hint.setAlignment(Align.center);
             hint.setWrap(true);
             hint.setBounds(485f, 275f, 310f, 50f);
@@ -782,6 +794,9 @@ public final class GameplayScreen implements Screen {
         }
 
         environmentLayer.sync(engine(), previewMode);
+        if (chapterEffects != null) {
+            chapterEffects.sync(engine(), previewMode);
+        }
         syncPickups();
         stage.act(delta);
         updateHud();
@@ -836,6 +851,11 @@ public final class GameplayScreen implements Screen {
                 if (previewMode || engine() == null || engine().getPlantFood() > 0) {
                     toggleTool(ToolMode.PLANT_FOOD);
                 }
+                return true;
+            }
+            if (keycode == Input.Keys.E && previewMode && chapterEffects != null) {
+                chapterEffects.previewPulse();
+                showAction("");
                 return true;
             }
             if (!previewMode) {
