@@ -44,7 +44,7 @@ public final class CollectionScreen implements Screen {
     private static final String ZOMBIE_ICON_ROOT = ASSET_ROOT + "zombies/";
     private static final String MAIN_MENU_ASSET_ROOT = "ui/mainmenu/";
     private static final int GRID_COLUMNS = 8;
-    private static final float CARD_SIZE = 78f;
+    private static final float CARD_SIZE = 148f;
 
     private enum Tab { PLANTS, ZOMBIES }
     private enum LockFilter { ALL, UNLOCKED, LOCKED }
@@ -72,6 +72,14 @@ public final class CollectionScreen implements Screen {
     private Table gridHost;
     private TextButton plantsTabButton;
     private TextButton zombiesTabButton;
+    private Table footerBar;
+    private Label collectedLabel;
+    private static PlantType focusedPlantType;
+    private static ZombieType focusedZombieType;
+    private Image plantsTabBg;
+    private Image zombiesTabBg;
+
+    private static final float TAB_ICON_SIZE = 64f;
 
     public CollectionScreen(PvzGame game, App app) {
         this.game = game;
@@ -95,6 +103,8 @@ public final class CollectionScreen implements Screen {
         root = new Table();
         root.setFillParent(true);
         root.top();
+        root.setBackground(new com.badlogic.gdx.scenes.scene2d.utils.TiledDrawable(
+                new com.badlogic.gdx.graphics.g2d.TextureRegion(loadTexture(ASSET_ROOT + "redBg.png"))));
         stage.addActor(root);
 
         root.add(buildTopBar()).growX().row();
@@ -104,30 +114,109 @@ public final class CollectionScreen implements Screen {
         root.add(filterBar).growX().padTop(6f).row();
         gridHost = new Table();
         root.add(gridHost).grow().pad(10f, 18f, 14f, 18f).row();
+        footerBar = new Table();
+        root.add(footerBar).growX().row();
 
         rebuildFilterBar();
+        rebuildFooterBar();
         refreshGrid();
+    }
+
+
+    private Stack buildTabButton(boolean isPlantsTab) {
+        Stack stack = new Stack();
+
+        Image background = new Image(cardBgTexture(activeTab == (isPlantsTab ? Tab.PLANTS : Tab.ZOMBIES)));
+        if (isPlantsTab) {
+            plantsTabBg = background;
+        } else {
+            zombiesTabBg = background;
+        }
+        stack.add(background);
+
+        Image icon = new Image(loadTexture(ASSET_ROOT + (isPlantsTab ? "sun.png" : "zombie.png")));
+        icon.setScaling(Scaling.fit);
+        stack.add(icon);
+
+        stack.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
+            @Override
+            public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                switchTab(isPlantsTab ? Tab.PLANTS : Tab.ZOMBIES);
+            }
+        });
+        return stack;
+    }
+
+    private Texture cardBgTexture(boolean active) {
+        return active ? cardSelectedBg() : cardReadyBg();
+    }
+
+    // switchTab -- rebuild the footer alongside the filter bar
+    private void switchTab(Tab tab) {
+        if (activeTab == tab) {
+            return;
+        }
+        activeTab = tab;
+        plantsTabBg.setDrawable(new TextureRegionDrawable(cardBgTexture(tab == Tab.PLANTS)));
+        zombiesTabBg.setDrawable(new TextureRegionDrawable(cardBgTexture(tab == Tab.ZOMBIES)));
+        familyFilter = "ALL";
+        lockFilter = LockFilter.ALL;
+        upgradeableOnly = false;
+        rebuildFilterBar();
+        rebuildFooterBar();
+        refreshGrid();
+    }
+
+    private void rebuildFooterBar() {
+        footerBar.clear();
+        footerBar.pad(0f, 20f, 10f, 20f);
+
+        collectedLabel = new Label("", skin, "medium_outline");
+        footerBar.add(collectedLabel).expandX().right();
+    }
+
+    private void addComingSoonListener(Actor actor, String name) {
+        actor.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor source) {
+                toast.showInfo(name + " is not connected yet.");
+            }
+        });
     }
 
     // ---------------------------------------------------------------- top bar
 
+    // buildTopBar -- swap the "BACK" text button for a corner close button
     private Table buildTopBar() {
         Table topBar = new Table();
         topBar.pad(16f, 20f, 0f, 20f);
 
-        TextButton backButton = new TextButton("BACK", skin, "brown");
-        backButton.addListener(new ChangeListener() {
+        Image logo = new Image(loadTexture(ASSET_ROOT + "collectionLogo.png"));
+        logo.setScaling(Scaling.fit);
+        topBar.add(logo).height(130f).expandX();
+
+        topBar.add(buildResourceArea()).right().padRight(14f);
+
+        ImageButton closeButton = imageButton(ASSET_ROOT + "close_btn.png", ASSET_ROOT + "close_down.png");
+        closeButton.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 goBackToAdventure();
             }
         });
-        topBar.add(backButton).height(46f).left();
+        topBar.add(closeButton).size(52f, 52f).right();
 
-        topBar.add(new Label("COLLECTION", skin, "big_outline")).expandX();
-
-        topBar.add(buildResourceArea()).right();
         return topBar;
+    }
+
+    private ImageButton imageButton(String normalPath, String downPath) {
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        style.imageUp = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(loadTexture(normalPath));
+        style.imageDown = new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(loadTexture(downPath));
+        style.imageOver = style.imageDown;
+        ImageButton button = new ImageButton(style);
+        button.getImage().setScaling(Scaling.fit);
+        return button;
     }
 
     private Table buildResourceArea() {
@@ -159,43 +248,13 @@ public final class CollectionScreen implements Screen {
 
     private Table buildTabBar() {
         Table tabs = new Table();
+        tabs.left();
         tabs.pad(0f, 20f, 0f, 20f);
 
-        plantsTabButton = new TextButton("PLANTS", skin, "purple");
-        plantsTabButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                switchTab(Tab.PLANTS);
-            }
-        });
-
-        zombiesTabButton = new TextButton("ZOMBIES", skin, "brown");
-        zombiesTabButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                switchTab(Tab.ZOMBIES);
-            }
-        });
-
-        tabs.add(plantsTabButton).height(46f).width(180f).padRight(10f);
-        tabs.add(zombiesTabButton).height(46f).width(180f);
+        tabs.add(buildTabButton(true)).size(TAB_ICON_SIZE).padRight(10f);
+        tabs.add(buildTabButton(false)).size(TAB_ICON_SIZE);
         return tabs;
     }
-
-    private void switchTab(Tab tab) {
-        if (activeTab == tab) {
-            return;
-        }
-        activeTab = tab;
-        plantsTabButton.setStyle(skin.get(tab == Tab.PLANTS ? "purple" : "brown", TextButton.TextButtonStyle.class));
-        zombiesTabButton.setStyle(skin.get(tab == Tab.ZOMBIES ? "purple" : "brown", TextButton.TextButtonStyle.class));
-        familyFilter = "ALL";
-        lockFilter = LockFilter.ALL;
-        upgradeableOnly = false;
-        rebuildFilterBar();
-        refreshGrid();
-    }
-
     // ---------------------------------------------------------------- filters
 
     private void rebuildFilterBar() {
@@ -271,8 +330,7 @@ public final class CollectionScreen implements Screen {
         gridHost.clear();
 
         Table panel = new Table();
-        panel.top().left();
-        panel.setBackground(skin.getDrawable("image_ui_dialog_asset_inner_bkgd_10"));
+        panel.top();
         panel.pad(16f);
 
         if (activeTab == Tab.PLANTS) {
@@ -287,6 +345,9 @@ public final class CollectionScreen implements Screen {
         gridHost.add(scrollPane).grow();
     }
 
+    // populatePlantGrid -- set the counter from the unfiltered totals, not the
+// filtered loop count, so it always reads "197 / 197" regardless of the
+// Family/Show/Upgradeable filters currently applied
     private void populatePlantGrid(Table panel) {
         Result<ArrayList<PlantDefinition>> allResult = controller.showAllPlants();
         Result<ArrayList<PlantCollectionView>> ownedResult = controller.showPlants(Store.getLoggedInUser());
@@ -301,6 +362,10 @@ public final class CollectionScreen implements Screen {
             for (PlantCollectionView view : ownedResult.getData()) {
                 owned.put(view.getDefinition().getType(), view);
             }
+        }
+
+        if (collectedLabel != null) {
+            collectedLabel.setText("Plants Collected: " + owned.size() + " / " + allResult.getData().size());
         }
 
         List<PlantCollectionView> unlockedInOrder = new ArrayList<>();
@@ -351,6 +416,7 @@ public final class CollectionScreen implements Screen {
         return true;
     }
 
+    // populateZombieGrid -- same idea for the zombies tab, and swap the unseen icon
     private void populateZombieGrid(Table panel) {
         Result<ArrayList<ZombieDefinition>> allResult = controller.showAllZombies();
         Result<ArrayList<ZombieDefinition>> seenResult = controller.showZombies(Store.getLoggedInUser());
@@ -365,6 +431,10 @@ public final class CollectionScreen implements Screen {
             for (ZombieDefinition definition : seenResult.getData()) {
                 seen.add(definition.getType());
             }
+        }
+
+        if (collectedLabel != null) {
+            collectedLabel.setText("Zombies Collected: " + seen.size() + " / " + allResult.getData().size());
         }
 
         List<ZombieDefinition> spottedInOrder = new ArrayList<>();
@@ -390,10 +460,11 @@ public final class CollectionScreen implements Screen {
 
     private Table buildPlantCard(PlantDefinition definition, PlantCollectionView view, boolean unlocked,
                                  List<PlantCollectionView> unlockedInOrder, int detailIndex) {
-        PlantCardWidget widget = new PlantCardWidget(skin, CARD_SIZE - 12f, cardNormalBg(), cardGoldBg());
+        PlantCardWidget widget = new PlantCardWidget(skin, CARD_SIZE - 12f, cardReadyBg(), cardSelectedBg(), cardGoldBg());
         widget.setIcon(loadPlantIcon(definition.getType()));
         widget.setLocked(!unlocked);
         widget.setBoosted(unlocked && isBoosted(definition.getType()));
+        widget.setSelected(definition.getType() == focusedPlantType);
         widget.setTopBadge(unlocked ? "LV" + view.getCard().getLevel() : "");
         widget.setBottomLabel(unlocked
                 ? view.getCard().getSeedPackets() + "/" + view.getCard().getUpgradeSeedPacketCost()
@@ -402,9 +473,11 @@ public final class CollectionScreen implements Screen {
         widget.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
             @Override
             public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                focusedPlantType = definition.getType();
                 if (unlocked) {
                     game.setScreen(new PlantDetailScreen(game, app, unlockedInOrder, detailIndex));
                 } else {
+                    refreshGrid();
                     openPlantPurchase(definition);
                 }
             }
@@ -424,37 +497,25 @@ public final class CollectionScreen implements Screen {
         return stored != null && stored > 0;
     }
 
-    private Texture cardNormalBg() {
-        return loadTexture(ASSET_ROOT + "normalBg.png");
-    }
-
-    private Texture cardGoldBg() {
-        return loadTexture(ASSET_ROOT + "goldBg.png");
-    }
-
-    private Table buildZombieCard(ZombieDefinition definition, boolean spotted,
-                                  List<ZombieDefinition> spottedInOrder, int detailIndex) {
-        Table card = new Table();
-        card.setBackground(skin.getDrawable("image_ui_mainmenu_mm_settings_tab_10"));
-
-        Image icon = spotted
-                ? icon(loadZombieIcon(definition.getType()), CARD_SIZE - 12f, CARD_SIZE - 12f)
-                : icon(loadTexture(ASSET_ROOT + "unseen_slot.png"), CARD_SIZE - 12f, CARD_SIZE - 12f);
-        card.add(icon).size(CARD_SIZE - 12f).padTop(6f).row();
-
-        card.add(new Label(spotted ? definition.getName() : "???", skin, "medium_outline")).padTop(2f);
+    private PlantCardWidget buildZombieCard(ZombieDefinition definition, boolean spotted,
+                                            List<ZombieDefinition> spottedInOrder, int detailIndex) {
+        PlantCardWidget widget = new PlantCardWidget(skin, CARD_SIZE - 12f, cardReadyBg(), cardSelectedBg(), cardGoldBg());
+        widget.setIcon(spotted ? loadZombieIcon(definition.getType()) : loadTexture(ASSET_ROOT + "zombie.png"));
+        widget.setLocked(!spotted);
+        widget.setSelected(spotted && definition.getType() == focusedZombieType);
+        widget.setBottomLabel(spotted ? definition.getName() : "???");
 
         if (spotted) {
-            card.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
+            widget.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
                 @Override
                 public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                    focusedZombieType = definition.getType();
                     game.setScreen(new ZombieDetailScreen(game, app, spottedInOrder, detailIndex));
                 }
             });
         }
-        return card;
+        return widget;
     }
-
     private Image icon(Texture texture, float width, float height) {
         Image image = new Image(texture);
         image.setScaling(Scaling.fit);
@@ -518,6 +579,18 @@ public final class CollectionScreen implements Screen {
 
     private Texture loadZombieIcon(ZombieType type) {
         return loadTexture(ZOMBIE_ICON_ROOT + type.name().toLowerCase() + ".png");
+    }
+
+    private Texture cardReadyBg() {
+        return loadTexture(ASSET_ROOT + "ready.png");
+    }
+
+    private Texture cardSelectedBg() {
+        return loadTexture(ASSET_ROOT + "selected.png");
+    }
+
+    private Texture cardGoldBg() {
+        return loadTexture(ASSET_ROOT + "goldBg.png");
     }
 
     private Texture loadTexture(String path) {

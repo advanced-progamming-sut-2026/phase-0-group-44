@@ -13,43 +13,46 @@ import com.badlogic.gdx.utils.Scaling;
 
 /**
  * Reusable plant card: icon, an optional top-left badge (level), a bottom
- * label (cost or seed-packet progress), a locked tint, a boosted background
- * swap, and a selection highlight. Shared by CollectionScreen's plant grid
- * and PlantSelectionScreen's browse grid + sidebar slots, so all render
- * plant info identically instead of each screen re-implementing its own
- * card (per the spec's explicit reuse requirement). Intended to back the
- * in-game HUD's selected-plant tray too, once that screen exists.
- *
- * Uses two swappable background textures (normal / boosted-gold) supplied
- * by the caller, plus the skin's existing "white_pixel" drawable for the
- * selection tint overlay -- no other new art assets required.
+ * label (cost or seed-packet progress), a locked tint, and a background that
+ * swaps between three states -- ready (default), selected (picked), and
+ * boosted (gold, takes priority over selected when both apply). Shared by
+ * CollectionScreen's plant grid and PlantSelectionScreen's browse grid +
+ * sidebar slots, so all render plant info identically instead of each
+ * screen re-implementing its own card (per the spec's explicit reuse
+ * requirement). Intended to back the in-game HUD's selected-plant tray too,
+ * once that screen exists.
  */
 public final class PlantCardWidget extends Table {
 
-    private final Texture normalBackground;
+    private final Texture readyBackground;
+    private final Texture selectedBackground;
     private final Texture goldBackground;
     private final Image iconImage;
     private final Label topBadge;
     private final Label bottomLabel;
-    private final Image selectionOverlay;
     private final Stack iconStack;
 
-    public PlantCardWidget(Skin skin, float iconSize, Texture normalBackground, Texture goldBackground) {
-        this.normalBackground = normalBackground;
+    private boolean selected;
+    private boolean boosted;
+
+    public PlantCardWidget(
+            Skin skin,
+            float iconSize,
+            Texture readyBackground,
+            Texture selectedBackground,
+            Texture goldBackground
+    ) {
+        this.readyBackground = readyBackground;
+        this.selectedBackground = selectedBackground;
         this.goldBackground = goldBackground;
 
-        setBackground(new TextureRegionDrawable(new TextureRegion(normalBackground)));
+        setBackground(new TextureRegionDrawable(new TextureRegion(readyBackground)));
 
         iconStack = new Stack();
 
         iconImage = new Image();
         iconImage.setScaling(Scaling.fit);
         iconStack.add(iconImage);
-
-        selectionOverlay = new Image(skin.getDrawable("white_pixel"));
-        selectionOverlay.setColor(0.3f, 1f, 0.3f, 0.35f);
-        selectionOverlay.setVisible(false);
-        iconStack.add(selectionOverlay);
 
         Table topRow = new Table();
         topRow.top().left();
@@ -79,11 +82,20 @@ public final class PlantCardWidget extends Table {
     }
 
     public void setBoosted(boolean boosted) {
-        setBackground(new TextureRegionDrawable(new TextureRegion(boosted ? goldBackground : normalBackground)));
+        this.boosted = boosted;
+        refreshBackground();
     }
 
     public void setSelected(boolean selected) {
-        selectionOverlay.setVisible(selected);
+        this.selected = selected;
+        refreshBackground();
+    }
+
+    /** Boosted (gold) wins over selected when a card is both, since the boost
+     *  is the rarer status and the more useful thing to surface at a glance. */
+    private void refreshBackground() {
+        Texture background = boosted ? goldBackground : (selected ? selectedBackground : readyBackground);
+        setBackground(new TextureRegionDrawable(new TextureRegion(background)));
     }
 
     public void setTopBadge(String text) {

@@ -4,11 +4,13 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import controller.App;
@@ -59,8 +61,8 @@ public final class PlantSelectionScreen implements Screen {
     private static final String ASSET_ROOT = "ui/collection/";
     private static final String PLANT_ICON_ROOT = "ui/collection/plants/";
     private static final String MAIN_MENU_ASSET_ROOT = "ui/mainmenu/";
-    private static final float GRID_CARD_SIZE = 78f;
-    private static final float SIDEBAR_CARD_SIZE = 64f;
+    private static final float GRID_CARD_SIZE = 98f;
+    private static final float SIDEBAR_CARD_SIZE = 78f;
     private static final int DEFAULT_CAPACITY = 8;
     private static final int GRID_COLUMNS = 8;
 
@@ -208,7 +210,9 @@ public final class PlantSelectionScreen implements Screen {
 
     private PlantCardWidget buildSidebarCard(PlantType type) {
         PlantDefinition definition = findDefinition(type);
-        PlantCardWidget widget = new PlantCardWidget(skin, SIDEBAR_CARD_SIZE - 12f, cardNormalBg(), cardGoldBg());
+        // buildSidebarCard
+        PlantCardWidget widget = new PlantCardWidget(skin, SIDEBAR_CARD_SIZE - 12f,
+                cardReadyBg(), cardSelectedBg(), cardGoldBg());
         if (definition != null) {
             widget.setIcon(loadPlantIcon(type));
             widget.setBottomLabel(String.valueOf(definition.getCost()));
@@ -235,7 +239,7 @@ public final class PlantSelectionScreen implements Screen {
     private Table buildEmptySlot() {
         Table slot = new Table();
         slot.setBackground(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(
-                new com.badlogic.gdx.graphics.g2d.TextureRegion(cardNormalBg())));
+                new com.badlogic.gdx.graphics.g2d.TextureRegion(cardReadyBg())));
         slot.setColor(1f, 1f, 1f, 0.35f);
         return slot;
     }
@@ -244,8 +248,10 @@ public final class PlantSelectionScreen implements Screen {
 
     private ScrollPane buildGridScroll() {
         grid = new Table();
-        grid.top().left();
-        grid.setBackground(skin.getDrawable("image_ui_dialog_asset_inner_bkgd_10"));
+        grid.top();
+        grid.setBackground(new TextureRegionDrawable(
+                new TextureRegion(loadTexture(ASSET_ROOT + "plantDetailBg.png"))
+        ));
         grid.pad(16f);
 
         refreshGrid();
@@ -302,7 +308,9 @@ public final class PlantSelectionScreen implements Screen {
     }
 
     private PlantCardWidget buildGridCard(PlantDefinition definition, boolean selectable, String lockReason) {
-        PlantCardWidget widget = new PlantCardWidget(skin, GRID_CARD_SIZE - 12f, cardNormalBg(), cardGoldBg());
+        // buildGridCard
+        PlantCardWidget widget = new PlantCardWidget(skin, GRID_CARD_SIZE - 12f,
+                cardReadyBg(), cardSelectedBg(), cardGoldBg());
         widget.setIcon(loadPlantIcon(definition.getType()));
         widget.setLocked(!selectable);
         widget.setBoosted(selectable && isBoosted(definition.getType()));
@@ -470,8 +478,13 @@ public final class PlantSelectionScreen implements Screen {
         return image;
     }
 
-    private Texture cardNormalBg() {
-        return loadTexture(ASSET_ROOT + "normalBg.png");
+
+    private Texture cardReadyBg() {
+        return loadTexture(ASSET_ROOT + "ready.png");
+    }
+
+    private Texture cardSelectedBg() {
+        return loadTexture(ASSET_ROOT + "selected.png");
     }
 
     private Texture cardGoldBg() {

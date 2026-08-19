@@ -15,6 +15,7 @@ import service.SecurityQuestionCatalog;
 import service.UserService;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The registration flow: a validated {@code register} command produces a pending
@@ -197,5 +198,9 @@ public class RegisterMenuController {
                 null,
                 null
         );
+    }
+    // in RegisterMenuController
+    public List<String> getSecurityQuestions() {
+        return questionCatalog.getQuestions();
     }
 }

@@ -26,6 +26,7 @@ public final class RegisterScreen implements Screen {
     private Table root;
     private Texture backgroundTexture;
 
+
     public RegisterScreen(PvzGame game, App app) {
         this.game = game;
         this.registerController = app.getRegisterController();
@@ -117,15 +118,17 @@ public final class RegisterScreen implements Screen {
     private void showSecurityQuestionStep() {
         root.clear();
 
-        root.add(new Label("Pick a security question", skin, "medium_outline")).colspan(2).padBottom(10).row();
-        root.add(new Label("(see the number list shown after Next)", skin, "medium_outline"))
-                .colspan(2).padBottom(20).row();
+        root.add(new Label("Pick a security question", skin, "medium_outline")).colspan(2).padBottom(20).row();
 
-        TextField questionNumberField = new TextField("", skin);
+        java.util.List<String> questions = registerController.getSecurityQuestions();
+        SelectBox<String> questionBox = new SelectBox<>(skin);
+        questionBox.setItems(questions.toArray(new String[0]));
+
         TextField answerField = new TextField("", skin);
         TextField answerConfirmField = new TextField("", skin);
 
-        addRow(root, "Question #", questionNumberField);
+        root.add(new Label("Question", skin, "medium_outline")).left();
+        root.add(questionBox).width(300).row();
         addRow(root, "Answer", answerField);
         addRow(root, "Confirm answer", answerConfirmField);
 
@@ -133,13 +136,7 @@ public final class RegisterScreen implements Screen {
         finishButton.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                int questionNumber;
-                try {
-                    questionNumber = Integer.parseInt(questionNumberField.getText().trim());
-                } catch (NumberFormatException exception) {
-                    toast.showError("question number must be a number");
-                    return;
-                }
+                int questionNumber = questionBox.getSelectedIndex() + 1; // catalog is 1-based
 
                 Result<String> result = registerController.pickQuestion(
                         questionNumber,
