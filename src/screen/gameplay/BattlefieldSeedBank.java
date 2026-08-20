@@ -89,54 +89,122 @@ public final class BattlefieldSeedBank {
         costByType.put(type, definition.getCost());
 
         Stack stack = new Stack();
+        stack.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled);
 
         Image background = new Image(cardBg);
+        background.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
         stack.add(background);
 
         Table content = new Table();
+        content.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+
         Image icon = new Image(iconLoader.apply(type));
         icon.setScaling(Scaling.fit);
-        content.add(icon).size(CARD_WIDTH - 20f).padTop(6f).row();
-        content.add(new Label(String.valueOf(definition.getCost()), skin, "medium_outline"))
+        icon.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+
+        content.add(icon)
+                .size(CARD_WIDTH - 20f)
+                .padTop(6f)
+                .row();
+
+        Label costLabel =
+                new Label(String.valueOf(definition.getCost()), skin, "medium_outline");
+        costLabel.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+
+        content.add(costLabel)
                 .padTop(2f);
+
         stack.add(content);
 
         Image lockedTint = new Image(lockedTintTexture);
         lockedTint.setVisible(false);
+        lockedTint.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
         stack.add(lockedTint);
-
 
         DragListener dragListener = new DragListener() {
             private boolean active;
 
             @Override
-            public void dragStart(InputEvent event, float x, float y, int pointer) {
+            public boolean touchDown(
+                    InputEvent event,
+                    float x,
+                    float y,
+                    int pointer,
+                    int button
+            ) {
+                if (button != com.badlogic.gdx.Input.Buttons.LEFT) {
+                    return false;
+                }
+
+                return super.touchDown(event, x, y, pointer, button);
+            }
+
+            @Override
+            public void dragStart(
+                    InputEvent event,
+                    float x,
+                    float y,
+                    int pointer
+            ) {
                 active = dragHandler.onDragStart(type);
+
                 if (active) {
                     stack.setColor(1f, 1f, 1f, 0.5f);
                 }
             }
 
             @Override
-            public void drag(InputEvent event, float x, float y, int pointer) {
-                if (active) {
-                    dragHandler.onDragMove(type, event.getStageX(), event.getStageY());
+            public void drag(
+                    InputEvent event,
+                    float x,
+                    float y,
+                    int pointer
+            ) {
+                if (!active) {
+                    return;
                 }
+
+                dragHandler.onDragMove(
+                        type,
+                        event.getStageX(),
+                        event.getStageY()
+                );
             }
 
             @Override
-            public void dragStop(InputEvent event, float x, float y, int pointer) {
-                stack.setColor(1f, 1f, 1f, 1f);
-                if (active) {
-                    dragHandler.onDragEnd(type, event.getStageX(), event.getStageY());
-                    active = false;
+            public void dragStop(
+                    InputEvent event,
+                    float x,
+                    float y,
+                    int pointer
+            ) {
+                if (!active) {
+                    return;
                 }
+
+                stack.setColor(1f, 1f, 1f, 1f);
+
+                dragHandler.onDragEnd(
+                        type,
+                        event.getStageX(),
+                        event.getStageY()
+                );
+
+                active = false;
+            }
+
+            @Override
+            public void cancel() {
+                active = false;
+                stack.setColor(1f, 1f, 1f, 1f);
             }
         };
+
         dragListener.setTapSquareSize(DRAG_THRESHOLD);
         stack.addListener(dragListener);
 
         cardsByType.put(type, stack);
+
         return stack;
     }
 

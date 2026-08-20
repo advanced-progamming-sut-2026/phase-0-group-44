@@ -143,6 +143,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private float tickAccumulator;
     private boolean outcomeShown;
     private boolean missionIntroActive;
+    private boolean draggingPlant;
     private GameEngine finishedEngine;
     private BattlefieldSeedBank seedBank;
     private PlantType armedPlantType;
@@ -928,7 +929,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         hoverHighlight.setVisible(true);
         updateToolCursor(bounds);
 
-        if (Gdx.input.justTouched()) {
+        if (Gdx.input.justTouched() && !draggingPlant) {
             selectedRow = cell[0];
             selectedColumn = cell[1];
             if (selectedHighlight != null) {
@@ -1118,25 +1119,45 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         if (previewMode || boardController == null) {
             return false;
         }
+
         GameEngine liveEngine = engine();
+
         if (liveEngine == null) {
             return false;
         }
+
         PlantDefinition definition = findDefinition(type);
-        int cost = definition == null ? Integer.MAX_VALUE : definition.getCost();
+
+        int cost = definition == null
+                ? Integer.MAX_VALUE
+                : definition.getCost();
+
         if (liveEngine.getSun() < cost) {
             showAction("NOT ENOUGH SUN");
             return false;
         }
+
         if (liveEngine.isOnCooldown(type)) {
             showAction("STILL RECHARGING");
             return false;
         }
+
+        draggingPlant = true;
+
         if (pamPlayer != null) {
-            dragGhost = new PamEnvironmentActor(pamPlayer, plantIdlePam(type), "idle", 0.42f, 0f, 0f);
+            dragGhost = new PamEnvironmentActor(
+                    pamPlayer,
+                    plantIdlePam(type),
+                    "idle",
+                    0.42f,
+                    0f,
+                    0f
+            );
+
             dragGhost.setVisible(true);
             pickupLayer.addActor(dragGhost);
         }
+
         return true;
     }
 
@@ -1164,22 +1185,36 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     }
 
     @Override
-    public void onDragEnd(PlantType type, float stageX, float stageY) {
+    public void onDragEnd(
+            PlantType type,
+            float stageX,
+            float stageY
+    ) {
+        draggingPlant = false;
+
         if (dragGhost != null) {
             dragGhost.remove();
             dragGhost = null;
         }
+
         if (hoverHighlight != null) {
             hoverHighlight.setVisible(false);
         }
+
         int[] cell = layout.screenToCell(stageX, stageY);
+
         if (cell[0] < 0 || boardController == null) {
             return;
         }
+
         int row = cell[0];
         int column = cell[1];
-        Result<String> result = boardController.plantPlant(type, column, row);
+
+        Result<String> result =
+                boardController.plantPlant(type, column, row);
+
         showAction(result.getMessage());
+
         if (result.getStatus()) {
             spawnPlantedIdleActor(type, row, column);
         }
