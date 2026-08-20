@@ -61,6 +61,37 @@ public final class CheatScreen implements Screen {
 
         Table buttonList = new Table();
         buttonList.defaults().pad(6).fillX();
+        TextButton zombieLabButton =
+                new TextButton(
+                        "ZOMBIE ANIMATION LAB",
+                        skin
+                );
+
+        zombieLabButton.addListener(
+                new ChangeListener() {
+
+                    @Override
+                    public void changed(
+                            ChangeEvent event,
+                            Actor actor
+                    ) {
+
+                        game.setScreen(
+                                new ZombieAnimationTestScreen(
+                                        game,
+                                        CheatScreen.this
+                                )
+                        );
+                    }
+                }
+        );
+
+        buttonList.add(
+                        zombieLabButton
+                )
+                .width(320f)
+                .padBottom(15f)
+                .row();
 
         for (MenuName menu : MenuName.values()) {
             TextButton button = new TextButton(menu.getDisplayName(), skin);
