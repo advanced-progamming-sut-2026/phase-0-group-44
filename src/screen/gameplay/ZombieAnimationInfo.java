@@ -1,11 +1,8 @@
 package screen.gameplay;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public final class ZombieAnimationInfo {
-
     private final String name;
     private final String path;
     private final List<String> clips;
@@ -15,9 +12,11 @@ public final class ZombieAnimationInfo {
             String path,
             List<String> clips
     ) {
-        this.name = name;
-        this.path = path;
-        this.clips = new ArrayList<>(clips);
+        this.name = name == null ? "" : name;
+        this.path = path == null ? "" : path;
+        this.clips = clips == null
+                ? List.of()
+                : List.copyOf(clips);
     }
 
     public String getName() {
@@ -29,11 +28,6 @@ public final class ZombieAnimationInfo {
     }
 
     public List<String> getClips() {
-        return Collections.unmodifiableList(clips);
-    }
-
-    @Override
-    public String toString() {
-        return name;
+        return clips;
     }
 }

@@ -666,21 +666,6 @@ public final class ZombieGraphicsRegistry {
             );
         }
 
-        if (type == ZombieType.RA_ZOMBIE
-                && any(
-                        zombie,
-                        "STEALING_SUN",
-                        "STEALING",
-                        "POWERING"
-                )) {
-            return clips(
-                    "power_up",
-                    "power",
-                    "steal",
-                    "idle"
-            );
-        }
-
         if (type == ZombieType.EXPLORER
                 && any(
                         zombie,
@@ -787,8 +772,8 @@ public final class ZombieGraphicsRegistry {
         if (type == ZombieType.SNORKEL) {
             if (any(
                     zombie,
-                    "UNDERWATER",
-                    "SUBMERGED"
+                    "SUBMERGED",
+                    "UNDERWATER"
             )) {
                 return clips(
                         "swim",

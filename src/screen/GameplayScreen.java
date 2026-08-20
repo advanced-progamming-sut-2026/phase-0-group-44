@@ -10,7 +10,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
@@ -20,12 +19,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Stack;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -38,9 +32,11 @@ import model.Store;
 import model.config.GameWorld;
 import model.enums.MenuName;
 import model.enums.PlantType;
+import model.enums.ZombieType;
 import model.inGame.GameOutcome;
 import model.inGame.GameSession;
 import model.inGame.Sun;
+import model.inGame.plant.Plant;
 import model.sim.Simulation;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
@@ -64,6 +60,12 @@ import screen.gameplay.BattlefieldPauseOutcomeLayer;
 import screen.gameplay.BattlefieldSpecialLevelLayer;
 import screen.gameplay.BattlefieldTheme;
 import screen.gameplay.PamEnvironmentActor;
+import screen.gameplay.ZombieActorManager;
+import model.inGame.plant.PlantDefinition;
+import screen.gameplay.BattlefieldSeedBank;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -76,7 +78,7 @@ import util.SeededRandomSource;
  * Plants, zombies and projectiles intentionally remain outside this class and should
  * attach to {@link #entityLayer} using the shared {@link BattlefieldLayout}.
  */
-public final class GameplayScreen implements Screen {
+public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDragHandler {
     public static final float VIRTUAL_WIDTH = 1280f;
     public static final float VIRTUAL_HEIGHT = 720f;
 
@@ -109,6 +111,7 @@ public final class GameplayScreen implements Screen {
     private BattlefieldChapterEffects chapterEffects;
     private BattlefieldSpecialLevelLayer specialLevelLayer;
     private Group entityLayer;
+    private ZombieActorManager zombieActorManager;
     private Group pickupLayer;
     private Group interactionLayer;
     private Group hudLayer;
@@ -127,6 +130,9 @@ public final class GameplayScreen implements Screen {
     private Image waveHead;
     private Image shovelButtonBackground;
     private Image plantFoodButtonBackground;
+    private static final String PLANT_PAM_ROOT = "768/INITIAL/PLANT/";
+    private final Map<String, PamEnvironmentActor> placedPlantActors = new LinkedHashMap<>();
+    private PamEnvironmentActor dragGhost;
 
     private BoardController boardController;
     private GameplayController gameplayController;
@@ -141,12 +147,54 @@ public final class GameplayScreen implements Screen {
     private float tickAccumulator;
     private boolean outcomeShown;
     private boolean missionIntroActive;
+    private boolean draggingPlant;
     private GameEngine finishedEngine;
+    private BattlefieldSeedBank seedBank;
+    private PlantType armedPlantType;
+    private Texture darkTintTexture;
+
+    /*
+     * Developer zombie graphics tester.
+     * LEFT / RIGHT selects; Z force-spawns regardless of level restrictions.
+     */
+    private static final ZombieType[] ZOMBIE_TEST_TYPES = {
+            ZombieType.NORMAL,
+            ZombieType.CONEHEAD,
+            ZombieType.BUCKETHEAD,
+            ZombieType.KNIGHT,
+            ZombieType.BLOCKHEAD,
+            ZombieType.GARGANTUAR,
+            ZombieType.IMP,
+            ZombieType.ALL_STAR,
+            ZombieType.ARCADE_ZOMBIE,
+            ZombieType.PARASOL_ZOMBIE,
+            ZombieType.TURQUOISE_ZOMBIE,
+            ZombieType.PROSPECTOR,
+            ZombieType.PIANIST,
+            ZombieType.NEWSPAPER_ZOMBIE,
+            ZombieType.BARREL_ROLLER,
+            ZombieType.RA_ZOMBIE,
+            ZombieType.EXPLORER,
+            ZombieType.TOMBRAISER,
+            ZombieType.DODO_RIDER,
+            ZombieType.HUNTER,
+            ZombieType.TROGLOBITE,
+            ZombieType.FISHERMAN,
+            ZombieType.SNORKEL,
+            ZombieType.OCTOPUS_ZOMBIE,
+            ZombieType.JESTER,
+            ZombieType.WIZARD,
+            ZombieType.KING,
+            ZombieType.DRAGON_IMP
+    };
+
+    private int zombieTestIndex;
+    private Plant testWallNutPlant;
 
     private enum ToolMode {
         NONE,
         SHOVEL,
-        PLANT_FOOD
+        PLANT_FOOD,
     }
 
     public GameplayScreen(PvzGame game, App app) {
@@ -160,6 +208,7 @@ public final class GameplayScreen implements Screen {
         skin = PvzSkin.get();
         whiteTexture = makeWhiteTexture();
         runeTexture = makeRuneTexture();
+        darkTintTexture = makeDarkTintTexture();
         initializePam();
         resolveInitialTheme();
         initializeGameplayControllers();
@@ -221,6 +270,9 @@ public final class GameplayScreen implements Screen {
         outcomeShown = false;
         missionIntroActive = true;
         finishedEngine = null;
+        placedPlantActors.clear();
+        dragGhost = null;
+        testWallNutPlant = null;
 
         layout = new BattlefieldLayout(theme, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(buildBackground());
@@ -243,9 +295,6 @@ public final class GameplayScreen implements Screen {
         environmentLayer.sync(engine(), previewMode);
         stage.addActor(environmentLayer);
 
-        // Dedicated Dark Ages presentation sits above the generic environment layer.
-        // This guarantees generated cursed-ground/grave art is visible even if the
-        // generic renderer also supplies older PAM fallback visuals underneath.
         darkAgesStateLayer = new BattlefieldDarkAgesStateLayer(
                 theme,
                 layout,
@@ -284,9 +333,18 @@ public final class GameplayScreen implements Screen {
         entityLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(entityLayer);
 
-        // Frostbite front-state visuals sit over future plant/zombie actors:
-        // plant remains visible inside its ice shell, while frozen zombies are
-        // intentionally hidden by a full ice block per the Phase-2 specification.
+        zombieActorManager = null;
+
+        if (!previewMode && pamPlayer != null && engine() != null) {
+            zombieActorManager =
+                    new ZombieActorManager(
+                            entityLayer,
+                            layout,
+                            pamPlayer
+                    );
+            zombieActorManager.sync(engine());
+        }
+
         frostbiteStateLayer = new BattlefieldFrostbiteStateLayer(
                 theme,
                 layout,
@@ -298,8 +356,6 @@ public final class GameplayScreen implements Screen {
         frostbiteStateLayer.sync(engine(), previewMode);
         stage.addActor(frostbiteStateLayer);
 
-        // Front chapter effects (including icy wind) sit above entity-state ice,
-        // but below pickups, interaction cursors and HUD.
         stage.addActor(chapterEffects.frontLayer());
 
         pickupLayer = new Group();
@@ -312,8 +368,6 @@ public final class GameplayScreen implements Screen {
         hudLayer = buildHud();
         stage.addActor(hudLayer);
 
-        // Special-level objective cards and START WAVE sit above the common HUD,
-        // while their board markers were inserted below entityLayer.
         stage.addActor(specialLevelLayer.hudLayer());
 
         BattlefieldMissionObjectives.MissionInfo missionInfo =
@@ -354,6 +408,11 @@ public final class GameplayScreen implements Screen {
         );
         missionStartLayer.show(missionInfo);
         stage.addActor(missionStartLayer.root());
+
+        seedBank = buildSeedBank();
+        if (seedBank != null) {
+            stage.addActor(seedBank.actor());
+        }
     }
 
     /** Public integration hook for plant/zombie/projectile actors. */
@@ -779,6 +838,12 @@ public final class GameplayScreen implements Screen {
                 slot.setVisible(index < plantFood);
             }
         }
+        sunLabel.setText(String.valueOf(sun));
+        if (seedBank != null) {
+            GameEngine liveEngine = engine();
+            seedBank.sync(sun, type ->
+                    !previewMode && liveEngine != null && liveEngine.isOnCooldown(type));
+        }
 
         int currentWave = 0;
         int totalWaves = 0;
@@ -919,7 +984,7 @@ public final class GameplayScreen implements Screen {
         hoverHighlight.setVisible(true);
         updateToolCursor(bounds);
 
-        if (Gdx.input.justTouched()) {
+        if (Gdx.input.justTouched() && !draggingPlant) {
             selectedRow = cell[0];
             selectedColumn = cell[1];
             if (selectedHighlight != null) {
@@ -950,6 +1015,7 @@ public final class GameplayScreen implements Screen {
             Result<String> result = boardController.pluckPlant(column, row);
             showAction(result.getMessage());
             if (result.getStatus()) {
+                removePlantedActor(row, column);
                 toolMode = ToolMode.NONE;
                 updateToolButtonState();
             }
@@ -962,6 +1028,139 @@ public final class GameplayScreen implements Screen {
                 toolMode = ToolMode.NONE;
                 updateToolButtonState();
             }
+        }
+    }
+
+    /**
+     * Direct key polling makes the test selector reliable even when Stage
+     * consumes arrow-key events.
+     */
+    private void updateZombieTestSelection() {
+        if (previewMode || missionIntroActive || paused || outcomeShown) {
+            return;
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT)) {
+            zombieTestIndex--;
+
+            if (zombieTestIndex < 0) {
+                zombieTestIndex =
+                        ZOMBIE_TEST_TYPES.length - 1;
+            }
+
+            showSelectedZombie();
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)) {
+            zombieTestIndex =
+                    (zombieTestIndex + 1)
+                            % ZOMBIE_TEST_TYPES.length;
+
+            showSelectedZombie();
+        }
+    }
+
+    private void showSelectedZombie() {
+        ZombieType selected =
+                ZOMBIE_TEST_TYPES[zombieTestIndex];
+
+        showAction(
+                "TEST ZOMBIE "
+                        + (zombieTestIndex + 1)
+                        + "/"
+                        + ZOMBIE_TEST_TYPES.length
+                        + ": "
+                        + selected.name()
+        );
+
+        System.out.println(
+                "[ZombieTest] Selected "
+                        + (zombieTestIndex + 1)
+                        + "/"
+                        + ZOMBIE_TEST_TYPES.length
+                        + ": "
+                        + selected
+        );
+    }
+
+    /**
+     * Developer-only force spawn.
+     *
+     * It intentionally bypasses GameplayController.spawnZombie(), because that
+     * controller enforces the active level's allowed-zombie roster.
+     */
+    private void spawnSelectedZombieCheat() {
+        GameEngine currentEngine = engine();
+
+        if (previewMode || currentEngine == null) {
+            showAction("ZOMBIE TEST REQUIRES ACTIVE GAMEPLAY");
+            return;
+        }
+
+        ZombieType selected =
+                ZOMBIE_TEST_TYPES[zombieTestIndex];
+
+        /*
+         * Keep one real Wall-nut in the test lane so WALK -> EAT can be checked.
+         * This baseline already has real plant PAM rendering, so use it instead
+         * of the old fake-zombie placeholder.
+         */
+        if (testWallNutPlant == null || testWallNutPlant.isDead()) {
+            try {
+                testWallNutPlant =
+                        currentEngine.plant(
+                                PlantType.WALL_NUT,
+                                1,
+                                new model.Position(2, 5),
+                                false,
+                                false
+                        );
+
+                spawnPlantedIdleActor(
+                        PlantType.WALL_NUT,
+                        2,
+                        5
+                );
+            } catch (RuntimeException exception) {
+                System.out.println(
+                        "[ZombieTest] Wall-nut test target not placed: "
+                                + exception.getMessage()
+                );
+            }
+        }
+
+        try {
+            currentEngine.spawnZombie(
+                    selected,
+                    2,
+                    8.0
+            );
+
+            showAction(
+                    "CHEAT SPAWN: "
+                            + selected.name()
+            );
+
+            System.out.println(
+                    "[ZombieTest] Force-spawned "
+                            + selected
+            );
+
+            if (zombieActorManager != null) {
+                zombieActorManager.sync(currentEngine);
+            }
+        } catch (RuntimeException exception) {
+            showAction(
+                    "CHEAT SPAWN FAILED: "
+                            + selected.name()
+            );
+
+            System.out.println(
+                    "[ZombieTest] Force-spawn failed for "
+                            + selected
+                            + ": "
+                            + exception.getMessage()
+            );
         }
     }
 
@@ -1038,12 +1237,214 @@ public final class GameplayScreen implements Screen {
         return texture;
     }
 
+    private Texture makeDarkTintTexture() {
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(0f, 0f, 0f, 0.65f);
+        pixmap.fill();
+        Texture texture = new Texture(pixmap);
+        pixmap.dispose();
+        return texture;
+    }
+
     private void switchPreview(BattlefieldTheme next) {
         if (!previewMode || next == null || next == theme) {
             return;
         }
         theme = next;
         rebuildScene();
+    }
+
+    private BattlefieldSeedBank buildSeedBank() {
+        GameSession session = Store.getActiveSession();
+
+        System.out.println("========== BUILD SEED BANK ==========");
+        System.out.println("previewMode = " + previewMode);
+        System.out.println("session = " + session);
+
+        if (previewMode || session == null || session.getSelection() == null) {
+            System.out.println("SEED BANK RETURNED NULL");
+            return null;
+        }
+
+        List<PlantDefinition> chosen = new ArrayList<>();
+
+        for (PlantType type : session.getSelection().getChosen()) {
+            PlantDefinition definition = findDefinition(type);
+
+            System.out.println(
+                    "chosen type = " + type
+                            + " definition = " + definition
+            );
+
+            if (definition != null) {
+                chosen.add(definition);
+            }
+        }
+
+        System.out.println("FINAL CHOSEN SIZE = " + chosen.size());
+
+        if (chosen.isEmpty()) {
+            System.out.println("SEED BANK EMPTY");
+            return null;
+        }
+
+        return new BattlefieldSeedBank(
+                skin,
+                loadTexture("ui/collection/ready.png"),
+                loadTexture("ui/collection/selected.png"),
+                darkTintTexture,
+                this::loadPlantIcon,
+                chosen,
+                this
+        );
+    }
+
+    private PlantDefinition findDefinition(PlantType type) {
+        Result<ArrayList<PlantDefinition>> all = app.getCollectionController().showAllPlants();
+        if (!all.getStatus() || all.getData() == null) {
+            return null;
+        }
+        for (PlantDefinition definition : all.getData()) {
+            if (definition.getType() == type) {
+                return definition;
+            }
+        }
+        return null;
+    }
+
+    private Texture loadPlantIcon(PlantType type) {
+        return loadTexture("ui/collection/plants/" + type.name().toLowerCase(Locale.ROOT) + ".png");
+    }
+
+    private String plantIdlePam(PlantType type) {
+        String name = type.name();
+        return PLANT_PAM_ROOT + name + "/" + name + ".PAM";
+    }
+
+    @Override
+    public boolean onDragStart(PlantType type) {
+        if (previewMode || boardController == null) {
+            return false;
+        }
+
+        GameEngine liveEngine = engine();
+
+        if (liveEngine == null) {
+            return false;
+        }
+
+        PlantDefinition definition = findDefinition(type);
+
+        int cost = definition == null
+                ? Integer.MAX_VALUE
+                : definition.getCost();
+
+        if (liveEngine.getSun() < cost) {
+            showAction("NOT ENOUGH SUN");
+            return false;
+        }
+
+        if (liveEngine.isOnCooldown(type)) {
+            showAction("STILL RECHARGING");
+            return false;
+        }
+
+        draggingPlant = true;
+
+        if (pamPlayer != null) {
+            dragGhost = new PamEnvironmentActor(
+                    pamPlayer,
+                    plantIdlePam(type),
+                    "idle",
+                    0.42f,
+                    0f,
+                    0f
+            );
+
+            dragGhost.setVisible(true);
+            pickupLayer.addActor(dragGhost);
+        }
+
+        return true;
+    }
+
+    @Override
+    public void onDragMove(PlantType type, float stageX, float stageY) {
+        int[] cell = layout.screenToCell(stageX, stageY);
+        if (cell[0] >= 0) {
+            Rectangle bounds = layout.cellBounds(cell[0], cell[1]);
+            if (hoverHighlight != null) {
+                hoverHighlight.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+                hoverHighlight.setVisible(true);
+            }
+            if (dragGhost != null) {
+                dragGhost.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+            }
+        } else {
+            if (hoverHighlight != null) {
+                hoverHighlight.setVisible(false);
+            }
+            if (dragGhost != null) {
+                float size = layout.cellBounds(0, 0).width;
+                dragGhost.setBounds(stageX - size / 2f, stageY - size / 2f, size, size);
+            }
+        }
+    }
+
+    @Override
+    public void onDragEnd(
+            PlantType type,
+            float stageX,
+            float stageY
+    ) {
+        draggingPlant = false;
+
+        if (dragGhost != null) {
+            dragGhost.remove();
+            dragGhost = null;
+        }
+
+        if (hoverHighlight != null) {
+            hoverHighlight.setVisible(false);
+        }
+
+        int[] cell = layout.screenToCell(stageX, stageY);
+
+        if (cell[0] < 0 || boardController == null) {
+            return;
+        }
+
+        int row = cell[0];
+        int column = cell[1];
+
+        Result<String> result =
+                boardController.plantPlant(type, column, row);
+
+        showAction(result.getMessage());
+
+        if (result.getStatus()) {
+            spawnPlantedIdleActor(type, row, column);
+        }
+    }
+
+    private void spawnPlantedIdleActor(PlantType type, int row, int column) {
+        if (pamPlayer == null) {
+            return;
+        }
+        removePlantedActor(row, column);
+        Rectangle cell = layout.cellBounds(row, column);
+        PamEnvironmentActor idle = new PamEnvironmentActor(
+                pamPlayer, plantIdlePam(type), "idle", 0.42f, 0f, 0f);
+        idle.setBounds(cell.x, cell.y, cell.width, cell.height);
+        entityLayer.addActor(idle);
+        placedPlantActors.put(row + "," + column, idle);
+    }
+
+    private void removePlantedActor(int row, int column) {
+        PamEnvironmentActor existing = placedPlantActors.remove(row + "," + column);
+        if (existing != null) {
+            existing.remove();
+        }
     }
 
     @Override
@@ -1055,9 +1456,20 @@ public final class GameplayScreen implements Screen {
             pamTextures.update();
         }
 
+        updateZombieTestSelection();
         advanceGameplay(delta);
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
+
+        if (zombieActorManager != null && displayEngine != null) {
+            zombieActorManager.sync(displayEngine);
+        }
+
+        if (testWallNutPlant != null && testWallNutPlant.isDead()) {
+            removePlantedActor(2, 5);
+            testWallNutPlant = null;
+        }
+
         environmentLayer.sync(displayEngine, previewMode);
         if (darkAgesStateLayer != null) {
             darkAgesStateLayer.sync(displayEngine, previewMode);
@@ -1108,6 +1520,10 @@ public final class GameplayScreen implements Screen {
         if (pamTextures != null) {
             pamTextures.dispose();
             pamTextures = null;
+        }
+        if (darkTintTexture != null) {
+            darkTintTexture.dispose();
+            darkTintTexture = null;
         }
     }
 
@@ -1183,6 +1599,12 @@ public final class GameplayScreen implements Screen {
                 showOutcome(GameOutcome.LOST);
                 return true;
             }
+
+            if (keycode == Input.Keys.Z && !previewMode) {
+                spawnSelectedZombieCheat();
+                return true;
+            }
+
             if (!previewMode) {
                 return false;
             }
