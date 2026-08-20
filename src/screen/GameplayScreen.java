@@ -126,7 +126,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private Image waveHead;
     private Image shovelButtonBackground;
     private Image plantFoodButtonBackground;
-    private static final String PLANT_PAM_ROOT = "768/FULL/PLANT/";
+    private static final String PLANT_PAM_ROOT = "768/INITIAL/PLANT/";
     private final Map<String, PamEnvironmentActor> placedPlantActors = new LinkedHashMap<>();
     private PamEnvironmentActor dragGhost;
 
@@ -313,11 +313,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         hudLayer = buildHud();
         stage.addActor(hudLayer);
 
-        seedBank = buildSeedBank();
-        if (seedBank != null) {
-            stage.addActor(seedBank.actor());
-        }
-
         stage.addActor(specialLevelLayer.hudLayer());
 
         BattlefieldMissionObjectives.MissionInfo missionInfo =
@@ -358,6 +353,11 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         );
         missionStartLayer.show(missionInfo);
         stage.addActor(missionStartLayer.root());
+
+        seedBank = buildSeedBank();
+        if (seedBank != null) {
+            stage.addActor(seedBank.actor());
+        }
     }
 
     /** Public integration hook for plant/zombie/projectile actors. */
@@ -1068,19 +1068,38 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
     private BattlefieldSeedBank buildSeedBank() {
         GameSession session = Store.getActiveSession();
+
+        System.out.println("========== BUILD SEED BANK ==========");
+        System.out.println("previewMode = " + previewMode);
+        System.out.println("session = " + session);
+
         if (previewMode || session == null || session.getSelection() == null) {
+            System.out.println("SEED BANK RETURNED NULL");
             return null;
         }
+
         List<PlantDefinition> chosen = new ArrayList<>();
+
         for (PlantType type : session.getSelection().getChosen()) {
             PlantDefinition definition = findDefinition(type);
+
+            System.out.println(
+                    "chosen type = " + type
+                            + " definition = " + definition
+            );
+
             if (definition != null) {
                 chosen.add(definition);
             }
         }
+
+        System.out.println("FINAL CHOSEN SIZE = " + chosen.size());
+
         if (chosen.isEmpty()) {
+            System.out.println("SEED BANK EMPTY");
             return null;
         }
+
         return new BattlefieldSeedBank(
                 skin,
                 loadTexture("ui/collection/ready.png"),

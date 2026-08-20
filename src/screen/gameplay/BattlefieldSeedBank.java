@@ -4,11 +4,13 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.DragListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
@@ -71,9 +73,25 @@ public final class BattlefieldSeedBank {
         this.dragHandler = dragHandler;
 
         root = new Table();
+        root.setTouchable(Touchable.enabled);
+
+        root.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                System.out.println("========== SEED BANK ROOT CLICKED ==========");
+            }
+        });
         root.top().left();
         float height = chosenDefinitions.size() * (CARD_HEIGHT + ROW_GAP);
         root.setBounds(LEFT_X, TOP_Y - height, CARD_WIDTH, height);
+
+        System.out.println(
+                "SEED BANK CREATED: x=" + root.getX()
+                        + " y=" + root.getY()
+                        + " w=" + root.getWidth()
+                        + " h=" + root.getHeight()
+                        + " children=" + chosenDefinitions.size()
+        );
 
         for (PlantDefinition definition : chosenDefinitions) {
             root.add(buildCard(definition)).size(CARD_WIDTH, CARD_HEIGHT).padBottom(ROW_GAP).row();
@@ -92,7 +110,7 @@ public final class BattlefieldSeedBank {
         stack.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled);
 
         Image background = new Image(cardBg);
-        background.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+        background.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled);
         stack.add(background);
 
         Table content = new Table();
@@ -146,6 +164,7 @@ public final class BattlefieldSeedBank {
                     float y,
                     int pointer
             ) {
+
                 active = dragHandler.onDragStart(type);
 
                 if (active) {
