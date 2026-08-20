@@ -1417,8 +1417,8 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         int row = cell[0];
         int column = cell[1];
 
-        Result<String> result =
-                boardController.plantPlant(type, column, row);
+        Result<String> result = boardController.plantPlant(type, cell[1], cell[0]);
+        System.out.println("plantPlant result status=" + result.getStatus() + " msg=" + result.getMessage());
 
         showAction(result.getMessage());
 

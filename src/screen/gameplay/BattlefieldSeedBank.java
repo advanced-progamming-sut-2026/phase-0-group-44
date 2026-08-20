@@ -1,7 +1,6 @@
 package screen.gameplay;
 
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
@@ -11,8 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.DragListener;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.utils.Scaling;
 import model.enums.PlantType;
 import model.inGame.plant.PlantDefinition;
@@ -75,23 +73,9 @@ public final class BattlefieldSeedBank {
         root = new Table();
         root.setTouchable(Touchable.enabled);
 
-        root.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                System.out.println("========== SEED BANK ROOT CLICKED ==========");
-            }
-        });
         root.top().left();
         float height = chosenDefinitions.size() * (CARD_HEIGHT + ROW_GAP);
         root.setBounds(LEFT_X, TOP_Y - height, CARD_WIDTH, height);
-
-        System.out.println(
-                "SEED BANK CREATED: x=" + root.getX()
-                        + " y=" + root.getY()
-                        + " w=" + root.getWidth()
-                        + " h=" + root.getHeight()
-                        + " children=" + chosenDefinitions.size()
-        );
 
         for (PlantDefinition definition : chosenDefinitions) {
             root.add(buildCard(definition)).size(CARD_WIDTH, CARD_HEIGHT).padBottom(ROW_GAP).row();
@@ -107,18 +91,18 @@ public final class BattlefieldSeedBank {
         costByType.put(type, definition.getCost());
 
         Stack stack = new Stack();
-        stack.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled);
+        stack.setTouchable(Touchable.enabled);
 
         Image background = new Image(cardBg);
-        background.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled);
+        background.setTouchable(Touchable.disabled);
         stack.add(background);
 
         Table content = new Table();
-        content.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+        content.setTouchable(Touchable.disabled);
 
         Image icon = new Image(iconLoader.apply(type));
         icon.setScaling(Scaling.fit);
-        icon.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+        icon.setTouchable(Touchable.disabled);
 
         content.add(icon)
                 .size(CARD_WIDTH - 20f)
@@ -127,7 +111,7 @@ public final class BattlefieldSeedBank {
 
         Label costLabel =
                 new Label(String.valueOf(definition.getCost()), skin, "medium_outline");
-        costLabel.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+        costLabel.setTouchable(Touchable.disabled);
 
         content.add(costLabel)
                 .padTop(2f);
@@ -136,91 +120,76 @@ public final class BattlefieldSeedBank {
 
         Image lockedTint = new Image(lockedTintTexture);
         lockedTint.setVisible(false);
-        lockedTint.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+        lockedTint.setTouchable(Touchable.disabled);
         stack.add(lockedTint);
 
-        DragListener dragListener = new DragListener() {
-            private boolean active;
+        // Custom drag handling instead of DragListener: DragListener keeps a
+        // private `pressedPointer` field that can get stuck (never reset to -1)
+        // after certain event-propagation edge cases, silently blocking every
+        // future press on the same card. We track our own pointer/drag state
+        // here so nothing hidden can desync from reality.
+        stack.addListener(new InputListener() {
+            private int activePointer = -1;
+            private float pressX;
+            private float pressY;
+            private boolean dragging;
 
             @Override
-            public boolean touchDown(
-                    InputEvent event,
-                    float x,
-                    float y,
-                    int pointer,
-                    int button
-            ) {
-                if (button != com.badlogic.gdx.Input.Buttons.LEFT) {
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                if (button != com.badlogic.gdx.Input.Buttons.LEFT || activePointer != -1) {
                     return false;
                 }
-
-                return super.touchDown(event, x, y, pointer, button);
+                activePointer = pointer;
+                pressX = x;
+                pressY = y;
+                dragging = false;
+                // Stop the event so it doesn't also bubble into other listeners
+                // (e.g. a ClickListener on an ancestor) while a drag might start.
+                event.stop();
+                return true;
             }
 
             @Override
-            public void dragStart(
-                    InputEvent event,
-                    float x,
-                    float y,
-                    int pointer
-            ) {
-
-                active = dragHandler.onDragStart(type);
-
-                if (active) {
-                    stack.setColor(1f, 1f, 1f, 0.5f);
-                }
-            }
-
-            @Override
-            public void drag(
-                    InputEvent event,
-                    float x,
-                    float y,
-                    int pointer
-            ) {
-                if (!active) {
+            public void touchDragged(InputEvent event, float x, float y, int pointer) {
+                if (pointer != activePointer) {
                     return;
                 }
-
-                dragHandler.onDragMove(
-                        type,
-                        event.getStageX(),
-                        event.getStageY()
-                );
+                if (!dragging) {
+                    float dx = x - pressX;
+                    float dy = y - pressY;
+                    if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) {
+                        return;
+                    }
+                    dragging = dragHandler.onDragStart(type);
+                    if (dragging) {
+                        stack.setColor(1f, 1f, 1f, 0.5f);
+                    } else {
+                        // Refused (not enough sun / on cooldown) -- release the
+                        // pointer claim so a fresh press can be tried again.
+                        activePointer = -1;
+                    }
+                }
+                if (dragging) {
+                    dragHandler.onDragMove(type, event.getStageX(), event.getStageY());
+                }
             }
 
             @Override
-            public void dragStop(
-                    InputEvent event,
-                    float x,
-                    float y,
-                    int pointer
-            ) {
-                if (!active) {
+            public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
+                if (pointer != activePointer) {
                     return;
                 }
-
-                stack.setColor(1f, 1f, 1f, 1f);
-
-                dragHandler.onDragEnd(
-                        type,
-                        event.getStageX(),
-                        event.getStageY()
-                );
-
-                active = false;
+                // Always release the claim first, unconditionally, so the next
+                // press on this card is never blocked no matter what happens below.
+                activePointer = -1;
+                boolean wasDragging = dragging;
+                dragging = false;
+                if (wasDragging) {
+                    stack.setColor(1f, 1f, 1f, 1f);
+                    dragHandler.onDragEnd(type, event.getStageX(), event.getStageY());
+                }
             }
-
-            @Override
-            public void cancel() {
-                active = false;
-                stack.setColor(1f, 1f, 1f, 1f);
-            }
-        };
-
-        dragListener.setTapSquareSize(DRAG_THRESHOLD);
-        stack.addListener(dragListener);
+        });
 
         cardsByType.put(type, stack);
 
