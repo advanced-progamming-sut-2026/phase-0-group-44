@@ -33,17 +33,14 @@ import controller.App;
 import controller.BoardController;
 import controller.GameplayController;
 import model.GameEngine;
-import model.Position;
 import model.Result;
 import model.Store;
 import model.config.GameWorld;
 import model.enums.MenuName;
 import model.enums.PlantType;
-import model.enums.ZombieType;
 import model.inGame.GameOutcome;
 import model.inGame.GameSession;
 import model.inGame.Sun;
-import model.inGame.plant.Plant;
 import model.sim.Simulation;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
@@ -67,7 +64,6 @@ import screen.gameplay.BattlefieldPauseOutcomeLayer;
 import screen.gameplay.BattlefieldSpecialLevelLayer;
 import screen.gameplay.BattlefieldTheme;
 import screen.gameplay.PamEnvironmentActor;
-import screen.gameplay.ZombieActorManager;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -113,7 +109,6 @@ public final class GameplayScreen implements Screen {
     private BattlefieldChapterEffects chapterEffects;
     private BattlefieldSpecialLevelLayer specialLevelLayer;
     private Group entityLayer;
-    private ZombieActorManager zombieActorManager;
     private Group pickupLayer;
     private Group interactionLayer;
     private Group hudLayer;
@@ -123,8 +118,6 @@ public final class GameplayScreen implements Screen {
     private PamEnvironmentActor hoverHighlight;
     private PamEnvironmentActor selectedHighlight;
     private PamEnvironmentActor toolCursor;
-    private PamEnvironmentActor testWallNutPlaceholder;
-    private Plant testWallNutPlant;
     private Label sunLabel;
     private Label plantFoodLabel;
     private Label waveLabel;
@@ -149,44 +142,6 @@ public final class GameplayScreen implements Screen {
     private boolean outcomeShown;
     private boolean missionIntroActive;
     private GameEngine finishedEngine;
-
-    /*
-     * Zombie graphics test roster.
-     * LEFT/RIGHT cycles through the twelve zombies currently validated.
-     * Z spawns the selected zombie against the real Wall-nut test target.
-     */
-    private static final ZombieType[] ZOMBIE_TEST_TYPES = {
-            ZombieType.NORMAL,
-            ZombieType.CONEHEAD,
-            ZombieType.BUCKETHEAD,
-            ZombieType.KNIGHT,
-            ZombieType.BLOCKHEAD,
-            ZombieType.GARGANTUAR,
-            ZombieType.IMP,
-            ZombieType.ALL_STAR,
-            ZombieType.ARCADE_ZOMBIE,
-            ZombieType.PARASOL_ZOMBIE,
-            ZombieType.TURQUOISE_ZOMBIE,
-            ZombieType.PROSPECTOR,
-            ZombieType.PIANIST,
-            ZombieType.NEWSPAPER_ZOMBIE,
-            ZombieType.BARREL_ROLLER,
-            ZombieType.RA_ZOMBIE,
-            ZombieType.EXPLORER,
-            ZombieType.TOMBRAISER,
-            ZombieType.DODO_RIDER,
-            ZombieType.HUNTER,
-            ZombieType.TROGLOBITE,
-            ZombieType.FISHERMAN,
-            ZombieType.SNORKEL,
-            ZombieType.OCTOPUS_ZOMBIE,
-            ZombieType.JESTER,
-            ZombieType.WIZARD,
-            ZombieType.KING,
-            ZombieType.DRAGON_IMP
-    };
-
-    private int zombieTestIndex = 0;
 
     private enum ToolMode {
         NONE,
@@ -328,24 +283,6 @@ public final class GameplayScreen implements Screen {
         entityLayer = new Group();
         entityLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(entityLayer);
-
-        zombieActorManager = null;
-        if (!previewMode && pamPlayer != null && engine() != null) {
-            zombieActorManager = new ZombieActorManager(
-                    entityLayer,
-                    layout,
-                    pamPlayer
-            );
-            zombieActorManager.sync(engine());
-            System.out.println("[ZombieGraphics] ZombieActorManager initialized");
-        } else {
-            System.out.println(
-                    "[ZombieGraphics] manager not initialized: previewMode="
-                            + previewMode
-                            + ", pamPlayer=" + pamPlayer
-                            + ", engine=" + engine()
-            );
-        }
 
         // Frostbite front-state visuals sit over future plant/zombie actors:
         // plant remains visible inside its ice shell, while frozen zombies are
@@ -892,62 +829,6 @@ public final class GameplayScreen implements Screen {
         }
     }
 
-
-    private void updateZombieTestSelection() {
-        if (previewMode || missionIntroActive || paused || outcomeShown) {
-            return;
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT)) {
-            zombieTestIndex--;
-            if (zombieTestIndex < 0) {
-                zombieTestIndex = ZOMBIE_TEST_TYPES.length - 1;
-            }
-
-            ZombieType selected = ZOMBIE_TEST_TYPES[zombieTestIndex];
-            showAction(
-                    "TEST ZOMBIE "
-                            + (zombieTestIndex + 1)
-                            + "/"
-                            + ZOMBIE_TEST_TYPES.length
-                            + ": "
-                            + selected.name()
-            );
-            System.out.println(
-                    "[ZombieTest] Selected "
-                            + (zombieTestIndex + 1)
-                            + "/"
-                            + ZOMBIE_TEST_TYPES.length
-                            + ": "
-                            + selected
-            );
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)) {
-            zombieTestIndex =
-                    (zombieTestIndex + 1)
-                            % ZOMBIE_TEST_TYPES.length;
-
-            ZombieType selected = ZOMBIE_TEST_TYPES[zombieTestIndex];
-            showAction(
-                    "TEST ZOMBIE "
-                            + (zombieTestIndex + 1)
-                            + "/"
-                            + ZOMBIE_TEST_TYPES.length
-                            + ": "
-                            + selected.name()
-            );
-            System.out.println(
-                    "[ZombieTest] Selected "
-                            + (zombieTestIndex + 1)
-                            + "/"
-                            + ZOMBIE_TEST_TYPES.length
-                            + ": "
-                            + selected
-            );
-        }
-    }
-
     private void syncPickups() {
         GameEngine engine = engine();
         String signature = pickupSignature(engine);
@@ -1174,24 +1055,9 @@ public final class GameplayScreen implements Screen {
             pamTextures.update();
         }
 
-        updateZombieTestSelection();
         advanceGameplay(delta);
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
-
-        if (zombieActorManager != null && displayEngine != null) {
-            zombieActorManager.sync(displayEngine);
-        }
-
-        if (testWallNutPlant != null && testWallNutPlant.isDead()) {
-            if (testWallNutPlaceholder != null) {
-                testWallNutPlaceholder.remove();
-                testWallNutPlaceholder = null;
-            }
-            testWallNutPlant = null;
-            System.out.println("[ZombieTest] WALL_NUT died; placeholder removed");
-        }
-
         environmentLayer.sync(displayEngine, previewMode);
         if (darkAgesStateLayer != null) {
             darkAgesStateLayer.sync(displayEngine, previewMode);
@@ -1317,150 +1183,6 @@ public final class GameplayScreen implements Screen {
                 showOutcome(GameOutcome.LOST);
                 return true;
             }
-
-            // Temporary real-game zombie graphics test.
-            // Press Z after dismissing the mission-intro overlay.
-            if (keycode == Input.Keys.Z && !previewMode) {
-                System.out.println("[ZombieTest] Z cheat fired");
-
-                GameEngine currentEngine = engine();
-                if (currentEngine == null || gameplayController == null) {
-                    System.out.println(
-                            "[ZombieTest] Cannot spawn: engine="
-                                    + currentEngine
-                                    + ", gameplayController="
-                                    + gameplayController
-                    );
-                    showAction("NO ACTIVE GAMEPLAY");
-                    return true;
-                }
-
-                System.out.println(
-                        "[ZombieTest] Before spawn: zombies="
-                                + currentEngine.getZombies().size()
-                );
-
-                // Put a REAL Wall-nut into the model first.
-                // Sun cost and cooldown are disabled because this is only a graphics/AI test.
-                try {
-                    testWallNutPlant = currentEngine.plant(
-                            PlantType.WALL_NUT,
-                            1,
-                            new Position(2, 5),
-                            false,
-                            false
-                    );
-                    System.out.println("[ZombieTest] WALL_NUT planted at (5, 2)");
-
-                    /*
-                     * TEMPORARY VISUAL PLACEHOLDER:
-                     * The model object is still a real WALL_NUT.
-                     * We only draw a normal zombie PAM on the plant tile
-                     * so the eating interaction is visible before plant
-                     * rendering is implemented.
-                     */
-                    if (pamPlayer != null && entityLayer != null) {
-                        Rectangle plantCell = layout.cellBounds(2, 5);
-
-                        if (testWallNutPlaceholder != null) {
-                            testWallNutPlaceholder.remove();
-                        }
-
-                        testWallNutPlaceholder = new PamEnvironmentActor(
-                                pamPlayer,
-                                "768/INITIAL/ZOMBIE/ZOMBIE_EGYPT_BASIC/ZOMBIE_EGYPT_BASIC.PAM",
-                                "idle",
-                                0.34f,
-                                0f,
-                                0f
-                        );
-
-                        testWallNutPlaceholder.setBounds(
-                                plantCell.x,
-                                plantCell.y,
-                                plantCell.width,
-                                plantCell.height
-                        );
-
-                        entityLayer.addActor(testWallNutPlaceholder);
-
-                        System.out.println(
-                                "[ZombieTest] Added temporary visual at WALL_NUT tile"
-                        );
-                    }
-                } catch (RuntimeException exception) {
-                    System.out.println(
-                            "[ZombieTest] Could not plant WALL_NUT at (5, 2): "
-                                    + exception.getMessage()
-                    );
-                }
-
-                ZombieType selectedZombieType =
-                        ZOMBIE_TEST_TYPES[zombieTestIndex];
-
-                System.out.println(
-                        "[ZombieTest] Spawning selected zombie: "
-                                + selectedZombieType
-                );
-
-                /*
-                 * DEVELOPER CHEAT:
-                 *
-                 * Do NOT use GameplayController.spawnZombie(...) here.
-                 * The controller correctly enforces the current level's allowed
-                 * zombie roster, which is why later zombies report RESTRICTED.
-                 *
-                 * For graphics testing we intentionally bypass that validation
-                 * and spawn directly into the active GameEngine.
-                 *
-                 * GameEngine signature:
-                 *     spawnZombie(ZombieType type, int row, double x)
-                 */
-                try {
-                    currentEngine.spawnZombie(
-                            selectedZombieType,
-                            2,
-                            8.0
-                    );
-
-                    System.out.println(
-                            "[ZombieTest] CHEAT spawn succeeded: "
-                                    + selectedZombieType
-                    );
-
-                    showAction(
-                            "CHEAT SPAWN: "
-                                    + selectedZombieType.name()
-                    );
-                } catch (RuntimeException exception) {
-                    System.out.println(
-                            "[ZombieTest] CHEAT spawn failed for "
-                                    + selectedZombieType
-                                    + ": "
-                                    + exception.getMessage()
-                    );
-
-                    showAction(
-                            "CHEAT SPAWN FAILED: "
-                                    + selectedZombieType.name()
-                    );
-                }
-
-                System.out.println(
-                        "[ZombieTest] After spawn: zombies="
-                                + currentEngine.getZombies().size()
-                );
-
-                if (zombieActorManager != null) {
-                    zombieActorManager.sync(currentEngine);
-                    System.out.println("[ZombieTest] ZombieActorManager synced");
-                } else {
-                    System.out.println("[ZombieTest] WARNING: zombieActorManager is null");
-                }
-
-                return true;
-            }
-
             if (!previewMode) {
                 return false;
             }
@@ -1484,5 +1206,3 @@ public final class GameplayScreen implements Screen {
         }
     }
 }
-
-
