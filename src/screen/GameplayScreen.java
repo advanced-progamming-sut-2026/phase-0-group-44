@@ -32,9 +32,11 @@ import model.Store;
 import model.config.GameWorld;
 import model.enums.MenuName;
 import model.enums.PlantType;
+import model.enums.ZombieType;
 import model.inGame.GameOutcome;
 import model.inGame.GameSession;
 import model.inGame.Sun;
+import model.inGame.plant.Plant;
 import model.sim.Simulation;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
@@ -58,6 +60,7 @@ import screen.gameplay.BattlefieldPauseOutcomeLayer;
 import screen.gameplay.BattlefieldSpecialLevelLayer;
 import screen.gameplay.BattlefieldTheme;
 import screen.gameplay.PamEnvironmentActor;
+import screen.gameplay.ZombieActorManager;
 import model.inGame.plant.PlantDefinition;
 import screen.gameplay.BattlefieldSeedBank;
 import java.util.ArrayList;
@@ -108,6 +111,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private BattlefieldChapterEffects chapterEffects;
     private BattlefieldSpecialLevelLayer specialLevelLayer;
     private Group entityLayer;
+    private ZombieActorManager zombieActorManager;
     private Group pickupLayer;
     private Group interactionLayer;
     private Group hudLayer;
@@ -148,6 +152,44 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private BattlefieldSeedBank seedBank;
     private PlantType armedPlantType;
     private Texture darkTintTexture;
+
+    /*
+     * Developer zombie graphics tester.
+     * LEFT / RIGHT selects; Z force-spawns regardless of level restrictions.
+     */
+    private static final ZombieType[] ZOMBIE_TEST_TYPES = {
+            ZombieType.NORMAL,
+            ZombieType.CONEHEAD,
+            ZombieType.BUCKETHEAD,
+            ZombieType.KNIGHT,
+            ZombieType.BLOCKHEAD,
+            ZombieType.GARGANTUAR,
+            ZombieType.IMP,
+            ZombieType.ALL_STAR,
+            ZombieType.ARCADE_ZOMBIE,
+            ZombieType.PARASOL_ZOMBIE,
+            ZombieType.TURQUOISE_ZOMBIE,
+            ZombieType.PROSPECTOR,
+            ZombieType.PIANIST,
+            ZombieType.NEWSPAPER_ZOMBIE,
+            ZombieType.BARREL_ROLLER,
+            ZombieType.RA_ZOMBIE,
+            ZombieType.EXPLORER,
+            ZombieType.TOMBRAISER,
+            ZombieType.DODO_RIDER,
+            ZombieType.HUNTER,
+            ZombieType.TROGLOBITE,
+            ZombieType.FISHERMAN,
+            ZombieType.SNORKEL,
+            ZombieType.OCTOPUS_ZOMBIE,
+            ZombieType.JESTER,
+            ZombieType.WIZARD,
+            ZombieType.KING,
+            ZombieType.DRAGON_IMP
+    };
+
+    private int zombieTestIndex;
+    private Plant testWallNutPlant;
 
     private enum ToolMode {
         NONE,
@@ -230,6 +272,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         finishedEngine = null;
         placedPlantActors.clear();
         dragGhost = null;
+        testWallNutPlant = null;
 
         layout = new BattlefieldLayout(theme, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(buildBackground());
@@ -289,6 +332,18 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         entityLayer = new Group();
         entityLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(entityLayer);
+
+        zombieActorManager = null;
+
+        if (!previewMode && pamPlayer != null && engine() != null) {
+            zombieActorManager =
+                    new ZombieActorManager(
+                            entityLayer,
+                            layout,
+                            pamPlayer
+                    );
+            zombieActorManager.sync(engine());
+        }
 
         frostbiteStateLayer = new BattlefieldFrostbiteStateLayer(
                 theme,
@@ -976,6 +1031,139 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
     }
 
+    /**
+     * Direct key polling makes the test selector reliable even when Stage
+     * consumes arrow-key events.
+     */
+    private void updateZombieTestSelection() {
+        if (previewMode || missionIntroActive || paused || outcomeShown) {
+            return;
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT)) {
+            zombieTestIndex--;
+
+            if (zombieTestIndex < 0) {
+                zombieTestIndex =
+                        ZOMBIE_TEST_TYPES.length - 1;
+            }
+
+            showSelectedZombie();
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)) {
+            zombieTestIndex =
+                    (zombieTestIndex + 1)
+                            % ZOMBIE_TEST_TYPES.length;
+
+            showSelectedZombie();
+        }
+    }
+
+    private void showSelectedZombie() {
+        ZombieType selected =
+                ZOMBIE_TEST_TYPES[zombieTestIndex];
+
+        showAction(
+                "TEST ZOMBIE "
+                        + (zombieTestIndex + 1)
+                        + "/"
+                        + ZOMBIE_TEST_TYPES.length
+                        + ": "
+                        + selected.name()
+        );
+
+        System.out.println(
+                "[ZombieTest] Selected "
+                        + (zombieTestIndex + 1)
+                        + "/"
+                        + ZOMBIE_TEST_TYPES.length
+                        + ": "
+                        + selected
+        );
+    }
+
+    /**
+     * Developer-only force spawn.
+     *
+     * It intentionally bypasses GameplayController.spawnZombie(), because that
+     * controller enforces the active level's allowed-zombie roster.
+     */
+    private void spawnSelectedZombieCheat() {
+        GameEngine currentEngine = engine();
+
+        if (previewMode || currentEngine == null) {
+            showAction("ZOMBIE TEST REQUIRES ACTIVE GAMEPLAY");
+            return;
+        }
+
+        ZombieType selected =
+                ZOMBIE_TEST_TYPES[zombieTestIndex];
+
+        /*
+         * Keep one real Wall-nut in the test lane so WALK -> EAT can be checked.
+         * This baseline already has real plant PAM rendering, so use it instead
+         * of the old fake-zombie placeholder.
+         */
+        if (testWallNutPlant == null || testWallNutPlant.isDead()) {
+            try {
+                testWallNutPlant =
+                        currentEngine.plant(
+                                PlantType.WALL_NUT,
+                                1,
+                                new model.Position(2, 5),
+                                false,
+                                false
+                        );
+
+                spawnPlantedIdleActor(
+                        PlantType.WALL_NUT,
+                        2,
+                        5
+                );
+            } catch (RuntimeException exception) {
+                System.out.println(
+                        "[ZombieTest] Wall-nut test target not placed: "
+                                + exception.getMessage()
+                );
+            }
+        }
+
+        try {
+            currentEngine.spawnZombie(
+                    selected,
+                    2,
+                    8.0
+            );
+
+            showAction(
+                    "CHEAT SPAWN: "
+                            + selected.name()
+            );
+
+            System.out.println(
+                    "[ZombieTest] Force-spawned "
+                            + selected
+            );
+
+            if (zombieActorManager != null) {
+                zombieActorManager.sync(currentEngine);
+            }
+        } catch (RuntimeException exception) {
+            showAction(
+                    "CHEAT SPAWN FAILED: "
+                            + selected.name()
+            );
+
+            System.out.println(
+                    "[ZombieTest] Force-spawn failed for "
+                            + selected
+                            + ": "
+                            + exception.getMessage()
+            );
+        }
+    }
+
     private void showAction(String message) {
         if (actionLabel == null) {
             return;
@@ -1268,9 +1456,20 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             pamTextures.update();
         }
 
+        updateZombieTestSelection();
         advanceGameplay(delta);
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
+
+        if (zombieActorManager != null && displayEngine != null) {
+            zombieActorManager.sync(displayEngine);
+        }
+
+        if (testWallNutPlant != null && testWallNutPlant.isDead()) {
+            removePlantedActor(2, 5);
+            testWallNutPlant = null;
+        }
+
         environmentLayer.sync(displayEngine, previewMode);
         if (darkAgesStateLayer != null) {
             darkAgesStateLayer.sync(displayEngine, previewMode);
@@ -1400,6 +1599,12 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 showOutcome(GameOutcome.LOST);
                 return true;
             }
+
+            if (keycode == Input.Keys.Z && !previewMode) {
+                spawnSelectedZombieCheat();
+                return true;
+            }
+
             if (!previewMode) {
                 return false;
             }

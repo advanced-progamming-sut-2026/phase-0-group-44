@@ -27,10 +27,22 @@ public final class CompositeZombieBehavior {
             ability.tickBeforeMovement(zombie, engine, deltaSeconds);
         }
         if (!zombie.isDead() && !zombie.isFrozen() && !zombie.isStunned()) {
-            boolean blocked = attack != null && attack.attack(zombie, engine, deltaSeconds);
+            boolean blocked =
+                    attack != null
+                            && attack.attack(zombie, engine, deltaSeconds);
+
+            /*
+             * Presentation bridge only:
+             * PamZombieActor reads this model state to switch WALK <-> EAT.
+             * No rendering code controls zombie gameplay.
+             */
+            zombie.putState("EATING", blocked);
+
             if (!blocked && movement != null) {
                 movement.move(zombie, engine, deltaSeconds);
             }
+        } else {
+            zombie.putState("EATING", false);
         }
         for (ZombieSpecialAbility ability : abilities) {
             ability.tickAfterMovement(zombie, engine, deltaSeconds);
