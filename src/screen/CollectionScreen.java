@@ -297,7 +297,16 @@ public final class CollectionScreen implements Screen {
                     refreshGrid();
                 }
             });
-            filterBar.add(upgradeableBox);
+            filterBar.add(upgradeableBox).padRight(18f);
+
+            TextButton buyAllPlantsButton = new TextButton("BUY ALL PLANTS", skin, "purple");
+            buyAllPlantsButton.addListener(new ChangeListener() {
+                @Override
+                public void changed(ChangeEvent event, Actor actor) {
+                    handleBuyAllPlants();
+                }
+            });
+            filterBar.add(buyAllPlantsButton).height(44f);
         } else {
             TextButton showAllZombiesButton = new TextButton("SHOW ALL ZOMBIES", skin, "purple");
             showAllZombiesButton.addListener(new ChangeListener() {
@@ -307,6 +316,16 @@ public final class CollectionScreen implements Screen {
                 }
             });
             filterBar.add(showAllZombiesButton).height(44f);
+        }
+    }
+
+    private void handleBuyAllPlants() {
+        Result<String> result = controller.cheatBuyAllPlants(Store.getLoggedInUser());
+        if (result.getStatus()) {
+            toast.showInfo(result.getMessage());
+            refreshGrid();
+        } else {
+            toast.showError(result.getMessage());
         }
     }
 

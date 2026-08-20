@@ -10,7 +10,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
@@ -20,12 +19,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Stack;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -64,6 +58,11 @@ import screen.gameplay.BattlefieldPauseOutcomeLayer;
 import screen.gameplay.BattlefieldSpecialLevelLayer;
 import screen.gameplay.BattlefieldTheme;
 import screen.gameplay.PamEnvironmentActor;
+import model.inGame.plant.PlantDefinition;
+import screen.gameplay.BattlefieldSeedBank;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -76,7 +75,7 @@ import util.SeededRandomSource;
  * Plants, zombies and projectiles intentionally remain outside this class and should
  * attach to {@link #entityLayer} using the shared {@link BattlefieldLayout}.
  */
-public final class GameplayScreen implements Screen {
+public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDragHandler {
     public static final float VIRTUAL_WIDTH = 1280f;
     public static final float VIRTUAL_HEIGHT = 720f;
 
@@ -127,6 +126,9 @@ public final class GameplayScreen implements Screen {
     private Image waveHead;
     private Image shovelButtonBackground;
     private Image plantFoodButtonBackground;
+    private static final String PLANT_PAM_ROOT = "768/FULL/PLANT/";
+    private final Map<String, PamEnvironmentActor> placedPlantActors = new LinkedHashMap<>();
+    private PamEnvironmentActor dragGhost;
 
     private BoardController boardController;
     private GameplayController gameplayController;
@@ -142,11 +144,14 @@ public final class GameplayScreen implements Screen {
     private boolean outcomeShown;
     private boolean missionIntroActive;
     private GameEngine finishedEngine;
+    private BattlefieldSeedBank seedBank;
+    private PlantType armedPlantType;
+    private Texture darkTintTexture;
 
     private enum ToolMode {
         NONE,
         SHOVEL,
-        PLANT_FOOD
+        PLANT_FOOD,
     }
 
     public GameplayScreen(PvzGame game, App app) {
@@ -160,6 +165,7 @@ public final class GameplayScreen implements Screen {
         skin = PvzSkin.get();
         whiteTexture = makeWhiteTexture();
         runeTexture = makeRuneTexture();
+        darkTintTexture = makeDarkTintTexture();
         initializePam();
         resolveInitialTheme();
         initializeGameplayControllers();
@@ -221,6 +227,8 @@ public final class GameplayScreen implements Screen {
         outcomeShown = false;
         missionIntroActive = true;
         finishedEngine = null;
+        placedPlantActors.clear();
+        dragGhost = null;
 
         layout = new BattlefieldLayout(theme, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(buildBackground());
@@ -243,9 +251,6 @@ public final class GameplayScreen implements Screen {
         environmentLayer.sync(engine(), previewMode);
         stage.addActor(environmentLayer);
 
-        // Dedicated Dark Ages presentation sits above the generic environment layer.
-        // This guarantees generated cursed-ground/grave art is visible even if the
-        // generic renderer also supplies older PAM fallback visuals underneath.
         darkAgesStateLayer = new BattlefieldDarkAgesStateLayer(
                 theme,
                 layout,
@@ -284,9 +289,6 @@ public final class GameplayScreen implements Screen {
         entityLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(entityLayer);
 
-        // Frostbite front-state visuals sit over future plant/zombie actors:
-        // plant remains visible inside its ice shell, while frozen zombies are
-        // intentionally hidden by a full ice block per the Phase-2 specification.
         frostbiteStateLayer = new BattlefieldFrostbiteStateLayer(
                 theme,
                 layout,
@@ -298,8 +300,6 @@ public final class GameplayScreen implements Screen {
         frostbiteStateLayer.sync(engine(), previewMode);
         stage.addActor(frostbiteStateLayer);
 
-        // Front chapter effects (including icy wind) sit above entity-state ice,
-        // but below pickups, interaction cursors and HUD.
         stage.addActor(chapterEffects.frontLayer());
 
         pickupLayer = new Group();
@@ -312,8 +312,11 @@ public final class GameplayScreen implements Screen {
         hudLayer = buildHud();
         stage.addActor(hudLayer);
 
-        // Special-level objective cards and START WAVE sit above the common HUD,
-        // while their board markers were inserted below entityLayer.
+        seedBank = buildSeedBank();
+        if (seedBank != null) {
+            stage.addActor(seedBank.actor());
+        }
+
         stage.addActor(specialLevelLayer.hudLayer());
 
         BattlefieldMissionObjectives.MissionInfo missionInfo =
@@ -779,6 +782,12 @@ public final class GameplayScreen implements Screen {
                 slot.setVisible(index < plantFood);
             }
         }
+        sunLabel.setText(String.valueOf(sun));
+        if (seedBank != null) {
+            GameEngine liveEngine = engine();
+            seedBank.sync(sun, type ->
+                    !previewMode && liveEngine != null && liveEngine.isOnCooldown(type));
+        }
 
         int currentWave = 0;
         int totalWaves = 0;
@@ -950,6 +959,7 @@ public final class GameplayScreen implements Screen {
             Result<String> result = boardController.pluckPlant(column, row);
             showAction(result.getMessage());
             if (result.getStatus()) {
+                removePlantedActor(row, column);
                 toolMode = ToolMode.NONE;
                 updateToolButtonState();
             }
@@ -1038,12 +1048,161 @@ public final class GameplayScreen implements Screen {
         return texture;
     }
 
+    private Texture makeDarkTintTexture() {
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(0f, 0f, 0f, 0.65f);
+        pixmap.fill();
+        Texture texture = new Texture(pixmap);
+        pixmap.dispose();
+        return texture;
+    }
+
     private void switchPreview(BattlefieldTheme next) {
         if (!previewMode || next == null || next == theme) {
             return;
         }
         theme = next;
         rebuildScene();
+    }
+
+    private BattlefieldSeedBank buildSeedBank() {
+        GameSession session = Store.getActiveSession();
+        if (previewMode || session == null || session.getSelection() == null) {
+            return null;
+        }
+        List<PlantDefinition> chosen = new ArrayList<>();
+        for (PlantType type : session.getSelection().getChosen()) {
+            PlantDefinition definition = findDefinition(type);
+            if (definition != null) {
+                chosen.add(definition);
+            }
+        }
+        if (chosen.isEmpty()) {
+            return null;
+        }
+        return new BattlefieldSeedBank(
+                skin,
+                loadTexture("ui/collection/ready.png"),
+                loadTexture("ui/collection/selected.png"),
+                darkTintTexture,
+                this::loadPlantIcon,
+                chosen,
+                this
+        );
+    }
+
+    private PlantDefinition findDefinition(PlantType type) {
+        Result<ArrayList<PlantDefinition>> all = app.getCollectionController().showAllPlants();
+        if (!all.getStatus() || all.getData() == null) {
+            return null;
+        }
+        for (PlantDefinition definition : all.getData()) {
+            if (definition.getType() == type) {
+                return definition;
+            }
+        }
+        return null;
+    }
+
+    private Texture loadPlantIcon(PlantType type) {
+        return loadTexture("ui/collection/plants/" + type.name().toLowerCase(Locale.ROOT) + ".png");
+    }
+
+    private String plantIdlePam(PlantType type) {
+        String name = type.name();
+        return PLANT_PAM_ROOT + name + "/" + name + ".PAM";
+    }
+
+    @Override
+    public boolean onDragStart(PlantType type) {
+        if (previewMode || boardController == null) {
+            return false;
+        }
+        GameEngine liveEngine = engine();
+        if (liveEngine == null) {
+            return false;
+        }
+        PlantDefinition definition = findDefinition(type);
+        int cost = definition == null ? Integer.MAX_VALUE : definition.getCost();
+        if (liveEngine.getSun() < cost) {
+            showAction("NOT ENOUGH SUN");
+            return false;
+        }
+        if (liveEngine.isOnCooldown(type)) {
+            showAction("STILL RECHARGING");
+            return false;
+        }
+        if (pamPlayer != null) {
+            dragGhost = new PamEnvironmentActor(pamPlayer, plantIdlePam(type), "idle", 0.42f, 0f, 0f);
+            dragGhost.setVisible(true);
+            pickupLayer.addActor(dragGhost);
+        }
+        return true;
+    }
+
+    @Override
+    public void onDragMove(PlantType type, float stageX, float stageY) {
+        int[] cell = layout.screenToCell(stageX, stageY);
+        if (cell[0] >= 0) {
+            Rectangle bounds = layout.cellBounds(cell[0], cell[1]);
+            if (hoverHighlight != null) {
+                hoverHighlight.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+                hoverHighlight.setVisible(true);
+            }
+            if (dragGhost != null) {
+                dragGhost.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+            }
+        } else {
+            if (hoverHighlight != null) {
+                hoverHighlight.setVisible(false);
+            }
+            if (dragGhost != null) {
+                float size = layout.cellBounds(0, 0).width;
+                dragGhost.setBounds(stageX - size / 2f, stageY - size / 2f, size, size);
+            }
+        }
+    }
+
+    @Override
+    public void onDragEnd(PlantType type, float stageX, float stageY) {
+        if (dragGhost != null) {
+            dragGhost.remove();
+            dragGhost = null;
+        }
+        if (hoverHighlight != null) {
+            hoverHighlight.setVisible(false);
+        }
+        int[] cell = layout.screenToCell(stageX, stageY);
+        if (cell[0] < 0 || boardController == null) {
+            return;
+        }
+        int row = cell[0];
+        int column = cell[1];
+        Result<String> result = boardController.plantPlant(type, column, row);
+        showAction(result.getMessage());
+        if (result.getStatus()) {
+            spawnPlantedIdleActor(type, row, column);
+        }
+    }
+
+    private void spawnPlantedIdleActor(PlantType type, int row, int column) {
+        if (pamPlayer == null) {
+            return;
+        }
+        removePlantedActor(row, column);
+        Rectangle cell = layout.cellBounds(row, column);
+        PamEnvironmentActor idle = new PamEnvironmentActor(
+                pamPlayer, plantIdlePam(type), "idle", 0.42f, 0f, 0f);
+        idle.setBounds(cell.x, cell.y, cell.width, cell.height);
+        entityLayer.addActor(idle);
+        placedPlantActors.put(row + "," + column, idle);
+    }
+
+    private void removePlantedActor(int row, int column) {
+        PamEnvironmentActor existing = placedPlantActors.remove(row + "," + column);
+        if (existing != null) {
+            existing.remove();
+        }
     }
 
     @Override
@@ -1108,6 +1267,10 @@ public final class GameplayScreen implements Screen {
         if (pamTextures != null) {
             pamTextures.dispose();
             pamTextures = null;
+        }
+        if (darkTintTexture != null) {
+            darkTintTexture.dispose();
+            darkTintTexture = null;
         }
     }
 
