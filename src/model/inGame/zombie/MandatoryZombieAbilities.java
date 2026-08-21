@@ -136,30 +136,102 @@ final class ParasolAbility implements ZombieSpecialAbility {
 }
 
 final class TurquoiseAbility implements ZombieSpecialAbility {
+    private static final double STEAL_DURATION_SECONDS = 5.0;
+    private static final double LASER_DURATION_SECONDS = 1.9667;
+    private static final double LASER_IMPACT_SECONDS = 0.95;
+
     @Override
-    public void tickBeforeMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+    public void tickBeforeMovement(
+            Zombie zombie,
+            GameEngine engine,
+            double deltaSeconds
+    ) {
+        if (zombie.getBooleanState("FIRING")) {
+            advanceLaser(zombie, engine, deltaSeconds);
+            return;
+        }
+
         if (!zombie.getBooleanState("STEALING")) {
-            if (engine.findPlantWithin(zombie.getRow(), zombie.getX(), zombie.getDirection(), 4.0) == null) {
+            if (engine.findPlantWithin(
+                    zombie.getRow(),
+                    zombie.getX(),
+                    zombie.getDirection(),
+                    4.0
+            ) == null) {
                 return;
             }
             zombie.putState("STEALING", true);
             zombie.putState("STEAL_TIME", 0.0);
             zombie.putState("STEAL_TICK", 0.0);
+            zombie.putState("SPECIAL_ANIMATION_LOCK", true);
+            zombie.putState("EATING", false);
         }
-        double elapsed = zombie.getDoubleState("STEAL_TIME", 0.0) + deltaSeconds;
-        double tick = zombie.getDoubleState("STEAL_TICK", 0.0) + deltaSeconds;
-        while (tick >= 1.0 && elapsed <= 5.000001) {
+
+        double previous =
+                zombie.getDoubleState("STEAL_TIME", 0.0);
+        double channelDelta = Math.min(
+                deltaSeconds,
+                Math.max(0.0, STEAL_DURATION_SECONDS - previous)
+        );
+        double elapsed = previous + channelDelta;
+        double tick =
+                zombie.getDoubleState("STEAL_TICK", 0.0)
+                        + channelDelta;
+
+        while (tick >= 1.0) {
             tick -= 1.0;
             int stolen = engine.removeSun(25);
             zombie.putState("STOLEN_SUN", zombie.getIntState("STOLEN_SUN", 0) + stolen);
         }
+
         zombie.putState("STEAL_TIME", elapsed);
         zombie.putState("STEAL_TICK", tick);
-        if (elapsed >= 5.0) {
+
+        if (elapsed >= STEAL_DURATION_SECONDS) {
+            startLaser(zombie);
+
+            double overflow = deltaSeconds - channelDelta;
+            if (overflow > 0.0) {
+                advanceLaser(zombie, engine, overflow);
+            }
+        }
+    }
+
+    private void startLaser(Zombie zombie) {
+        zombie.putState("STEALING", false);
+        zombie.putState("STEAL_TIME", null);
+        zombie.putState("STEAL_TICK", null);
+        zombie.putState("FIRING", true);
+        zombie.putState("LASER_TIME", 0.0);
+        zombie.putState("LASER_IMPACTED", false);
+        zombie.putState("SPECIAL_ANIMATION_LOCK", true);
+    }
+
+    private void advanceLaser(
+            Zombie zombie,
+            GameEngine engine,
+            double deltaSeconds
+    ) {
+        double elapsed =
+                zombie.getDoubleState("LASER_TIME", 0.0)
+                        + deltaSeconds;
+
+        if (!zombie.getBooleanState("LASER_IMPACTED")
+                && elapsed >= LASER_IMPACT_SECONDS) {
             engine.destroyPlantsAhead(zombie, 4);
-            engine.recordEvent("Turquoise Zombie fired its four-tile laser.");
-            zombie.putState("STEALING", false);
-            zombie.putState("STEAL_TIME", 0.0);
+            zombie.putState("LASER_IMPACTED", true);
+            engine.recordEvent(
+                    "Turquoise Zombie fired its four-tile laser."
+            );
+        }
+
+        if (elapsed >= LASER_DURATION_SECONDS) {
+            zombie.putState("FIRING", false);
+            zombie.putState("LASER_TIME", null);
+            zombie.putState("LASER_IMPACTED", null);
+            zombie.putState("SPECIAL_ANIMATION_LOCK", false);
+        } else {
+            zombie.putState("LASER_TIME", elapsed);
         }
     }
 

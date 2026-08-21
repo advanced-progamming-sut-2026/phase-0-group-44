@@ -71,11 +71,22 @@ public final class ZombieActorManager {
         }
 
         actors.entrySet().removeIf(entry -> {
-            if (!aliveIds.contains(entry.getKey())) {
-                entry.getValue().remove();
-                return true;
+            if (aliveIds.contains(entry.getKey())) {
+                return false;
             }
-            return false;
+
+            PamZombieActor actor = entry.getValue();
+
+            if (actor.isZombieDead()) {
+                actor.beginDeathAnimation();
+
+                if (!actor.isDeathAnimationComplete()) {
+                    return false;
+                }
+            }
+
+            actor.remove();
+            return true;
         });
     }
 

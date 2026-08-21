@@ -561,6 +561,10 @@ public final class ZombieGraphicsRegistry {
 
         ZombieType type = zombie.getType();
 
+        if (state == ZombieVisualState.DEAD) {
+            return clips("die", "death", "idle");
+        }
+
         if (type == ZombieType.GARGANTUAR
                 && bool(zombie, "IMP_THROWING")) {
             return clips(

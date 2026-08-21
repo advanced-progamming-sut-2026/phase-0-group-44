@@ -1,6 +1,5 @@
 package screen.gameplay;
 
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
@@ -23,6 +22,11 @@ import java.util.Map;
  */
 public final class PamZombieActor extends Actor {
     private static final float HIT_REACTION_SECONDS = 0.16f;
+    private static final float GARGANTUAR_SMASH_RATE = 0.80f;
+    private static final float ARCADE_CABINET_FRONT_OFFSET = 105f;
+    private static final String ARCADE_CABINET_PAM =
+            "768/FULL/EFFECTS/80S_ARCADE_CABINET/"
+                    + "80S_ARCADE_CABINET.PAM";
 
     private final PamPlayer pamPlayer;
 
@@ -49,6 +53,8 @@ public final class PamZombieActor extends Actor {
     private int hitReactionSequence;
     private int gargantuarSmashSequence;
     private float hitReactionRemaining;
+    private boolean deathAnimationStarted;
+    private float deathAnimationDuration;
 
     public PamZombieActor(
             PamPlayer pamPlayer,
@@ -118,8 +124,16 @@ public final class PamZombieActor extends Actor {
 
         if (visualState != ZombieVisualState.FROZEN
                 && visualState != ZombieVisualState.STUNNED) {
-            stateTime += delta;
+            stateTime += animationDelta(delta);
         }
+    }
+
+    private float animationDelta(float delta) {
+        if (zombie.getType() == ZombieType.GARGANTUAR
+                && zombie.hasState("GARGANTUAR_SMASH_ELAPSED")) {
+            return delta * GARGANTUAR_SMASH_RATE;
+        }
+        return delta;
     }
 
     private void updateHitReaction(float delta) {
@@ -159,7 +173,10 @@ public final class PamZombieActor extends Actor {
     private static boolean supportsHitReaction(ZombieType type) {
         return type == ZombieType.IMP
                 || type == ZombieType.ALL_STAR
-                || type == ZombieType.ARCADE_ZOMBIE;
+                || type == ZombieType.ARCADE_ZOMBIE
+                || type == ZombieType.PARASOL_ZOMBIE
+                || type == ZombieType.TURQUOISE_ZOMBIE
+                || type == ZombieType.PROSPECTOR;
     }
 
     @Override
@@ -260,17 +277,11 @@ public final class PamZombieActor extends Actor {
                 zombieTransform
         );
 
-        Color originalColor =
-                new Color(batch.getColor());
-
-        if (hitReactionRemaining > 0f) {
-            batch.setColor(
-                    1f,
-                    0.55f,
-                    0.55f,
-                    originalColor.a
-            );
-        }
+        drawArcadeCabinet(
+                batch,
+                centerX,
+                centerY
+        );
 
         pamPlayer.draw(
                 batch,
@@ -279,7 +290,7 @@ public final class PamZombieActor extends Actor {
                 stateTime,
                 centerX,
                 centerY,
-                true,
+                shouldLoopCurrentClip(),
                 partsVisibility.isEmpty()
                         ? null
                         : partsVisibility
@@ -288,7 +299,38 @@ public final class PamZombieActor extends Actor {
         batch.setTransformMatrix(
                 originalTransform
         );
-        batch.setColor(originalColor);
+    }
+
+    private boolean shouldLoopCurrentClip() {
+        if (zombie.isDead()) {
+            return false;
+        }
+
+        return zombie.getType() != ZombieType.GARGANTUAR
+                || !zombie.getBooleanState("EATING")
+                || currentClip == null
+                || !currentClip.toLowerCase().contains("smash");
+    }
+
+    private void drawArcadeCabinet(
+            Batch batch,
+            float centerX,
+            float centerY
+    ) {
+        if (zombie.getType() != ZombieType.ARCADE_ZOMBIE
+                || !zombie.getBooleanState("PUSHING")) {
+            return;
+        }
+
+        pamPlayer.draw(
+                batch,
+                ARCADE_CABINET_PAM,
+                "active",
+                stateTime,
+                centerX - ARCADE_CABINET_FRONT_OFFSET,
+                centerY,
+                true
+        );
     }
 
     private void ensurePartVisibility() {
@@ -344,7 +386,10 @@ public final class PamZombieActor extends Actor {
             return 0;
         }
 
-        int signature = bodyDamageStage();
+        int signature =
+                zombie.getType() == ZombieType.ALL_STAR
+                        ? allStarDamageStage()
+                        : bodyDamageStage();
 
         for (ZombieArmorPart part : zombie.getArmorParts()) {
             signature = 31 * signature + part.getHealth();
@@ -424,6 +469,9 @@ public final class PamZombieActor extends Actor {
             applyKnightVisibility(root);
         } else if (type == ZombieType.BLOCKHEAD) {
             applyBlockheadVisibility(root);
+        } else if (type == ZombieType.ALL_STAR
+                && !zombie.isDead()) {
+            applyAllStarDamageVisibility(root);
         } else if (type == ZombieType.GARGANTUAR
                 && zombie.getBooleanState("IMP_THROWN")) {
             setAllMatchingSubtreeVisibility(
@@ -433,6 +481,10 @@ public final class PamZombieActor extends Actor {
             );
         }
 
+        if (zombie.isDead()) {
+            return;
+        }
+
         if (type != ZombieType.NORMAL
                 && type != ZombieType.CONEHEAD
                 && type != ZombieType.BUCKETHEAD
@@ -440,8 +492,10 @@ public final class PamZombieActor extends Actor {
                 && type != ZombieType.BLOCKHEAD
                 && type != ZombieType.GARGANTUAR
                 && type != ZombieType.IMP
-                && type != ZombieType.ALL_STAR
-                && type != ZombieType.ARCADE_ZOMBIE) {
+                && type != ZombieType.ARCADE_ZOMBIE
+                && type != ZombieType.PARASOL_ZOMBIE
+                && type != ZombieType.TURQUOISE_ZOMBIE
+                && type != ZombieType.PROSPECTOR) {
             return;
         }
 
@@ -497,6 +551,70 @@ public final class PamZombieActor extends Actor {
                                 + " could not find a head PAM part"
                 );
             }
+        }
+    }
+
+    private int allStarDamageStage() {
+        if (zombie == null || zombie.getMaxHealth() <= 0) {
+            return 0;
+        }
+
+        double ratio =
+                (double) zombie.getHealth()
+                        / zombie.getMaxHealth();
+
+        if (ratio > 0.75) {
+            return 0;
+        }
+        if (ratio > 0.50) {
+            return 1;
+        }
+        if (ratio > 0.25) {
+            return 2;
+        }
+        return 3;
+    }
+
+    private void applyAllStarDamageVisibility(
+            PamPlayer.AnimationPart root
+    ) {
+        int stage = allStarDamageStage();
+
+        setMatchingSubtreeVisibility(
+                root,
+                "ALLSTAR_HEAD_HELMET_PARTICLE",
+                stage < 1
+        );
+
+        if (stage >= 2) {
+            setAllMatchingSubtreeVisibility(
+                    root,
+                    "ZOMBIE_ARM_OUTER_UPPER",
+                    false
+            );
+            setAllMatchingSubtreeVisibility(
+                    root,
+                    "ZOMBIE_ARM_OUTER_LOWER",
+                    false
+            );
+            setAllMatchingSubtreeVisibility(
+                    root,
+                    "ZOMBIE_HAND_OUTER_01",
+                    false
+            );
+        }
+
+        if (stage >= 3) {
+            setAllMatchingSubtreeVisibility(
+                    root,
+                    "ZOMBIE_SKULL",
+                    false
+            );
+            setAllMatchingSubtreeVisibility(
+                    root,
+                    "ZOMBIE_JAW",
+                    false
+            );
         }
     }
 
@@ -929,6 +1047,36 @@ public final class PamZombieActor extends Actor {
 
     public float getStateTime() {
         return stateTime;
+    }
+
+    public boolean isZombieDead() {
+        return zombie != null && zombie.isDead();
+    }
+
+    public void beginDeathAnimation() {
+        if (deathAnimationStarted || !isZombieDead()) {
+            return;
+        }
+
+        deathAnimationStarted = true;
+        hitReactionRemaining = 0f;
+        visibilityBuilt = false;
+        currentClip = chooseClip();
+        stateTime = 0f;
+
+        deathAnimationDuration =
+                currentClip == null
+                        ? 0f
+                        : pamPlayer.clipDurationSeconds(
+                                animationInfo.getPath(),
+                                currentClip
+                        );
+    }
+
+    public boolean isDeathAnimationComplete() {
+        return deathAnimationStarted
+                && (currentClip == null
+                || stateTime >= deathAnimationDuration);
     }
 
     public boolean isPreviewMode() {

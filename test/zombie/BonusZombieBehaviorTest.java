@@ -1,18 +1,12 @@
 package zombie;
 
-import model.GameEngine;
-import model.Position;
-import model.enums.DamageType;
-import model.enums.PlantType;
-import model.enums.ZombieType;
-import model.inGame.GameMap;
-import model.inGame.plant.Plant;
-import model.inGame.plant.PlantRegistry;
-import model.inGame.zombie.Zombie;
+
 import org.junit.jupiter.api.Test;
 
+import javax.swing.text.Position;
 import java.util.Random;
 
+import static com.badlogic.gdx.graphics.VertexAttributes.Usage.Position;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

@@ -30,7 +30,9 @@ class ZombieCommonBehaviorTest {
         engine.tick(0.1);
         assertEquals(healthBeforeSmash, plant.getHp());
         engine.tick(0.9);
-        assertEquals(healthBeforeSmash - 150, plant.getHp());
+        assertEquals(healthBeforeSmash, plant.getHp());
+        engine.tick(0.2);
+        assertEquals(healthBeforeSmash - 300, plant.getHp());
 
         gargantuar.receiveDamage(gargantuar.getMaxHealth() / 2, DamageType.TRUE, engine);
         assertEquals(0, count(engine, ZombieType.IMP));
@@ -102,10 +104,17 @@ class ZombieCommonBehaviorTest {
         engine.setSun(500);
         Plant victim = place(engine, PlantType.PEASHOOTER, 0, 4);
         Zombie turquoise = engine.spawnZombie(ZombieType.TURQUOISE_ZOMBIE, 0, 8.0);
+        double startingX = turquoise.getX();
 
         engine.tick(5.0);
 
         assertEquals(375, engine.getSun());
+        assertEquals(startingX, turquoise.getX(), 0.0001);
+        assertTrue(turquoise.getBooleanState("FIRING"));
+        assertFalse(victim.isDead());
+
+        engine.tick(1.0);
+
         assertTrue(victim.isDead() || !engine.getGameMap().getPlants().contains(victim));
 
         turquoise.receiveDamage(Integer.MAX_VALUE, DamageType.TRUE, engine);

@@ -9,9 +9,12 @@ import model.inGame.plant.Plant;
  * every simulation tick or instantly deleting the target.
  */
 final class GargantuarZombieAttack implements ZombieAttackComponent {
-    static final double SMASH_DURATION_SECONDS = 1.7667;
-    private static final double IMPACT_TIME_SECONDS = 0.85;
-    private static final int SMASH_DAMAGE = 150;
+    private static final double SMASH_PLAYBACK_RATE = 0.80;
+    static final double SMASH_DURATION_SECONDS =
+            1.7667 / SMASH_PLAYBACK_RATE;
+    private static final double IMPACT_TIME_SECONDS =
+            0.85 / SMASH_PLAYBACK_RATE;
+    private static final int SMASH_DAMAGE = 300;
 
     private static final String ELAPSED_STATE = "GARGANTUAR_SMASH_ELAPSED";
     private static final String IMPACTED_STATE = "GARGANTUAR_SMASH_IMPACTED";
