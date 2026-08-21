@@ -48,20 +48,9 @@ import model.user.User;
 import pvz.libpvz.pam.PamPlayer;
 import pvz.libpvz.textures.TextureBank;
 import pvz.skin.PvzSkin;
-import screen.gameplay.BattlefieldChapterEffects;
-import screen.gameplay.BattlefieldDarkAgesStateLayer;
-import screen.gameplay.BattlefieldEnvironmentLayer;
-import screen.gameplay.BattlefieldFrostbiteStateLayer;
-import screen.gameplay.BattlefieldLayout;
-import screen.gameplay.BattlefieldMissionObjectives;
-import screen.gameplay.BattlefieldMissionStartLayer;
-import screen.gameplay.BattlefieldPauseOutcomeLayer;
-import screen.gameplay.BattlefieldSpecialLevelLayer;
-import screen.gameplay.BattlefieldTheme;
-import screen.gameplay.PamEnvironmentActor;
-import screen.gameplay.ZombieActorManager;
+import screen.gameplay.*;
 import model.inGame.plant.PlantDefinition;
-import screen.gameplay.BattlefieldSeedBank;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -129,7 +118,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private Image waveHead;
     private Image shovelButtonBackground;
     private Image plantFoodButtonBackground;
-    private static final String PLANT_PAM_ROOT = "768/INITIAL/PLANT/";
     private final Map<String, PamEnvironmentActor> placedPlantActors = new LinkedHashMap<>();
     private PamEnvironmentActor dragGhost;
 
@@ -191,6 +179,15 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
     private int zombieTestIndex;
     private boolean plantTestingCheatsEnabled;
+
+    private String plantIdlePam(PlantType type) {
+        String resolved = PlantAnimationCatalog.resolveExistingPamPath(type, pamRoot);
+        return resolved != null ? resolved : PlantAnimationCatalog.pamPath(type);
+    }
+
+    private String plantIdleClip(PlantType type) {
+        return PlantAnimationCatalog.clipName(type, PlantAnimationState.IDLE);
+    }
 
     private enum ToolMode {
         NONE,
@@ -1319,11 +1316,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         return loadTexture("ui/collection/plants/" + type.name().toLowerCase(Locale.ROOT) + ".png");
     }
 
-    private String plantIdlePam(PlantType type) {
-        String name = type.name();
-        return PLANT_PAM_ROOT + name + "/" + name + ".PAM";
-    }
-
     @Override
     public boolean onDragStart(PlantType type) {
         if (previewMode || boardController == null) {
@@ -1356,13 +1348,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
         if (pamPlayer != null) {
             dragGhost = new PamEnvironmentActor(
-                    pamPlayer,
-                    plantIdlePam(type),
-                    "idle",
-                    0.42f,
-                    0f,
-                    0f
-            );
+                    pamPlayer, plantIdlePam(type), plantIdleClip(type), 0.42f, 0f, 0f);
 
             dragGhost.setVisible(true);
             pickupLayer.addActor(dragGhost);

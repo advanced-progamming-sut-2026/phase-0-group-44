@@ -45,7 +45,7 @@ dependencies {
     implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
 
     // libPVZ برای پارس/رندر انیمیشن‌های PAM
-    implementation 'com.github.pizpizi:libPVZ:v0.1.5'
+    implementation 'com.github.pizpizi:libPVZ:v0.1.6'
 
     // پوسته‌ی UI (اختیاری، اگه از Scene2D UI استفاده می‌کنید)
     implementation 'com.github.pizpizi:pvz-skin:v0.1.1'

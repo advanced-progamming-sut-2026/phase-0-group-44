@@ -14,7 +14,7 @@
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-freetype-platform:natives-desktop:1.14.2" level="project" />
     <orderEntry type="library" name="Gradle: com.google.code.gson:gson:2.13.1" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-backend-lwjgl3:1.14.2" level="project" />
-    <orderEntry type="library" name="Gradle: com.github.pizpizi:libPVZ:v0.1.5" level="project" />
+    <orderEntry type="library" name="Gradle: com.github.pizpizi:libPVZ:v0.1.6" level="project" />
     <orderEntry type="library" name="Gradle: com.github.raeleus.TenPatch:tenpatch:5.2.3" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx:1.14.2" level="project" />
     <orderEntry type="library" name="Gradle: com.badlogicgames.gdx:gdx-platform:natives-desktop:1.14.2" level="project" />

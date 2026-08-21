@@ -21,12 +21,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-/**
- * Left-side seed bank: one draggable card per plant chosen in
- * PlantSelectionScreen, in pick order. Dropping a card onto the board is
- * what plants it -- GameplayScreen (the only class with BattlefieldLayout)
- * owns turning drag coordinates into a cell and calling BoardController.
- */
+
 public final class BattlefieldSeedBank {
     private static final float CARD_WIDTH = 78f;
     private static final float CARD_HEIGHT = 70f;
@@ -35,10 +30,9 @@ public final class BattlefieldSeedBank {
     private static final float ROW_GAP = 8f;
     private static final float DRAG_THRESHOLD = 6f;
 
-    /** GameplayScreen implements this; it alone knows how to map stage
-     *  coordinates to board cells and talk to BoardController. */
+
     public interface SeedDragHandler {
-        /** Return false to refuse the drag (not enough sun / on cooldown). */
+
         boolean onDragStart(PlantType type);
         void onDragMove(PlantType type, float stageX, float stageY);
         void onDragEnd(PlantType type, float stageX, float stageY);
@@ -123,11 +117,6 @@ public final class BattlefieldSeedBank {
         lockedTint.setTouchable(Touchable.disabled);
         stack.add(lockedTint);
 
-        // Custom drag handling instead of DragListener: DragListener keeps a
-        // private `pressedPointer` field that can get stuck (never reset to -1)
-        // after certain event-propagation edge cases, silently blocking every
-        // future press on the same card. We track our own pointer/drag state
-        // here so nothing hidden can desync from reality.
         stack.addListener(new InputListener() {
             private int activePointer = -1;
             private float pressX;
@@ -143,8 +132,7 @@ public final class BattlefieldSeedBank {
                 pressX = x;
                 pressY = y;
                 dragging = false;
-                // Stop the event so it doesn't also bubble into other listeners
-                // (e.g. a ClickListener on an ancestor) while a drag might start.
+
                 event.stop();
                 return true;
             }
@@ -164,8 +152,6 @@ public final class BattlefieldSeedBank {
                     if (dragging) {
                         stack.setColor(1f, 1f, 1f, 0.5f);
                     } else {
-                        // Refused (not enough sun / on cooldown) -- release the
-                        // pointer claim so a fresh press can be tried again.
                         activePointer = -1;
                     }
                 }
@@ -179,8 +165,7 @@ public final class BattlefieldSeedBank {
                 if (pointer != activePointer) {
                     return;
                 }
-                // Always release the claim first, unconditionally, so the next
-                // press on this card is never blocked no matter what happens below.
+
                 activePointer = -1;
                 boolean wasDragging = dragging;
                 dragging = false;
@@ -196,7 +181,6 @@ public final class BattlefieldSeedBank {
         return stack;
     }
 
-    /** Call once per frame with the current sun total and a cooldown check. */
     public void sync(int sun, Predicate<PlantType> onCooldown) {
         for (Map.Entry<PlantType, Stack> entry : cardsByType.entrySet()) {
             PlantType type = entry.getKey();
