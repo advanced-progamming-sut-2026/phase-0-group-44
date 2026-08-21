@@ -21,15 +21,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ZombieCommonBehaviorTest {
 
     @Test
-    void gargantuarOneHitsAndThrowsOneImpAtHalfBaseHealth() {
+    void gargantuarTimesOneSmashAndThrowsOneImpAtHalfBaseHealth() {
         GameEngine engine = new GameEngine();
         Plant plant = place(engine, PlantType.WALL_NUT, 0, 4);
         Zombie gargantuar = engine.spawnZombie(ZombieType.GARGANTUAR, 0, 4.5);
+        int healthBeforeSmash = plant.getHp();
 
         engine.tick(0.1);
-        assertTrue(plant.isDead() || !engine.getGameMap().getPlants().contains(plant));
+        assertEquals(healthBeforeSmash, plant.getHp());
+        engine.tick(0.9);
+        assertEquals(healthBeforeSmash - 150, plant.getHp());
 
         gargantuar.receiveDamage(gargantuar.getMaxHealth() / 2, DamageType.TRUE, engine);
+        assertEquals(0, count(engine, ZombieType.IMP));
+        engine.tick(1.0);
         assertEquals(1, count(engine, ZombieType.IMP));
         Zombie imp = engine.getZombies().stream()
                 .filter(zombie -> zombie.getType() == ZombieType.IMP)
@@ -72,6 +77,9 @@ class ZombieCommonBehaviorTest {
         assertTrue(plant.isDead() || !engine.getGameMap().getPlants().contains(plant));
         assertFalse(allStar.getBooleanState("CHARGING"));
         assertTrue(allStar.getSpeedTilesPerSecond() < chargeSpeed / 5.0);
+
+        engine.tick(0.1);
+        assertFalse(allStar.getBooleanState("CHARGING"));
     }
 
     @Test

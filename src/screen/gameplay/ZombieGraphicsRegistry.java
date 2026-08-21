@@ -70,23 +70,20 @@ public final class ZombieGraphicsRegistry {
                                 "JESTER", "JUGGLER", "WIZARD", "KING",
                                 "GARGANTUAR", "IMP", "FLAG", "BOSS"
                         ),
-                        tokens("ARMOR3", "KNIGHT")
+                        tokens("CROWN", "KNIGHT", "SHOULDER_ARMOR")
                 )
         );
 
         register(
                 ZombieType.BLOCKHEAD,
                 profile(
-                        names("ZOMBIE_ICEAGE_BASIC", "ZOMBIE_ICEAGE"),
-                        groups(group("ICEAGE", "BASIC"), group("ICEAGE")),
+                        names("ZOMBIE_ROMAN_BASIC"),
+                        groups(group("ROMAN", "BASIC")),
                         tokens(
-                                "GARGANTUAR", "IMP", "HUNTER",
-                                "DODO", "TROGLOBITE", "WEASEL", "BOSS"
+                                "GARGANTUAR", "IMP", "BALLISTA",
+                                "HEALER", "MEDUSA", "SHIELD", "BOSS"
                         ),
-                        tokens(
-                                "ARMOR3", "BLOCKHEAD",
-                                "ICEBLOCK", "ICEBLOCKHEAD"
-                        )
+                        tokens("ROMAN_HELMET", "ARMOR_HELMET")
                 )
         );
 
@@ -565,8 +562,25 @@ public final class ZombieGraphicsRegistry {
         ZombieType type = zombie.getType();
 
         if (type == ZombieType.GARGANTUAR
+                && bool(zombie, "IMP_THROWING")) {
+            return clips(
+                    "fire",
+                    "cannon_fire",
+                    "smash_left",
+                    "walk"
+            );
+        }
+
+        if (type == ZombieType.GARGANTUAR
                 && state == ZombieVisualState.EAT) {
-            return clips("smash", "attack", "eat", "walk");
+            return clips(
+                    "smash_left",
+                    "smash_right",
+                    "smash",
+                    "attack",
+                    "eat",
+                    "walk"
+            );
         }
 
         if ((type == ZombieType.ALL_STAR

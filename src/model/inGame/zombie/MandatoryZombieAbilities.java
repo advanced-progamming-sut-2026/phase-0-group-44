@@ -13,26 +13,115 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class GargantuarAbility implements ZombieSpecialAbility {
+    private static final double THROW_DURATION_SECONDS = 0.9667;
+
+    @Override
+    public void tickBeforeMovement(
+            Zombie zombie,
+            GameEngine engine,
+            double deltaSeconds
+    ) {
+        if (!zombie.getBooleanState("IMP_THROWING")) {
+            return;
+        }
+
+        if (zombie.isDead()) {
+            zombie.putState("IMP_THROWING", false);
+            zombie.putState("IMP_THROW_TIME", null);
+            zombie.putState("SPECIAL_ANIMATION_LOCK", false);
+            return;
+        }
+
+        double elapsed =
+                zombie.getDoubleState(
+                        "IMP_THROW_TIME",
+                        0.0
+                ) + deltaSeconds;
+
+        if (elapsed < THROW_DURATION_SECONDS) {
+            zombie.putState("IMP_THROW_TIME", elapsed);
+            return;
+        }
+
+        Zombie imp =
+                engine.getZombieFactory().create(
+                        ZombieType.IMP,
+                        zombie.getRow(),
+                        2.5
+                );
+
+        engine.addZombie(imp);
+        zombie.putState("IMP_THROWN", true);
+        zombie.putState("IMP_THROWING", false);
+        zombie.putState("IMP_THROW_TIME", null);
+        zombie.putState("SPECIAL_ANIMATION_LOCK", false);
+        engine.recordEvent(
+                "Gargantuar threw an Imp into the third column from the left."
+        );
+    }
+
     @Override
     public void onDamaged(Zombie zombie, GameEngine engine, int damage, DamageType damageType) {
-        if (engine == null || zombie.getBooleanState("IMP_THROWN")
+        if (engine == null
+                || zombie.isDead()
+                || zombie.getBooleanState("IMP_THROWN")
+                || zombie.getBooleanState("IMP_THROWING")
                 || zombie.getHealth() > zombie.getMaxHealth() / 2) {
             return;
         }
-        zombie.putState("IMP_THROWN", true);
-        Zombie imp = engine.getZombieFactory().create(ZombieType.IMP, zombie.getRow(), 2.5);
-        engine.addZombie(imp);
-        engine.recordEvent("Gargantuar threw an Imp into the third column from the left.");
+
+        zombie.putState("IMP_THROWING", true);
+        zombie.putState("IMP_THROW_TIME", 0.0);
+        zombie.putState("SPECIAL_ANIMATION_LOCK", true);
+        zombie.putState("GARGANTUAR_SMASH_ELAPSED", null);
+        zombie.putState("GARGANTUAR_SMASH_IMPACTED", null);
+        zombie.putState("EATING", false);
     }
 }
 
 final class AllStarAbility implements ZombieSpecialAbility {
     @Override
     public void tickBeforeMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
-        if (!zombie.hasState("CHARGING")) {
+        if (zombie.getBooleanState("CHARGE_SPENT")) {
+            zombie.putState("CHARGING", false);
+            zombie.setRuntimeSpeedMultiplier(0.35);
+            return;
+        }
+
+        if (!zombie.getBooleanState("CHARGING")) {
             zombie.putState("CHARGING", true);
         }
-        zombie.setRuntimeSpeedMultiplier(zombie.getBooleanState("CHARGING") ? 5.0 : 0.35);
+        zombie.setRuntimeSpeedMultiplier(5.0);
+    }
+}
+
+final class ArcadeAbility implements ZombieSpecialAbility {
+    private static final String MACHINE_ARMOR = "arcadeMachine";
+
+    @Override
+    public void tickBeforeMovement(
+            Zombie zombie,
+            GameEngine engine,
+            double deltaSeconds
+    ) {
+        ZombieArmorPart machine =
+                zombie.findArmorPart(MACHINE_ARMOR);
+
+        zombie.putState(
+                "PUSHING",
+                machine != null && !machine.isBroken()
+        );
+    }
+
+    @Override
+    public void onArmorBroken(
+            Zombie zombie,
+            GameEngine engine,
+            String armorName
+    ) {
+        if (MACHINE_ARMOR.equalsIgnoreCase(armorName)) {
+            zombie.putState("PUSHING", false);
+        }
     }
 }
 

@@ -24,9 +24,15 @@ class BonusZombieBehaviorTest {
         for (ZombieType type : new ZombieType[]{ZombieType.ARCADE_ZOMBIE, ZombieType.TROGLOBITE}) {
             GameEngine engine = engine();
             Plant plant = engine.plant(PlantType.WALL_NUT, 1, new Position(2, 2));
-            engine.spawnZombie(type, 2, 2.5);
+            Zombie zombie = engine.spawnZombie(type, 2, 2.5);
             engine.tick(0.1);
             assertTrue(plant.isDead() || !engine.getGameMap().getPlants().contains(plant), type.name());
+
+            if (type == ZombieType.ARCADE_ZOMBIE) {
+                assertTrue(zombie.getBooleanState("PUSHING"));
+                zombie.receiveDamage(1100, DamageType.NORMAL, engine);
+                assertFalse(zombie.getBooleanState("PUSHING"));
+            }
         }
     }
 

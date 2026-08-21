@@ -36,7 +36,6 @@ import model.enums.ZombieType;
 import model.inGame.GameOutcome;
 import model.inGame.GameSession;
 import model.inGame.Sun;
-import model.inGame.plant.Plant;
 import model.sim.Simulation;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
@@ -188,8 +187,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             ZombieType.DRAGON_IMP
     };
 
+    private static final int TEST_CHEAT_SUN = 999_999;
+
     private int zombieTestIndex;
-    private Plant testWallNutPlant;
+    private boolean plantTestingCheatsEnabled;
 
     private enum ToolMode {
         NONE,
@@ -272,7 +273,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         finishedEngine = null;
         placedPlantActors.clear();
         dragGhost = null;
-        testWallNutPlant = null;
+        plantTestingCheatsEnabled = false;
 
         layout = new BattlefieldLayout(theme, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(buildBackground());
@@ -1100,35 +1101,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         ZombieType selected =
                 ZOMBIE_TEST_TYPES[zombieTestIndex];
 
-        /*
-         * Keep one real Wall-nut in the test lane so WALK -> EAT can be checked.
-         * This baseline already has real plant PAM rendering, so use it instead
-         * of the old fake-zombie placeholder.
-         */
-        if (testWallNutPlant == null || testWallNutPlant.isDead()) {
-            try {
-                testWallNutPlant =
-                        currentEngine.plant(
-                                PlantType.WALL_NUT,
-                                1,
-                                new model.Position(2, 5),
-                                false,
-                                false
-                        );
-
-                spawnPlantedIdleActor(
-                        PlantType.WALL_NUT,
-                        2,
-                        5
-                );
-            } catch (RuntimeException exception) {
-                System.out.println(
-                        "[ZombieTest] Wall-nut test target not placed: "
-                                + exception.getMessage()
-                );
-            }
-        }
-
         try {
             currentEngine.spawnZombie(
                     selected,
@@ -1161,6 +1133,37 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                             + ": "
                             + exception.getMessage()
             );
+        }
+    }
+
+    private void enablePlantTestingCheats() {
+        GameEngine currentEngine = engine();
+
+        if (previewMode || currentEngine == null) {
+            showAction("PLANT TEST CHEATS REQUIRE ACTIVE GAMEPLAY");
+            return;
+        }
+
+        currentEngine.disableCooldowns();
+        currentEngine.setSun(TEST_CHEAT_SUN);
+        plantTestingCheatsEnabled = true;
+        showAction("CHEAT: INFINITE SUN + NO COOLDOWN");
+    }
+
+    private void addPlantFoodCheat() {
+        if (previewMode || boardController == null) {
+            showAction("PLANT FOOD CHEAT REQUIRES ACTIVE GAMEPLAY");
+            return;
+        }
+
+        Result<String> result = boardController.cheatAddPlantFood();
+        showAction(result.getMessage());
+    }
+
+    private void maintainPlantTestingCheats() {
+        GameEngine currentEngine = engine();
+        if (plantTestingCheatsEnabled && currentEngine != null) {
+            currentEngine.setSun(TEST_CHEAT_SUN);
         }
     }
 
@@ -1447,6 +1450,35 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
     }
 
+    private void removeFinishedPlantActors(GameEngine currentEngine) {
+        if (currentEngine == null || placedPlantActors.isEmpty()) {
+            return;
+        }
+
+        for (String key : new ArrayList<>(placedPlantActors.keySet())) {
+            String[] coordinates = key.split(",");
+            if (coordinates.length != 2) {
+                continue;
+            }
+
+            int row;
+            int column;
+
+            try {
+                row = Integer.parseInt(coordinates[0]);
+                column = Integer.parseInt(coordinates[1]);
+            } catch (NumberFormatException exception) {
+                continue;
+            }
+
+            if (!currentEngine.getGameMap()
+                    .getTile(row, column)
+                    .hasAnyPlant()) {
+                removePlantedActor(row, column);
+            }
+        }
+    }
+
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
@@ -1457,17 +1489,14 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
 
         updateZombieTestSelection();
+        maintainPlantTestingCheats();
         advanceGameplay(delta);
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
+        removeFinishedPlantActors(displayEngine);
 
         if (zombieActorManager != null && displayEngine != null) {
             zombieActorManager.sync(displayEngine);
-        }
-
-        if (testWallNutPlant != null && testWallNutPlant.isDead()) {
-            removePlantedActor(2, 5);
-            testWallNutPlant = null;
         }
 
         environmentLayer.sync(displayEngine, previewMode);
@@ -1602,6 +1631,14 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
             if (keycode == Input.Keys.Z && !previewMode) {
                 spawnSelectedZombieCheat();
+                return true;
+            }
+            if (keycode == Input.Keys.C && !previewMode) {
+                enablePlantTestingCheats();
+                return true;
+            }
+            if (keycode == Input.Keys.P && !previewMode) {
+                addPlantFoodCheat();
                 return true;
             }
 

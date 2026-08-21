@@ -24,6 +24,7 @@ public final class AllStarZombieAttack implements ZombieAttackComponent {
             engine.recordEvent("All-Star charge destroyed a hypnotized zombie.");
         }
         zombie.putState("CHARGING", false);
+        zombie.putState("CHARGE_SPENT", true);
         zombie.setRuntimeSpeedMultiplier(0.35);
         return true;
     }

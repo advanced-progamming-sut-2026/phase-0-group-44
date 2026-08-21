@@ -16,6 +16,8 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Zombie {
+    private static final double EAT_DAMAGE_SCALE = 0.50;
+
     private static final AtomicLong IDS = new AtomicLong();
 
     private final long id = IDS.incrementAndGet();
@@ -141,6 +143,12 @@ public class Zombie {
         }
         behavior.onDamaged(this, engine, dealt,
                 damageType == null ? DamageType.NORMAL : damageType);
+        if (dealt > 0) {
+            putState(
+                    "HIT_REACTION_SEQUENCE",
+                    getIntState("HIT_REACTION_SEQUENCE", 0) + 1
+            );
+        }
         return dealt;
     }
 
@@ -463,6 +471,10 @@ public class Zombie {
 
     public int getEatDamagePerSecond() {
         int base = definition == null ? 100 : definition.getEatDamagePerSecond();
+        base = Math.max(
+                1,
+                (int) Math.round(base * EAT_DAMAGE_SCALE)
+        );
         if (getBooleanState("ENRAGED")) {
             base = (int) Math.round(base * 2.5);
         }

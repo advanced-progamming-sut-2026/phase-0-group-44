@@ -26,7 +26,13 @@ public final class CompositeZombieBehavior {
         for (ZombieSpecialAbility ability : abilities) {
             ability.tickBeforeMovement(zombie, engine, deltaSeconds);
         }
-        if (!zombie.isDead() && !zombie.isFrozen() && !zombie.isStunned()) {
+        boolean specialAnimationLocked =
+                zombie.getBooleanState("SPECIAL_ANIMATION_LOCK");
+
+        if (!zombie.isDead()
+                && !zombie.isFrozen()
+                && !zombie.isStunned()
+                && !specialAnimationLocked) {
             boolean blocked =
                     attack != null
                             && attack.attack(zombie, engine, deltaSeconds);

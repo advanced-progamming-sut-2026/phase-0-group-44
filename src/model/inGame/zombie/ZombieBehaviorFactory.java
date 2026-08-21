@@ -31,7 +31,7 @@ public final class ZombieBehaviorFactory {
     private void registerSpecials() {
         register(ZombieType.GARGANTUAR, () -> new CompositeZombieBehavior(
                 new NormalZombieMovement(0.35),
-                new InstantDestroyZombieAttack("Gargantuar"),
+                new GargantuarZombieAttack(),
                 List.of(new GargantuarAbility())));
         register(ZombieType.ALL_STAR, () -> new CompositeZombieBehavior(
                 new NormalZombieMovement(), new AllStarZombieAttack(), List.of(new AllStarAbility())));
@@ -56,7 +56,7 @@ public final class ZombieBehaviorFactory {
         register(ZombieType.ARCADE_ZOMBIE, () -> new CompositeZombieBehavior(
                 new NormalZombieMovement(),
                 new ArmoredRamZombieAttack("arcadeMachine"),
-                List.of()));
+                List.of(new ArcadeAbility())));
         register(ZombieType.TROGLOBITE, () -> new CompositeZombieBehavior(
                 new NormalZombieMovement(),
                 new ArmoredRamZombieAttack("groundIce"),
