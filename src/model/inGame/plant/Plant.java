@@ -278,4 +278,13 @@ public class Plant implements Damageable {
         if (amount <= 0 || isDead()) return;
         hp = Math.max(0, hp - amount);
     }
+
+    public void markAttacked() {
+        putState("LAST_ATTACK_AT", ageSeconds);
+    }
+
+    public boolean isAttackingWithin(double windowSeconds) {
+        double lastAttack = getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
+        return ageSeconds - lastAttack <= windowSeconds;
+    }
 }

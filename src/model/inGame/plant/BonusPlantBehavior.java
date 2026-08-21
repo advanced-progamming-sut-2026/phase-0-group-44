@@ -77,6 +77,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
                 || !ready(plant, deltaSeconds, plant.getStats().getActionInterval())) {
             return;
         }
+        plant.markAttacked();
         firePeas(plant, engine, peaPodHeads(plant), boostedDamage(plant, engine));
     }
 
@@ -108,6 +109,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
                 || !ready(plant, deltaSeconds, plant.getStats().getActionInterval())) {
             return;
         }
+        plant.markAttacked();
         fireStar(plant, engine, boostedDamage(plant, engine));
     }
 
@@ -117,6 +119,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
             return;
         }
         int poisonTick = 5 + (int) plant.getStats().getSpecial("DAMAGE_PER_TICK", 0);
+        plant.markAttacked();
         engine.spawnProjectile(projectiles.direct(
                 plant,
                 plant.getPosition().getRow(),
@@ -162,6 +165,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
                 || !ready(plant, deltaSeconds, plant.getStats().getActionInterval())) {
             return;
         }
+        plant.markAttacked();
         for (Zombie zombie : engine.getZombiesInArea(plant.getPosition(), 0, 1)) {
             if (zombie.getRow() == plant.getPosition().getRow()) {
                 zombie.receiveDamage(boostedDamage(plant, engine), DamageType.FIRE, engine);
@@ -183,6 +187,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
             default -> 15;
         };
         int upgraded = base + (plant.getStats().getDamage() - 15);
+        plant.markAttacked();
         engine.damageArea(plant.getPosition(), 1, 1, upgraded, DamageType.NORMAL);
     }
 
@@ -209,6 +214,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
         Zombie target = engine.findNearestZombie(
                 plant.getPosition().getRow(), plant.getPosition().getColumn(), true);
         if (target != null) {
+            plant.markAttacked();
             engine.spawnProjectile(projectiles.homing(
                     plant, target, boostedDamage(plant, engine), new NormalEffect()));
         }

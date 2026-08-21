@@ -38,6 +38,7 @@ public class MeleeBehavior extends AbstractTimedBehavior {
     }
 
     private void attack(Plant plant, GameEngine engine, double multiplier) {
+        plant.markAttacked();
         int damage = (int) Math.round(boostedDamage(plant, engine) * multiplier);
         if (mode == Mode.PHAT_BEET) {
             engine.damageArea(plant.getPosition(), 1, 1, damage, DamageType.NORMAL);

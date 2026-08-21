@@ -139,6 +139,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private BattlefieldSeedBank seedBank;
     private PlantType armedPlantType;
     private Texture darkTintTexture;
+    private final Map<String, Double> spawnedEffectForAttackAt = new LinkedHashMap<>();
 
     /*
      * Developer zombie graphics tester.
@@ -1430,7 +1431,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     }
 
     private void removePlantedActor(int row, int column) {
-        PamEnvironmentActor existing = placedPlantActors.remove(row + "," + column);
+        String key = row + "," + column;
+        PamEnvironmentActor existing = placedPlantActors.remove(key);
+        spawnedEffectForAttackAt.remove(key);
         if (existing != null) {
             existing.remove();
         }
@@ -1463,6 +1466,60 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 removePlantedActor(row, column);
             }
         }
+        syncPlantAnimations();
+    }
+    private void syncPlantAnimations() {
+        if (previewMode) {
+            return;
+        }
+        GameEngine currentEngine = engine();
+        if (currentEngine == null) {
+            return;
+        }
+        for (Map.Entry<String, PamEnvironmentActor> entry : placedPlantActors.entrySet()) {
+            String key = entry.getKey();
+            String[] coordinates = key.split(",");
+            if (coordinates.length != 2) {
+                continue;
+            }
+            int row;
+            int column;
+            try {
+                row = Integer.parseInt(coordinates[0]);
+                column = Integer.parseInt(coordinates[1]);
+            } catch (NumberFormatException exception) {
+                continue;
+            }
+            model.inGame.plant.Plant plant = currentEngine.getGameMap().getTile(row, column).getPrimaryPlant();
+            if (plant == null) {
+                continue;
+            }
+            PamEnvironmentActor actor = entry.getValue();
+            actor.setClip(plant.isAttackingWithin(0.3) ? "attack" : "idle");
+
+            double lastAttackAt = plant.getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
+            Double alreadySpawnedFor = spawnedEffectForAttackAt.get(key);
+            if (lastAttackAt > Double.NEGATIVE_INFINITY
+                    && (alreadySpawnedFor == null || alreadySpawnedFor < lastAttackAt)) {
+                spawnedEffectForAttackAt.put(key, lastAttackAt);
+                spawnAttackEffect(plant.getEffectiveType(), row, column);
+            }
+        }
+    }
+
+    private void spawnAttackEffect(PlantType type, int row, int column) {
+        if (pamPlayer == null) {
+            return;
+        }
+        PlantAttackEffectCatalog.EffectSpec spec = PlantAttackEffectCatalog.forType(type);
+        if (spec == null) {
+            return;
+        }
+        Rectangle cell = layout.cellBounds(row, column);
+        PamTransientEffectActor effect = new PamTransientEffectActor(
+                pamPlayer, spec.pamPath(), spec.clip(), 0.42f, 0f, 0f, spec.duration());
+        effect.setBounds(cell.x, cell.y, cell.width, cell.height);
+        entityLayer.addActor(effect);
     }
 
     @Override

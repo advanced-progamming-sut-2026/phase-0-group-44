@@ -5,24 +5,21 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import pvz.libpvz.pam.PamPlayer;
 
-/** Scene2D wrapper for supplied non-plant PAM assets such as mowers and graves. */
-public final class PamEnvironmentActor extends Actor {
+/** One-shot PAM effect (projectile flash, explosion, steam, etc.) that removes itself after playing once. */
+public final class PamTransientEffectActor extends Actor {
     private final PamPlayer player;
     private final String pamPath;
-    private String clip;
+    private final String clip;
     private final float scale;
     private final float xOffset;
     private final float yOffset;
+    private final float duration;
     private float stateTime;
     private boolean failed;
 
-    public PamEnvironmentActor(
-            PamPlayer player,
-            String pamPath,
-            String clip,
-            float scale,
-            float xOffset,
-            float yOffset
+    public PamTransientEffectActor(
+            PamPlayer player, String pamPath, String clip,
+            float scale, float xOffset, float yOffset, float duration
     ) {
         this.player = player;
         this.pamPath = pamPath;
@@ -30,24 +27,16 @@ public final class PamEnvironmentActor extends Actor {
         this.scale = scale;
         this.xOffset = xOffset;
         this.yOffset = yOffset;
-    }
-
-    public void setClip(String clip) {
-        if (clip != null && !clip.equals(this.clip)) {
-            this.clip = clip;
-            this.stateTime = 0f;
-            this.failed = false;
-        }
-    }
-
-    public String getClip() {
-        return clip;
+        this.duration = duration;
     }
 
     @Override
     public void act(float delta) {
         super.act(delta);
         stateTime += delta;
+        if (stateTime >= duration) {
+            remove();
+        }
     }
 
     @Override
@@ -59,12 +48,10 @@ public final class PamEnvironmentActor extends Actor {
         float centerX = getX() + getWidth() * 0.5f + xOffset;
         float centerY = getY() + getHeight() * 0.5f + yOffset;
         try {
-            player.draw(batch, pamPath, clip, stateTime,
-                    centerX, centerY, scale, scale, true);
+            player.draw(batch, pamPath, clip, stateTime, centerX, centerY, scale, scale, true);
         } catch (RuntimeException exception) {
-            // A missing optional asset should never take down the gameplay screen.
             failed = true;
-            Gdx.app.error("PamEnvironmentActor",
+            Gdx.app.error("PamTransientEffectActor",
                     "Could not render PAM " + pamPath + " clip " + clip, exception);
         }
     }

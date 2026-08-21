@@ -94,6 +94,7 @@ public class ShooterBehavior extends AbstractTimedBehavior {
     }
 
     private void fireVolley(Plant plant, GameEngine engine, boolean food) {
+        plant.markAttacked();
         int damage = boostedDamage(plant, engine);
         int row = plant.getPosition().getRow();
         ProjectileEffect effect = projectileEffect(plant);

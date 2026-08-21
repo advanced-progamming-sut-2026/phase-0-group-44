@@ -68,6 +68,7 @@ public class LobberBehavior extends AbstractTimedBehavior {
     }
 
     private void launch(Plant plant, GameEngine engine, Zombie target, boolean food) {
+        plant.markAttacked();
         int[] damageHolder = {boostedDamage(plant, engine)};
         ProjectileEffect effect = resolveEffect(plant, engine, damageHolder);
         int damage = food ? damageHolder[0] * 2 : damageHolder[0];
@@ -75,6 +76,7 @@ public class LobberBehavior extends AbstractTimedBehavior {
     }
 
     private void launchAtObstacle(Plant plant, GameEngine engine, int column) {
+        plant.markAttacked();
         int[] damageHolder = {boostedDamage(plant, engine)};
         ProjectileEffect effect = resolveEffect(plant, engine, damageHolder);
         engine.spawnProjectile(projectileFactory.lobbedAt(

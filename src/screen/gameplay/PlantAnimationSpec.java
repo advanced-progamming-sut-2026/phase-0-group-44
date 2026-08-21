@@ -37,8 +37,7 @@ public final class PlantAnimationSpec {
      * the reference data — only genuine typos/oddities need an override.
      */
     static String defaultClipName(PlantAnimationState state) {
-        String lower = state.name().toLowerCase(Locale.ROOT);
-        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+        return state.name().toLowerCase(Locale.ROOT);
     }
 
     public static Builder builder(PlantAnimationTier tier) {

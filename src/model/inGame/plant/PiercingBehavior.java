@@ -26,6 +26,7 @@ public class PiercingBehavior extends AbstractTimedBehavior {
             return;
         }
         int hits = mode == Mode.CACTUS ? 3 + (int) plant.getStats().getSpecial("PIERCE", 0) : 99;
+        plant.markAttacked();
         engine.spawnProjectile(projectileFactory.piercing(plant, plant.getPosition().getRow(), 1,
                 boostedDamage(plant, engine), new NormalEffect(), hits, range));
     }

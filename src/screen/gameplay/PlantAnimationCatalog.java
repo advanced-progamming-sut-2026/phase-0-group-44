@@ -107,29 +107,40 @@ public final class PlantAnimationCatalog {
         return spec(type).clipName(state);
     }
 
-    /**
-     * Resolves the PAM path for {@code type}, checking disk and falling
-     * back to the other tier if the preferred one is missing. Returns
-     * {@code null} (after logging) if neither tier has the asset, so the
-     * caller can skip drawing instead of handing PamPlayer a bad path.
-     */
     public static String resolveExistingPamPath(PlantType type, FileHandle assetRoot) {
         if (assetRoot == null) {
             return pamPath(type);
         }
         PlantAnimationSpec spec = spec(type);
         String preferred = pamPath(type, spec.tier());
-        if (assetRoot.child(preferred).exists()) {
+        if (existsDirectOrUnderImages(assetRoot, preferred)) {
             return preferred;
         }
+
         PlantAnimationTier other = spec.tier() == PlantAnimationTier.INITIAL
                 ? PlantAnimationTier.FULL : PlantAnimationTier.INITIAL;
         String fallback = pamPath(type, other);
-        if (assetRoot.child(fallback).exists()) {
+        if (existsDirectOrUnderImages(assetRoot, fallback)) {
             return fallback;
         }
+
         Gdx.app.error("PlantAnimationCatalog",
-                "No PAM asset found for " + type + " at " + preferred + " or " + fallback);
+                "No PAM asset found for " + type + " at " + preferred + " or " + fallback
+                        + " (also checked IMAGES/ prefix for both)");
         return null;
+    }
+
+    /**
+     * pvz-asset-browser stores files on disk under an IMAGES/ prefix that
+     * PamPlayer already accounts for internally when it actually reads bytes
+     * (see how zombie PAMs resolve fine with no IMAGES/ in their path). This
+     * only checks existence — the path returned to callers must stay
+     * IMAGES-free, or PamPlayer will double-prepend it (see
+     * BattlefieldChapterEffects/BattlefieldEnvironmentLayer/
+     * BattlefieldFrostbiteStateLayer for the same existence-only pattern).
+     */
+    private static boolean existsDirectOrUnderImages(FileHandle assetRoot, String path) {
+        return assetRoot.child(path).exists()
+                || assetRoot.child("IMAGES").child(path).exists();
     }
 }
