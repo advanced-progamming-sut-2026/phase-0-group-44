@@ -501,6 +501,14 @@ public final class PamZombieActor extends Actor {
 
         int bodyStage = bodyDamageStage();
 
+        if (applyDetailedDamageVisibility(
+                root,
+                type,
+                bodyStage
+        )) {
+            return;
+        }
+
         if (bodyStage >= 1) {
             boolean armHidden =
                     setFirstMatchingBodyPart(
@@ -551,6 +559,124 @@ public final class PamZombieActor extends Actor {
                                 + " could not find a head PAM part"
                 );
             }
+        }
+    }
+
+    private boolean applyDetailedDamageVisibility(
+            PamPlayer.AnimationPart root,
+            ZombieType type,
+            int bodyStage
+    ) {
+        switch (type) {
+            case PARASOL_ZOMBIE ->
+                    applyParasolDamageVisibility(root, bodyStage);
+            case TURQUOISE_ZOMBIE ->
+                    applyTurquoiseDamageVisibility(root, bodyStage);
+            case PROSPECTOR ->
+                    applyProspectorDamageVisibility(root, bodyStage);
+            default -> {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void applyParasolDamageVisibility(
+            PamPlayer.AnimationPart root,
+            int bodyStage
+    ) {
+        if (bodyStage >= 1) {
+            hidePartFamilies(
+                    root,
+                    "ZOMBIE_ARMS_OUTER_UPPER",
+                    "ZOMBIE_ARM_OUTER_UPPER",
+                    "ZOMBIE_ARM_OUTER_LOWER",
+                    "ZOMBIE_HAND_OUTER"
+            );
+        }
+
+        if (bodyStage >= 2) {
+            hidePartFamilies(
+                    root,
+                    "ZOMBIE_SKULL",
+                    "ZOMBIE_JAW",
+                    "ZOMBIE_PUPIL"
+            );
+        }
+    }
+
+    private void applyTurquoiseDamageVisibility(
+            PamPlayer.AnimationPart root,
+            int bodyStage
+    ) {
+        if (bodyStage >= 1) {
+            hidePartFamilies(
+                    root,
+                    "ZOMBIE_EGYPT_RA_ARMS_OUTER_UPPER",
+                    "ZOMBIE_EGYPT_RA_ARM_OUTER_UPPER",
+                    "ZOMBIE_EGYPT_RA_ARM_OUTER_LOWER",
+                    "ZOMBIE_EGYPT_RA_HAND_OUTER"
+            );
+        }
+
+        if (bodyStage >= 2) {
+            hidePartFamilies(
+                    root,
+                    "ZOMBIE_EGYPT_RA_SKULL",
+                    "ZOMBIE_EGYPT_RA_JAW",
+                    "ZOMBIE_SKULL",
+                    "ZOMBIE_JAW",
+                    "ZOMBIE_PUPIL"
+            );
+        }
+    }
+
+    private void applyProspectorDamageVisibility(
+            PamPlayer.AnimationPart root,
+            int bodyStage
+    ) {
+        if (bodyStage >= 1) {
+            hidePartFamilies(
+                    root,
+                    "ZOMBIE_PROS_ARMS_OUTER_UPPER",
+                    "ZOMBIE_PROS_ARM_OUTER_UPPER",
+                    "ZOMBIE_PROS_ARM_OUTER_LOWER",
+                    "ZOMBIE_PROS_HAND_OUTER"
+            );
+        }
+
+        if (bodyStage >= 2) {
+            hidePartFamilies(
+                    root,
+                    "ZOMBIE_PROS_SKULL",
+                    "ZOMBIE_PROS_JAW",
+                    "ZOMBIE_PROS_BEARD",
+                    "ZOMBIE_PRO_CRANIUM",
+                    "ZOMBIE_PRO_EYESOCKET",
+                    "ZOMBIE_PRO_MAW",
+                    "ZOMBIE_PRO_TOOTH",
+                    "ZOMBIE_PRO_HAT",
+                    "ZOMBIE_PRO_HAIR",
+                    "SIDEBURN",
+                    "HAIR",
+                    "_ZOMBIE_EYE",
+                    "ZOMBIE_NOSE",
+                    "ZOMBIE_PUPIL"
+            );
+        }
+    }
+
+    private void hidePartFamilies(
+            PamPlayer.AnimationPart root,
+            String... partTokens
+    ) {
+        for (String partToken : partTokens) {
+            setAllMatchingSubtreeVisibility(
+                    root,
+                    partToken,
+                    false
+            );
         }
     }
 
