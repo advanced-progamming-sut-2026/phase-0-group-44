@@ -347,11 +347,23 @@ final class BarrelRollerAbility implements ZombieSpecialAbility {
 final class RaAbility implements ZombieSpecialAbility {
     @Override
     public void tickBeforeMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+        ZombieAbilityVisuals.tick(
+                zombie,
+                "RA_STEAL_VISUAL",
+                "STEALING_SUN",
+                deltaSeconds
+        );
         int activations = zombie.advanceTimerCount("RA_STEAL", deltaSeconds, 1.0);
         for (int i = 0; i < activations; i++) {
             int stolen = engine.stealNearestGroundSun(zombie.getRow(), zombie.getX());
             if (stolen > 0) {
                 zombie.putState("RA_STOLEN_SUN", zombie.getIntState("RA_STOLEN_SUN", 0) + stolen);
+                ZombieAbilityVisuals.start(
+                        zombie,
+                        "RA_STEAL_VISUAL",
+                        "STEALING_SUN",
+                        0.65
+                );
             }
         }
     }
@@ -390,9 +402,21 @@ final class ExplorerAbility implements ZombieSpecialAbility {
 final class TombraiserAbility implements ZombieSpecialAbility {
     @Override
     public void tickAfterMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+        ZombieAbilityVisuals.tick(
+                zombie,
+                "TOMBRAISER_VISUAL",
+                "RAISING_TOMB",
+                deltaSeconds
+        );
         int activations = zombie.advanceTimerCount("TOMBRAISER_BONES", deltaSeconds, 8.0);
         for (int i = 0; i < activations; i++) {
             createGraves(engine);
+            ZombieAbilityVisuals.start(
+                    zombie,
+                    "TOMBRAISER_VISUAL",
+                    "RAISING_TOMB",
+                    0.85
+            );
         }
     }
 
@@ -414,11 +438,23 @@ final class TombraiserAbility implements ZombieSpecialAbility {
 final class HunterAbility implements ZombieSpecialAbility {
     @Override
     public void tickAfterMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+        ZombieAbilityVisuals.tick(
+                zombie,
+                "HUNTER_THROW_VISUAL",
+                "THROWING",
+                deltaSeconds
+        );
         int activations = zombie.advanceTimerCount("HUNTER_ICE", deltaSeconds, 3.0);
         for (int i = 0; i < activations; i++) {
             Plant target = engine.findNearestPlantInLane(zombie.getRow(), zombie.getX());
             if (target != null) {
                 engine.addIceHit(target);
+                ZombieAbilityVisuals.start(
+                        zombie,
+                        "HUNTER_THROW_VISUAL",
+                        "THROWING",
+                        0.75
+                );
                 engine.recordEvent("Hunter hit " + target.getEffectiveType() + " with ice.");
             }
         }
@@ -449,10 +485,22 @@ final class SnorkelAbility implements ZombieSpecialAbility {
 final class OctopusAbility implements ZombieSpecialAbility {
     @Override
     public void tickAfterMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+        ZombieAbilityVisuals.tick(
+                zombie,
+                "OCTOPUS_THROW_VISUAL",
+                "THROWING",
+                deltaSeconds
+        );
         int activations = zombie.advanceTimerCount("OCTOPUS_THROW", deltaSeconds, 5.0);
         for (int i = 0; i < activations; i++) {
             Plant target = engine.findNearestPlantInLane(zombie.getRow(), zombie.getX());
             if (target != null && engine.applyOctopus(target)) {
+                ZombieAbilityVisuals.start(
+                        zombie,
+                        "OCTOPUS_THROW_VISUAL",
+                        "THROWING",
+                        0.85
+                );
                 engine.recordEvent("Octopus Zombie disabled " + target.getEffectiveType() + ".");
             }
         }

@@ -236,6 +236,7 @@ public final class ZombieGraphicsRegistry {
                 ZombieType.BARREL_ROLLER,
                 profile(
                         names(
+                                "ZOMBIE_PIRATE_BARREL_PUSHER",
                                 "ZOMBIE_PIRATE_BARRELROLLER",
                                 "ZOMBIE_PIRATE_BARREL_ROLLER",
                                 "ZOMBIE_PIRATE_BARREL",
@@ -512,7 +513,10 @@ public final class ZombieGraphicsRegistry {
             return null;
         }
 
-        Profile profile = PROFILES.get(zombie.getType());
+        Profile profile =
+                zombie.getBooleanState("KING_PROMOTED")
+                        ? PROFILES.get(ZombieType.KNIGHT)
+                        : PROFILES.get(zombie.getType());
         if (profile == null) {
             return null;
         }
@@ -562,6 +566,16 @@ public final class ZombieGraphicsRegistry {
         ZombieType type = zombie.getType();
 
         if (state == ZombieVisualState.DEAD) {
+            if (type == ZombieType.BARREL_ROLLER
+                    && (any(
+                            zombie,
+                            "BARREL_BROKEN",
+                            "ROLLER_BROKEN"
+                    )
+                    || zombie.findArmorPart("barrel") == null
+                    || zombie.findArmorPart("barrel").isBroken())) {
+                return clips("die2", "die", "death", "idle");
+            }
             return clips("die", "death", "idle");
         }
 
@@ -622,6 +636,20 @@ public final class ZombieGraphicsRegistry {
             }
         }
 
+        if (type == ZombieType.RA_ZOMBIE
+                && any(
+                        zombie,
+                        "STEALING_SUN",
+                        "STEALING"
+                )) {
+            return clips(
+                    "power",
+                    "power_up",
+                    "power_down",
+                    "idle"
+            );
+        }
+
         if (type == ZombieType.PROSPECTOR
                 && any(
                         zombie,
@@ -638,6 +666,25 @@ public final class ZombieGraphicsRegistry {
         if (type == ZombieType.PIANIST
                 && state != ZombieVisualState.DEAD) {
             return clips("play", "playing", "idle");
+        }
+
+        if ((type == ZombieType.NEWSPAPER_ZOMBIE
+                || type == ZombieType.NEWSPAPER)
+                && zombie.findArmorPart("newspaper") != null
+                && !zombie.findArmorPart("newspaper").isBroken()) {
+            if (state == ZombieVisualState.EAT) {
+                return clips(
+                        "eat_newspaper",
+                        "eat",
+                        "walk_newspaper"
+                );
+            }
+
+            return clips(
+                    "walk_newspaper",
+                    "idle_newspaper",
+                    "walk"
+            );
         }
 
         if ((type == ZombieType.NEWSPAPER_ZOMBIE
@@ -667,21 +714,25 @@ public final class ZombieGraphicsRegistry {
             );
         }
 
-        if (type == ZombieType.BARREL_ROLLER
-                && !any(
-                        zombie,
-                        "BARREL_BROKEN",
-                        "ROLLER_BROKEN"
-                )) {
-            return clips(
-                    "push",
-                    "pushing",
-                    "roll",
-                    "rolling",
-                    "push_walk",
-                    "walk",
-                    "idle"
-            );
+        if (type == ZombieType.BARREL_ROLLER) {
+            boolean barrelBroken =
+                    any(
+                            zombie,
+                            "BARREL_BROKEN",
+                            "ROLLER_BROKEN"
+                    )
+                            || zombie.findArmorPart("barrel") == null
+                            || zombie.findArmorPart("barrel").isBroken();
+
+            if (state == ZombieVisualState.EAT) {
+                return barrelBroken
+                        ? clips("eat2", "eat", "walk2", "walk")
+                        : clips("eat", "eat2", "walk");
+            }
+
+            return barrelBroken
+                    ? clips("walk2", "walk", "idle2", "idle")
+                    : clips("walk", "idle", "walk2");
         }
 
         if (type == ZombieType.EXPLORER
@@ -702,6 +753,7 @@ public final class ZombieGraphicsRegistry {
                         "CASTING"
                 )) {
             return clips(
+                    "power",
                     "raise",
                     "tomb",
                     "cast",
@@ -723,6 +775,9 @@ public final class ZombieGraphicsRegistry {
                         "VAULTING"
                 )) {
             return clips(
+                    "fly_loop",
+                    "fly_start",
+                    "fly_end",
                     "fly",
                     "flying",
                     "jump",
@@ -748,11 +803,8 @@ public final class ZombieGraphicsRegistry {
         }
 
         if (type == ZombieType.TROGLOBITE
-                && any(
-                        zombie,
-                        "PUSHING",
-                        "PUSHING_ICE"
-                )) {
+                && zombie.findArmorPart("groundIce") != null
+                && !zombie.findArmorPart("groundIce").isBroken()) {
             return clips(
                     "push",
                     "pushing",
@@ -769,6 +821,7 @@ public final class ZombieGraphicsRegistry {
                     "REELING"
             )) {
                 return clips(
+                        "cast_loop",
                         "cast",
                         "casting",
                         "reel",
@@ -851,6 +904,7 @@ public final class ZombieGraphicsRegistry {
                         "HEXING"
                 )) {
             return clips(
+                    "sheep",
                     "cast",
                     "spell",
                     "attack",
@@ -867,6 +921,7 @@ public final class ZombieGraphicsRegistry {
                     "CASTING"
             )) {
                 return clips(
+                        "special",
                         "king",
                         "promote",
                         "cast",

@@ -81,7 +81,7 @@ class BonusZombieBehaviorTest {
         engine.tick(5.0);
 
         assertTrue(normal.getBooleanState("KING_PROMOTED"));
-        assertEquals(3200, normal.getArmor());
+        assertEquals(1600, normal.getArmor());
         assertTrue(normal.hasMetalArmor());
     }
 

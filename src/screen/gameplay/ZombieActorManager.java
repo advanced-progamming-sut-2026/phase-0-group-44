@@ -56,6 +56,13 @@ public final class ZombieActorManager {
             PamZombieActor actor =
                     actors.get(zombie.getId());
 
+            if (actor != null
+                    && needsKingPromotionRefresh(actor, zombie)) {
+                actor.remove();
+                actors.remove(zombie.getId());
+                actor = null;
+            }
+
             if (actor == null) {
                 actor = createActor(zombie);
 
@@ -88,6 +95,19 @@ public final class ZombieActorManager {
             actor.remove();
             return true;
         });
+    }
+
+    private boolean needsKingPromotionRefresh(
+            PamZombieActor actor,
+            Zombie zombie
+    ) {
+        if (!zombie.getBooleanState("KING_PROMOTED")) {
+            return false;
+        }
+
+        String pamPath = actor.getPamPath();
+        return pamPath == null
+                || !pamPath.toUpperCase().contains("ZOMBIE_DARK_BASIC");
     }
 
     private PamZombieActor createActor(Zombie zombie) {

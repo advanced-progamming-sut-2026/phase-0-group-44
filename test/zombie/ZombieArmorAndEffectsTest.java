@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ZombieArmorAndEffectsTest {
@@ -38,7 +39,7 @@ class ZombieArmorAndEffectsTest {
 
         assertTrue(knight.removeMetalArmor());
         assertTrue(knight.findArmorPart("helmet").isBroken());
-        assertFalse(knight.findArmorPart("shoulderArmor").isBroken());
+        assertNull(knight.findArmorPart("shoulderArmor"));
         assertFalse(knight.removeMetalArmor());
     }
 
@@ -76,13 +77,12 @@ class ZombieArmorAndEffectsTest {
     }
 
     @Test
-    void everyArmorPartIsListedIndependently() {
+    void knightUsesOneSynchronizedArmorPool() {
         GameEngine engine = new GameEngine();
         Zombie knight = engine.spawnZombie(ZombieType.KNIGHT, 0, 8.0);
 
-        assertEquals(2, knight.getArmorParts().size());
+        assertEquals(1, knight.getArmorParts().size());
         assertEquals(1600, armor(knight, "helmet").getHealth());
-        assertEquals(1600, armor(knight, "shoulderArmor").getHealth());
     }
 
     private ZombieArmorPart armor(Zombie zombie, String name) {

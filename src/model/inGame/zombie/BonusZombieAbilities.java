@@ -23,6 +23,12 @@ public final class BonusZombieAbilities {
 
         @Override
         public void tickAfterMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+            ZombieAbilityVisuals.tick(
+                    zombie,
+                    "FISHERMAN_CAST_VISUAL",
+                    "CASTING",
+                    deltaSeconds
+            );
             int activations = zombie.advanceTimerCount("FISHERMAN_HOOK", deltaSeconds, HOOK_INTERVAL_SECONDS);
             for (int i = 0; i < activations; i++) {
                 hook(zombie, engine);
@@ -34,6 +40,12 @@ public final class BonusZombieAbilities {
             if (target == null || target.getPosition() == null) {
                 return;
             }
+            ZombieAbilityVisuals.start(
+                    zombie,
+                    "FISHERMAN_CAST_VISUAL",
+                    "CASTING",
+                    1.0
+            );
             int destinationColumn = target.getPosition().getColumn() + 1;
             if (destinationColumn >= engine.getGameMap().getColumns()) {
                 target.receiveDamage(Integer.MAX_VALUE, engine, zombie);
@@ -95,6 +107,12 @@ public final class BonusZombieAbilities {
 
         @Override
         public void tickAfterMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+            ZombieAbilityVisuals.tick(
+                    zombie,
+                    "WIZARD_CAST_VISUAL",
+                    "CASTING",
+                    deltaSeconds
+            );
             int activations = zombie.advanceTimerCount(
                     "WIZARD_TRANSFORM", deltaSeconds, TRANSFORM_INTERVAL_SECONDS);
             for (int i = 0; i < activations; i++) {
@@ -106,6 +124,12 @@ public final class BonusZombieAbilities {
                 }
                 if (!candidates.isEmpty()) {
                     Plant target = candidates.get(engine.getRandom().nextInt(candidates.size()));
+                    ZombieAbilityVisuals.start(
+                            zombie,
+                            "WIZARD_CAST_VISUAL",
+                            "CASTING",
+                            1.0
+                    );
                     engine.transformPlantToCat(target, zombie);
                 }
             }
@@ -123,6 +147,12 @@ public final class BonusZombieAbilities {
 
         @Override
         public void tickAfterMovement(Zombie zombie, GameEngine engine, double deltaSeconds) {
+            ZombieAbilityVisuals.tick(
+                    zombie,
+                    "KING_PROMOTE_VISUAL",
+                    "KNIGHTING",
+                    deltaSeconds
+            );
             int activations = zombie.advanceTimerCount("KING_PROMOTE", deltaSeconds, PROMOTION_INTERVAL_SECONDS);
             for (int i = 0; i < activations; i++) {
                 promote(zombie, engine);
@@ -144,8 +174,13 @@ public final class BonusZombieAbilities {
                 return;
             }
             Zombie target = candidates.get(engine.getRandom().nextInt(candidates.size()));
+            ZombieAbilityVisuals.start(
+                    king,
+                    "KING_PROMOTE_VISUAL",
+                    "KNIGHTING",
+                    1.0
+            );
             target.addArmorPart(new ZombieArmorPart("helmet", 1600, true));
-            target.addArmorPart(new ZombieArmorPart("shoulderArmor", 1600, false));
             target.putState("KING_PROMOTED", true);
             engine.recordEvent("King promoted " + target.getName() + " to Knight armor.");
         }
