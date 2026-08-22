@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -100,6 +101,13 @@ public final class BattlefieldSpecialLevelLayer {
         hudLayer.setSize(1280f, 720f);
         objectiveLayer.setSize(1280f, 720f);
         introLayer.setSize(1280f, 720f);
+        // These are full-screen presentation containers.  They should only
+        // intercept input where they actually have an interactive child.
+        // Leaving them Touchable.enabled makes Stage.hit() block Pause,
+        // Shovel, Plant Food and other HUD buttons underneath.
+        hudLayer.setTouchable(Touchable.childrenOnly);
+        objectiveLayer.setTouchable(Touchable.childrenOnly);
+        introLayer.setTouchable(Touchable.childrenOnly);
         hudLayer.addActor(objectiveLayer);
         hudLayer.addActor(introLayer);
     }

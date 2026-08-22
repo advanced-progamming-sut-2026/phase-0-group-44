@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -102,6 +103,9 @@ public final class BattlefieldPauseOutcomeLayer {
         purpleStyle = styledButton("purple", purpleButton, purpleButtonDown);
 
         root.setSize(WIDTH, HEIGHT);
+        // When no pause/outcome modal is visible this full-screen group must
+        // not win Stage.hit(), otherwise it silently eats HUD clicks below it.
+        root.setTouchable(Touchable.childrenOnly);
         pauseGroup.setSize(WIDTH, HEIGHT);
         outcomeGroup.setSize(WIDTH, HEIGHT);
 

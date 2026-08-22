@@ -16,6 +16,8 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -75,6 +77,8 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private static final String SUN_PAM = "768/INITIAL/EFFECTS/SUN/SUN.PAM";
     private static final String PLANT_FOOD_PAM =
             "768/INITIAL/EFFECTS/PLANTFOOD_PICKUP/PLANTFOOD_PICKUP.PAM";
+    private static final String PLANT_FOOD_FX_PAM =
+            "768/INITIAL/EFFECTS/PLANTFOOD_FX/PLANTFOOD_FX.PAM";
     private static final String HIGHLIGHT_PAM =
             "768/INITIAL/ZEN_GARDEN/HIGHLIGHT/HIGHLIGHT.PAM";
     private static final String REMOVAL_CURSOR_PAM =
@@ -107,10 +111,12 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private BattlefieldPauseOutcomeLayer pauseOutcomeLayer;
     private BattlefieldMissionStartLayer missionStartLayer;
     private BattlefieldAnnouncementLayer announcementLayer;
+    private LawnMowerAnimationLayer lawnMowerAnimationLayer;
 
     private PamEnvironmentActor hoverHighlight;
     private PamEnvironmentActor selectedHighlight;
-    private PamEnvironmentActor toolCursor;
+    private Image toolCursor;
+    private Image plantFoodCursor;
     private Label sunLabel;
     private Label plantFoodLabel;
     private Label waveLabel;
@@ -120,6 +126,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private Image waveHead;
     private Image shovelButtonBackground;
     private Image plantFoodButtonBackground;
+    private Group plantFoodCheatButton;
     private final Map<String, PamEnvironmentActor> placedPlantActors = new LinkedHashMap<>();
     private PamEnvironmentActor dragGhost;
 
@@ -217,8 +224,13 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         rebuildScene();
 
         InputMultiplexer input = new InputMultiplexer();
-        input.addProcessor(stage);
+        // Handle the few fixed gameplay HUD controls before Scene2D.  This is
+        // intentional: full-screen presentation actors can legitimately sit above
+        // the HUD, and relying only on Stage.hit() made Pause/Shovel unreliable.
+        // BattlefieldKeys returns false for every other pointer event, so normal
+        // Scene2D buttons, seed cards, dialogue and board interaction still work.
         input.addProcessor(new BattlefieldKeys());
+        input.addProcessor(stage);
         Gdx.input.setInputProcessor(input);
     }
 
@@ -334,6 +346,14 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         entityLayer = new Group();
         entityLayer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         stage.addActor(entityLayer);
+
+        // Mower runs are kept on their own layer so the idle mower can disappear
+        // from the environment immediately while its activation animation continues
+        // visibly across all nine lawn tiles.
+        lawnMowerAnimationLayer = new LawnMowerAnimationLayer(
+                theme, layout, pamPlayer, pamRoot);
+        lawnMowerAnimationLayer.prime(engine(), previewMode);
+        stage.addActor(lawnMowerAnimationLayer);
 
         zombieActorManager = null;
 
@@ -462,17 +482,37 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             selectedHighlight.setVisible(false);
             group.addActor(selectedHighlight);
 
-            toolCursor = new PamEnvironmentActor(
-                    pamPlayer, REMOVAL_CURSOR_PAM, "idle", 0.46f, 0f, 12f);
-            toolCursor.setVisible(false);
-            group.addActor(toolCursor);
         }
+
+        // Use the supplied shovel texture for targeting instead of the zen-garden
+        // removal PAM. The icon follows the mouse directly while the PAM tile
+        // highlight (when available) still identifies the affected lawn cell.
+        toolCursor = new Image(loadTexture(HUD_ROOT + "shovel.png"));
+        toolCursor.setScaling(Scaling.fit);
+        toolCursor.setTouchable(Touchable.disabled);
+        toolCursor.setVisible(false);
+        toolCursor.setOrigin(Align.center);
+        group.addActor(toolCursor);
+
+        plantFoodCursor = new Image(loadTexture(HUD_ROOT + "plantfood_leaf.png"));
+        plantFoodCursor.setScaling(Scaling.fit);
+        plantFoodCursor.setTouchable(Touchable.disabled);
+        plantFoodCursor.setVisible(false);
+        plantFoodCursor.setOrigin(Align.center);
+        plantFoodCursor.addAction(Actions.forever(Actions.sequence(
+                Actions.scaleTo(1.08f, 1.08f, 0.34f),
+                Actions.scaleTo(0.94f, 0.94f, 0.34f)
+        )));
+        group.addActor(plantFoodCursor);
         return group;
     }
 
     private Group buildHud() {
         Group hud = new Group();
         hud.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+        // The HUD container itself is visual-only. Only its actual controls should
+        // be hit targets; otherwise this 1280x720 group can steal board input.
+        hud.setTouchable(Touchable.childrenOnly);
 
         // Compact real PVZ HUD: use the supplied in-game atlas pieces rather
         // than a large generic dark panel.
@@ -557,6 +597,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             Image slot = new Image(loadTexture(HUD_ROOT + "plantfood_filled.png"));
             slot.setScaling(Scaling.fit);
             slot.setBounds(centers[index] - 9f, 24f, 18f, 18f);
+            slot.setTouchable(Touchable.disabled);
             slot.setName("pf-slot-" + index);
             slot.setVisible(false);
             group.addActor(slot);
@@ -566,10 +607,12 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private Actor buildShovelButton() {
         Group button = new Group();
         button.setBounds(1198f, 8f, 62f, 62f);
+        button.setTouchable(Touchable.enabled);
 
         shovelButtonBackground = new Image(loadTexture(HUD_ROOT + "shovel_button.png"));
         shovelButtonBackground.setScaling(Scaling.fit);
         shovelButtonBackground.setBounds(0f, 0f, 62f, 62f);
+        shovelButtonBackground.setTouchable(Touchable.disabled);
         button.addActor(shovelButtonBackground);
 
         button.addListener(new ClickListener() {
@@ -584,23 +627,31 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     /** The real Plant Food bank doubles as the Plant Food targeting button. */
     private Actor buildPlantFoodButton() {
         Group button = new Group();
-        button.setBounds(244f, 8f, 205f, 68f);
+        // Width includes the debug '+' control as well as the 205px bank area.
+        button.setBounds(244f, 8f, 250f, 68f);
+        button.setTouchable(Touchable.enabled);
 
         plantFoodButtonBackground = new Image(loadTexture(HUD_ROOT + "plantfood_bank3.png"));
         plantFoodButtonBackground.setScaling(Scaling.fit);
         plantFoodButtonBackground.setBounds(0f, 0f, 150f, 68f);
+        plantFoodButtonBackground.setTouchable(Touchable.disabled);
         button.addActor(plantFoodButtonBackground);
         addPlantFoodSlots(button);
 
         Image leaf = new Image(loadTexture(HUD_ROOT + "plantfood_leaf.png"));
         leaf.setScaling(Scaling.fit);
         leaf.setBounds(9f, 14f, 42f, 42f);
+        leaf.setTouchable(Touchable.disabled);
         button.addActor(leaf);
 
         plantFoodLabel = new Label("0 / 3", skin, "medium_outline");
         plantFoodLabel.setAlignment(Align.left);
         plantFoodLabel.setBounds(151f, 21f, 54f, 26f);
+        plantFoodLabel.setTouchable(Touchable.disabled);
         button.addActor(plantFoodLabel);
+
+        plantFoodCheatButton = buildPlantFoodCheatButton();
+        button.addActor(plantFoodCheatButton);
 
         button.addListener(new ClickListener() {
             @Override
@@ -615,13 +666,56 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         return button;
     }
 
+    /**
+     * Debug-only Phase-1/Phase-2 Plant Food cheat.  It is deliberately a
+     * separate child control so clicking '+' does not also arm Plant Food.
+     */
+    private Group buildPlantFoodCheatButton() {
+        Group plus = new Group();
+        plus.setBounds(207f, 14f, 40f, 40f);
+        plus.setTouchable(Touchable.enabled);
+
+        Image back = new Image(whiteTexture);
+        back.setColor(0.17f, 0.48f, 0.12f, 0.96f);
+        back.setBounds(0f, 0f, 40f, 40f);
+        back.setTouchable(Touchable.disabled);
+        plus.addActor(back);
+
+        Image inner = new Image(whiteTexture);
+        inner.setColor(0.35f, 0.76f, 0.22f, 0.95f);
+        inner.setBounds(3f, 3f, 34f, 34f);
+        inner.setTouchable(Touchable.disabled);
+        plus.addActor(inner);
+
+        Label glyph = new Label("+", skin, "medium_outline");
+        glyph.setAlignment(Align.center);
+        glyph.setFontScale(1.18f);
+        glyph.setBounds(0f, 0f, 40f, 40f);
+        glyph.setTouchable(Touchable.disabled);
+        plus.addActor(glyph);
+
+        plus.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                // Prevent this click from bubbling to the Plant Food bank,
+                // which would otherwise arm/disarm the targeting tool too.
+                event.stop();
+                addPlantFoodCheat();
+                animatePlantFoodCheatPickup();
+            }
+        });
+        return plus;
+    }
+
     private Actor buildPauseButton() {
         Group button = new Group();
         button.setBounds(1200f, 650f, 58f, 58f);
+        button.setTouchable(Touchable.enabled);
 
         Image pause = new Image(loadTexture(HUD_ROOT + "pause_button.png"));
         pause.setScaling(Scaling.fit);
         pause.setBounds(0f, 0f, 58f, 58f);
+        pause.setTouchable(Touchable.disabled);
         button.addActor(pause);
 
         button.addListener(new ClickListener() {
@@ -843,6 +937,12 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                     toolMode == ToolMode.PLANT_FOOD ? 1f : 0.84f,
                     1f);
         }
+        if (toolMode != ToolMode.SHOVEL && toolCursor != null) {
+            toolCursor.setVisible(false);
+        }
+        if (toolMode != ToolMode.PLANT_FOOD && plantFoodCursor != null) {
+            plantFoodCursor.setVisible(false);
+        }
     }
 
     private void updateHud() {
@@ -851,6 +951,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         int plantFood = previewMode || engine == null ? 0 : engine.getPlantFood();
         sunLabel.setText(String.valueOf(sun));
         plantFoodLabel.setText(plantFood + "/" + GameEngine.MAX_PLANT_FOOD);
+        if (plantFoodCheatButton != null) {
+            plantFoodCheatButton.setVisible(isDebugModeEnabled());
+        }
 
         for (int index = 0; index < GameEngine.MAX_PLANT_FOOD; index++) {
             Actor slot = hudLayer.findActor("pf-slot-" + index);
@@ -1071,22 +1174,37 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             if (toolCursor != null) {
                 toolCursor.setVisible(false);
             }
+            if (plantFoodCursor != null) {
+                plantFoodCursor.setVisible(false);
+            }
             return;
         }
 
         Vector2 pointer = stage.getViewport().unproject(
                 new Vector2(Gdx.input.getX(), Gdx.input.getY()));
+        updateShovelCursor(pointer);
+
         int[] cell = layout.screenToCell(pointer.x, pointer.y);
         if (cell[0] < 0) {
             hoverHighlight.setVisible(false);
-            if (toolCursor != null) {
-                toolCursor.setVisible(false);
+            // Keep the shovel attached to the pointer even when the pointer is
+            // between the HUD and the board.  It disappears only when shovel
+            // mode is cancelled/used or gameplay is blocked.
+            if (plantFoodCursor != null) {
+                plantFoodCursor.setVisible(false);
             }
             return;
         }
 
         Rectangle bounds = layout.cellBounds(cell[0], cell[1]);
         hoverHighlight.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+        if (toolMode == ToolMode.PLANT_FOOD) {
+            hoverHighlight.setColor(0.68f, 1f, 0.46f, 1f);
+        } else if (toolMode == ToolMode.SHOVEL) {
+            hoverHighlight.setColor(1f, 0.86f, 0.60f, 1f);
+        } else {
+            hoverHighlight.setColor(Color.WHITE);
+        }
         hoverHighlight.setVisible(true);
         updateToolCursor(bounds);
 
@@ -1101,15 +1219,39 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
     }
 
-    private void updateToolCursor(Rectangle bounds) {
+    private void updateShovelCursor(Vector2 pointer) {
         if (toolCursor == null) {
             return;
         }
-        if (toolMode == ToolMode.SHOVEL) {
-            toolCursor.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
-            toolCursor.setVisible(true);
-        } else {
+        if (toolMode != ToolMode.SHOVEL) {
             toolCursor.setVisible(false);
+            return;
+        }
+
+        // Keep the image close to the real OS pointer while leaving the pointer
+        // itself unobstructed enough to make the target tile obvious.
+        float width = 92f;
+        float height = 49f;
+        toolCursor.setBounds(
+                pointer.x - width * 0.44f,
+                pointer.y - height * 0.46f,
+                width, height);
+        toolCursor.setVisible(true);
+        toolCursor.toFront();
+    }
+
+    private void updateToolCursor(Rectangle bounds) {
+        if (plantFoodCursor != null) {
+            if (toolMode == ToolMode.PLANT_FOOD) {
+                float size = Math.min(bounds.width, bounds.height) * 0.58f;
+                plantFoodCursor.setBounds(
+                        bounds.x + bounds.width * 0.5f - size * 0.5f,
+                        bounds.y + bounds.height * 0.5f - size * 0.5f,
+                        size, size);
+                plantFoodCursor.setVisible(true);
+            } else {
+                plantFoodCursor.setVisible(false);
+            }
         }
     }
 
@@ -1123,6 +1265,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             if (result.getStatus()) {
                 removePlantedActor(row, column);
                 toolMode = ToolMode.NONE;
+                if (selectedHighlight != null) {
+                    selectedHighlight.setVisible(false);
+                }
                 updateToolButtonState();
             }
             return;
@@ -1131,7 +1276,11 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             Result<String> result = boardController.feedPlant(column, row);
             showAction(result.getMessage());
             if (result.getStatus()) {
+                spawnPlantFoodEffect(row, column);
                 toolMode = ToolMode.NONE;
+                if (selectedHighlight != null) {
+                    selectedHighlight.setVisible(false);
+                }
                 updateToolButtonState();
             }
         }
@@ -1260,9 +1409,50 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             showAction("PLANT FOOD CHEAT REQUIRES ACTIVE GAMEPLAY");
             return;
         }
+        if (!isDebugModeEnabled()) {
+            showAction("ENABLE DEBUG MODE IN SETTINGS");
+            return;
+        }
 
         Result<String> result = boardController.cheatAddPlantFood();
         showAction(result.getMessage());
+    }
+
+    private boolean isDebugModeEnabled() {
+        User user = Store.getLoggedInUser();
+        return user != null
+                && user.getSettings() != null
+                && user.getSettings().isDebugMode();
+    }
+
+    /** Tiny pickup burst so the cheat reads as Plant Food entering the bank. */
+    private void animatePlantFoodCheatPickup() {
+        if (!isDebugModeEnabled() || pamPlayer == null || hudLayer == null) {
+            return;
+        }
+        PamEnvironmentActor pickup = new PamEnvironmentActor(
+                pamPlayer, PLANT_FOOD_PAM, "animation", 0.27f, 0f, 0f);
+        pickup.setTouchable(Touchable.disabled);
+        pickup.setBounds(286f, 78f, 90f, 90f);
+        pickup.getColor().a = 0f;
+        pickup.setScale(0.82f);
+        pickup.setOrigin(Align.center);
+        pickup.addAction(Actions.sequence(
+                Actions.parallel(
+                        Actions.fadeIn(0.12f),
+                        Actions.scaleTo(1f, 1f, 0.16f),
+                        Actions.moveBy(0f, 24f, 0.16f)
+                ),
+                Actions.delay(0.24f),
+                Actions.parallel(
+                        Actions.fadeOut(0.22f),
+                        Actions.moveTo(292f, 28f, 0.22f),
+                        Actions.scaleTo(0.70f, 0.70f, 0.22f)
+                ),
+                Actions.removeActor()
+        ));
+        hudLayer.addActor(pickup);
+        pickup.toFront();
     }
 
     private void maintainPlantTestingCheats() {
@@ -1647,6 +1837,27 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         entityLayer.addActor(effect);
     }
 
+    /**
+     * Generic PVZ2 Plant Food glow. The gameplay effect itself remains model-owned;
+     * this actor only makes a successful feed visually obvious and sits behind plants.
+     */
+    private void spawnPlantFoodEffect(int row, int column) {
+        if (pamPlayer == null || entityLayer == null) {
+            return;
+        }
+        Rectangle cell = layout.cellBounds(row, column);
+        float width = cell.width * 1.28f;
+        float height = cell.height * 1.42f;
+        PamTransientEffectActor effect = new PamTransientEffectActor(
+                pamPlayer, PLANT_FOOD_FX_PAM, "plantfood", 0.43f, 0f, 3f, 2.5f);
+        effect.setBounds(
+                cell.x + (cell.width - width) * 0.5f,
+                cell.y + (cell.height - height) * 0.5f,
+                width, height);
+        entityLayer.addActor(effect);
+        effect.toBack();
+    }
+
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
@@ -1672,6 +1883,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
 
         environmentLayer.sync(displayEngine, previewMode);
+        if (lawnMowerAnimationLayer != null) {
+            lawnMowerAnimationLayer.sync(displayEngine, previewMode);
+        }
         if (darkAgesStateLayer != null) {
             darkAgesStateLayer.sync(displayEngine, previewMode);
         }
@@ -1729,7 +1943,75 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
     }
 
+    /**
+     * Returns true while a modal/dialogue owns pointer input.  Fixed HUD hit boxes
+     * must respect those overlays instead of clicking through them.
+     */
+    private boolean hudPointerBlocked() {
+        return missionIntroActive
+                || outcomeShown
+                || (announcementLayer != null && announcementLayer.isGameplayBlocked());
+    }
+
+    private boolean pointerInside(Vector2 point, float x, float y, float width, float height) {
+        return point.x >= x && point.x <= x + width
+                && point.y >= y && point.y <= y + height;
+    }
+
     private final class BattlefieldKeys extends InputAdapter {
+        @Override
+        public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+            if (button != Input.Buttons.LEFT || stage == null) {
+                return false;
+            }
+
+            Vector2 point = stage.getViewport().unproject(new Vector2(screenX, screenY));
+
+            // Do not click through mission/dialogue/outcome overlays.
+            if (hudPointerBlocked()) {
+                return false;
+            }
+
+            // Pause: top-right 58x58 HUD control. This mirrors ESC and is handled
+            // before Stage so no decorative Scene2D actor can swallow the click.
+            if (pointerInside(point, 1200f, 650f, 58f, 58f)) {
+                togglePause();
+                return true;
+            }
+
+            if (paused) {
+                return false;
+            }
+
+            // Shovel: bottom-right 62x62 HUD control.
+            if (pointerInside(point, 1198f, 8f, 62f, 62f)) {
+                toggleTool(ToolMode.SHOVEL);
+                return true;
+            }
+
+            // Debug Plant Food '+'. Its stage-space bounds are the parent bank
+            // position (244,8) plus the child's local bounds (207,14,40,40).
+            if (isDebugModeEnabled()
+                    && pointerInside(point, 451f, 22f, 40f, 40f)) {
+                addPlantFoodCheat();
+                animatePlantFoodCheatPickup();
+                return true;
+            }
+
+            // Plant Food bank itself. Keep the '+' region separate above so a
+            // cheat click never arms the targeting tool.
+            if (pointerInside(point, 244f, 8f, 205f, 68f)) {
+                if (!previewMode && engine() != null && engine().getPlantFood() <= 0) {
+                    showAction("NO PLANT FOOD");
+                } else {
+                    toggleTool(ToolMode.PLANT_FOOD);
+                }
+                return true;
+            }
+
+            return false;
+        }
+
         @Override
         public boolean keyDown(int keycode) {
             if (missionIntroActive) {
