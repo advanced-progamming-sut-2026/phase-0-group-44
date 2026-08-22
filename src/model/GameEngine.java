@@ -372,13 +372,24 @@ public class GameEngine {
             }
         }
         List<Sun> landed = new ArrayList<>();
+        List<Sun> expired = new ArrayList<>();
         for (Sun sun : suns) {
-            if (sun.isFalling() && sun.tickFall(deltaSeconds)) {
-                landed.add(sun);
+            if (sun.isFalling()) {
+                if (sun.tickFall(deltaSeconds)) {
+                    landed.add(sun);
+                }
+            } else if (sun.tickVisibleLifetime(deltaSeconds)) {
+                expired.add(sun);
             }
         }
         for (Sun sun : landed) {
             recordEvent("Sun reached the ground at position (" + sun.getTileX() + ", " + sun.getTileY() + ")");
+        }
+        for (Sun sun : expired) {
+            suns.remove(sun);
+            detachFromProducerPlant(sun);
+            recordEvent("Uncollected sun expired at position ("
+                    + sun.getTileX() + ", " + sun.getTileY() + ")");
         }
     }
 

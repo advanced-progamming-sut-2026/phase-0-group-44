@@ -52,6 +52,7 @@ import screen.gameplay.*;
 import model.inGame.plant.PlantDefinition;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -130,7 +131,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private int selectedRow = -1;
     private int selectedColumn = -1;
     private ToolMode toolMode = ToolMode.NONE;
-    private String pickupSignature = "";
+    private final Map<Sun, PamEnvironmentActor> sunPickupActors = new IdentityHashMap<>();
     private float messageSeconds;
     private float tickAccumulator;
     private boolean outcomeShown;
@@ -191,7 +192,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         return PlantAnimationCatalog.clipName(type, PlantAnimationState.IDLE);
     }
 
-    private record SunPickupTarget(int x, int y) { }
 
     private enum ToolMode {
         NONE,
@@ -267,7 +267,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         selectedColumn = -1;
         paused = false;
         toolMode = ToolMode.NONE;
-        pickupSignature = "";
+        sunPickupActors.clear();
         tickAccumulator = 0f;
         outcomeShown = false;
         missionIntroActive = true;
@@ -922,47 +922,102 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
     private void syncPickups() {
         GameEngine engine = engine();
-        String signature = pickupSignature(engine);
-        if (signature.equals(pickupSignature)) {
-            return;
-        }
-        pickupSignature = signature;
-        pickupLayer.clearChildren();
         if (previewMode || engine == null || pamPlayer == null) {
+            removeAllSunActors();
             return;
         }
 
-        for (Sun sun : engine.getSuns()) {
-            int row = sun.getTileY();
-            int column = sun.getTileX();
-            Rectangle cell = layout.cellBounds(row, column);
-            String clip = sunClip(sun.getType());
-            PamEnvironmentActor actor = new PamEnvironmentActor(
-                    pamPlayer, SUN_PAM, clip, 0.34f, 0f,
-                    sun.isFalling() ? cell.height * 0.18f : 0f);
-            actor.setBounds(cell.x, cell.y, cell.width, cell.height);
-            actor.setUserObject(new SunPickupTarget(column, row));
-            final int x = column;
-            final int y = row;
-            actor.addListener(new ClickListener() {
-                @Override
-                public void clicked(InputEvent event, float localX, float localY) {
-                    if (gameplayController == null) {
-                        return;
-                    }
-                    Result<Integer> result = gameplayController.collectSun(x, y);
-                    showAction(result.getMessage());
-                    pickupSignature = "";
-                }
-            });
-            pickupLayer.addActor(actor);
+        List<Sun> liveSuns = engine.getSuns();
+
+        // Remove visuals immediately when their model sun was collected or expired.
+        var iterator = sunPickupActors.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Sun, PamEnvironmentActor> entry = iterator.next();
+            if (!liveSuns.contains(entry.getKey())) {
+                entry.getValue().remove();
+                iterator.remove();
+            }
+        }
+
+        for (Sun sun : liveSuns) {
+            PamEnvironmentActor actor = sunPickupActors.get(sun);
+            if (actor == null) {
+                actor = createSunActor(sun);
+                sunPickupActors.put(sun, actor);
+                pickupLayer.addActor(actor);
+            }
+
+            actor.setClip(sunClip(sun.getType()));
+            positionSunActor(actor, sun);
         }
     }
 
+    private PamEnvironmentActor createSunActor(Sun sun) {
+        PamEnvironmentActor actor = new PamEnvironmentActor(
+                pamPlayer, SUN_PAM, sunClip(sun.getType()), 0.34f, 0f, 0f);
+        actor.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float localX, float localY) {
+                collectSunImmediately(actor, sun);
+            }
+        });
+        return actor;
+    }
+
+    private void positionSunActor(PamEnvironmentActor actor, Sun sun) {
+        Rectangle cell = layout.cellBounds(sun.getTileY(), sun.getTileX());
+        float x = cell.x;
+        float y = cell.y;
+
+        if (sun.isFalling()) {
+            float progress = (float) sun.getFallProgress();
+            double fallDuration = sun.getFallDurationSeconds();
+            if (fallDuration > 1e-9) {
+                // GameEngine advances at 10 Hz. Add the residual accumulator so
+                // the visual position still moves smoothly every render frame.
+                progress += (float) (tickAccumulator / fallDuration);
+                progress = Math.max(0f, Math.min(1f, progress));
+            }
+
+            // Sky suns start above the visible lawn and continuously travel all
+            // the way to their target cell instead of teleporting on landing.
+            float startY = VIRTUAL_HEIGHT + cell.height * 0.15f;
+            y = startY + (cell.y - startY) * progress;
+
+            // A very small side-to-side drift keeps the fall readable and natural
+            // without changing the tile in which the sun will land.
+            x += (float) Math.sin(progress * Math.PI * 3.0) * cell.width * 0.045f;
+        }
+
+        actor.setBounds(x, y, cell.width, cell.height);
+    }
+
+    private void collectSunImmediately(PamEnvironmentActor actor, Sun sun) {
+        if (gameplayController == null || actor == null || sun == null) {
+            return;
+        }
+        Result<Integer> result = gameplayController.collectSun(sun.getTileX(), sun.getTileY());
+        if (!result.getStatus()) {
+            return;
+        }
+
+        // The model removes the sun synchronously. Remove its Scene2D actor in
+        // this same input frame as well, so there is never a lingering asset.
+        actor.remove();
+        sunPickupActors.remove(sun);
+        showAction(result.getMessage());
+    }
+
+    private void removeAllSunActors() {
+        for (PamEnvironmentActor actor : sunPickupActors.values()) {
+            actor.remove();
+        }
+        sunPickupActors.clear();
+    }
+
     /**
-     * Phase-2 specifies sun collection on mouse-over. Polling the pickup layer
-     * directly also makes collection robust when a transparent interaction
-     * actor is visually above a sun and would otherwise steal Scene2D events.
+     * Phase-2 specifies sun collection on mouse-over. Polling the visual actor
+     * bounds makes pickup work while the sun is falling as well as after it lands.
      */
     private void updateSunHoverCollection() {
         if (previewMode || paused || missionIntroActive || outcomeShown
@@ -974,13 +1029,15 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         Vector2 pointer = stage.getViewport().unproject(
                 new Vector2(Gdx.input.getX(), Gdx.input.getY()));
 
-        for (Actor actor : pickupLayer.getChildren()) {
-            if (!(actor.getUserObject() instanceof SunPickupTarget target)) {
+        for (Map.Entry<Sun, PamEnvironmentActor> entry
+                : new ArrayList<>(sunPickupActors.entrySet())) {
+            PamEnvironmentActor actor = entry.getValue();
+            if (actor.getStage() == null) {
                 continue;
             }
 
-            // Use a centered hit area rather than the whole tile, so merely
-            // crossing a cell does not collect a sun that is visually far away.
+            // Match the visible centre of the PAM rather than treating the
+            // entire board cell as a pickup hotspot.
             float hitWidth = actor.getWidth() * 0.62f;
             float hitHeight = actor.getHeight() * 0.62f;
             float hitX = actor.getX() + (actor.getWidth() - hitWidth) * 0.5f;
@@ -990,30 +1047,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 continue;
             }
 
-            Result<Integer> result = gameplayController.collectSun(target.x(), target.y());
-            if (result.getStatus()) {
-                showAction(result.getMessage());
-                // Force a pickup rebuild next frame so the collected actor
-                // disappears immediately even though Scene2D input ordering
-                // is no longer involved in the collection itself.
-                pickupSignature = "";
-            }
+            collectSunImmediately(actor, entry.getKey());
             return;
         }
-    }
-
-    private String pickupSignature(GameEngine engine) {
-        if (previewMode || engine == null) {
-            return "preview";
-        }
-        StringBuilder signature = new StringBuilder();
-        for (Sun sun : engine.getSuns()) {
-            signature.append(sun.getTileX()).append(',')
-                    .append(sun.getTileY()).append(',')
-                    .append(sun.getType()).append(',')
-                    .append(sun.getState()).append(';');
-        }
-        return signature.toString();
     }
 
     private String sunClip(SunType type) {
