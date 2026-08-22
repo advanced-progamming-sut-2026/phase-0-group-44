@@ -15,6 +15,12 @@ public final class PamEnvironmentActor extends Actor {
     private final float yOffset;
     private float stateTime;
     private boolean failed;
+    private java.util.List<String> idleClips = java.util.List.of();
+    private float idleCycleSeconds = 2.2f;
+    private int idleIndex;
+    private float idleTimer;
+    private boolean idleMode;
+
 
     public PamEnvironmentActor(
             PamPlayer player,
@@ -32,11 +38,27 @@ public final class PamEnvironmentActor extends Actor {
         this.yOffset = yOffset;
     }
 
+    public void setIdleClips(java.util.List<String> clips) {
+        this.idleClips = clips == null || clips.isEmpty() ? java.util.List.of("idle") : clips;
+    }
+
+    public void resumeIdleCycle() {
+        if (!idleMode) {
+            idleMode = true;
+            idleIndex = 0;
+            idleTimer = 0f;
+            this.clip = idleClips.get(0);
+            this.stateTime = 0f;
+            this.failed = false;
+        }
+    }
+
     public void setClip(String clip) {
         if (clip != null && !clip.equals(this.clip)) {
             this.clip = clip;
             this.stateTime = 0f;
             this.failed = false;
+            this.idleMode = false;
         }
     }
 
@@ -48,6 +70,16 @@ public final class PamEnvironmentActor extends Actor {
     public void act(float delta) {
         super.act(delta);
         stateTime += delta;
+        if (idleMode && idleClips.size() > 1) {
+            idleTimer += delta;
+            if (idleTimer >= idleCycleSeconds) {
+                idleTimer -= idleCycleSeconds;
+                idleIndex = (idleIndex + 1) % idleClips.size();
+                this.clip = idleClips.get(idleIndex);
+                this.stateTime = 0f;
+                this.failed = false;
+            }
+        }
     }
 
     @Override

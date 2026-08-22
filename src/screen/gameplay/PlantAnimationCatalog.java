@@ -9,6 +9,16 @@ import java.util.Map;
 
 public final class PlantAnimationCatalog {
     private static final Map<PlantType, PlantAnimationSpec> SPECS = new EnumMap<>(PlantType.class);
+    private static final Map<PlantType, PlantAnimationState> ATTACK_STATE_OVERRIDES = new EnumMap<>(PlantType.class);
+    static {
+        ATTACK_STATE_OVERRIDES.put(PlantType.CHOMPER, PlantAnimationState.BITE);
+    }
+
+    /** The clip that represents this plant's "attacking" pose — usually ATTACK, but not always (e.g. Chomper bites). */
+    public static String attackClipName(PlantType type) {
+        PlantAnimationState state = ATTACK_STATE_OVERRIDES.getOrDefault(type, PlantAnimationState.ATTACK);
+        return clipName(type, state);
+    }
 
     static {
         register();
@@ -30,24 +40,36 @@ public final class PlantAnimationCatalog {
     }
 
     private static void register() {
+        put(PlantType.STARFRUIT, initial());
+        put(PlantType.SWEET_POTATO, initial().clip(PlantAnimationState.DAMAGE, "idle_damage"));
         put(PlantType.APPEASE_MINT, initial());
         put(PlantType.ARMA_MINT, initial());
         put(PlantType.BOMBARD_MINT, initial());
-        put(PlantType.BONK_CHOY, initial());
+        put(PlantType.BONK_CHOY, initial().idleStages(3));
         put(PlantType.BOWLING_BULB, full());
         put(PlantType.CABBAGE_PULT, initial());
-        put(PlantType.CACTUS, initial());
-        put(PlantType.CAULIPOWER, initial()
-                .clip(PlantAnimationState.IDLE, "Idle1_1")
-                .clip(PlantAnimationState.IDLE2, "Idle2_1")
-                .clip(PlantAnimationState.IDLE3, "Idle3_1")
-                .clip(PlantAnimationState.IDLE4, "Idle4_1")
-                .clip(PlantAnimationState.ATTACK, "Ataack")); // sic in source — verify before shipping
+        put(PlantType.CACTUS, initial().idleStages(3));
+        put(PlantType.CAULIPOWER, initial().idleStages(4)
+                .clip(PlantAnimationState.IDLE, "idle1_1")
+                .clip(PlantAnimationState.IDLE2, "idle2_1")
+                .clip(PlantAnimationState.IDLE3, "idle3_1")
+                .clip(PlantAnimationState.IDLE4, "idle4_1")
+                .clip(PlantAnimationState.ATTACK, "attack"));
         put(PlantType.CHERRY_BOMB, full());
-        put(PlantType.CHOMPER, initial());
+        put(PlantType.CHOMPER, initial().idleStages(4));
         put(PlantType.CITRON, full());
         put(PlantType.DOOM_SHROOM, full());
-        put(PlantType.ELECTRIC_BLUEBERRY, initial());
+        put(PlantType.ELECTRIC_BLUEBERRY, initial()
+                .clip(PlantAnimationState.IDLE, "idle1_1")
+                .clip(PlantAnimationState.IDLE, "idle1_2")
+                .clip(PlantAnimationState.IDLE, "idle2_1")
+                .clip(PlantAnimationState.IDLE, "idle2_2")
+                .clip(PlantAnimationState.IDLE, "idle2_3")
+                .clip(PlantAnimationState.IDLE, "idle2_4")
+                .clip(PlantAnimationState.IDLE, "idle3_1")
+                .clip(PlantAnimationState.ATTACK, "attack"));
+
+        // real clips: idle1_1, idle1_2, idle2_1..4, idle3_1..3, idle4_1..3, attack, plantfood, water
         put(PlantType.ENCHANT_MINT, initial());
         put(PlantType.ENDURIAN, full());
         put(PlantType.ENFORCE_MINT, initial());
@@ -57,7 +79,7 @@ public final class PlantAnimationCatalog {
         put(PlantType.FUME_SHROOM, initial());
         put(PlantType.GARLIC, full());
         put(PlantType.GOLD_BLOOM, initial());
-        put(PlantType.GOO_PEASHOOTER, initial());
+        put(PlantType.GOO_PEASHOOTER, initial().idleStages(3));
         put(PlantType.GRAPESHOT, initial());
         put(PlantType.GRAVE_BUSTER, initial());
         put(PlantType.HOT_POTATO, full());
@@ -68,19 +90,33 @@ public final class PlantAnimationCatalog {
         put(PlantType.JALAPENO, initial());
         put(PlantType.KERNEL_PULT, initial().folder("KERNALPULT")); // folder uses "KERNAL" — verify
         put(PlantType.KIWIBEAST, initial()
-                .clip(PlantAnimationState.IDLE, "Idle_stage1_")
-                .clip(PlantAnimationState.ATTACK, "Attack_stage1"));
+                .clip(PlantAnimationState.IDLE, "idle_stage1_")
+                .clip(PlantAnimationState.ATTACK, "attack_stage1"));
         put(PlantType.LILY_PAD, full());
         put(PlantType.MAGNET_SHROOM, full());
         put(PlantType.MEGA_GATLING_PEA, initial().folder("MEGAGATLING")); // folder drops "PEA" — verify
         put(PlantType.MELON_PULT, initial());
-        put(PlantType.PEA_POD, full());
+        put(PlantType.PEA_POD, full().idleStages(5));
         put(PlantType.PEASHOOTER, initial());
         put(PlantType.PEPPER_PULT, full());
         put(PlantType.PUFF_SHROOM, full().folder("PERFSHROOM")); // source says "perfshroom" — double-check this one
         put(PlantType.PHAT_BEET, full().folder("PHATBEETS")); // folder is plural — verify
         put(PlantType.POTATO_MINE, initial());
-        put(PlantType.PRIMAL_POTATO_MINE, full().folder("PRIMAL_POTATOMINE")); // keeps the underscore — verify
+        put(PlantType.PRIMAL_POTATO_MINE, full().folder("PRIMAL_POTATOMINE"));
+
+    }
+
+    public static java.util.List<String> idleClipSequence(PlantType type) {
+        PlantAnimationSpec s = spec(type);
+        PlantAnimationState[] states = {
+                PlantAnimationState.IDLE, PlantAnimationState.IDLE2, PlantAnimationState.IDLE3,
+                PlantAnimationState.IDLE4, PlantAnimationState.IDLE5
+        };
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (int i = 0; i < s.idleStageCount(); i++) {
+            result.add(s.clipName(states[i]));
+        }
+        return result;
     }
 
     public static PlantAnimationSpec spec(PlantType type) {

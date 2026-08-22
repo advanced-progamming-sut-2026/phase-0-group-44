@@ -10,12 +10,14 @@ public final class PlantAnimationSpec {
     private final String folder;
     private final PlantAnimationTier tier;
     private final Map<PlantAnimationState, String> clipOverrides;
+    private final int idleStageCount;
 
     private PlantAnimationSpec(String folder, PlantAnimationTier tier,
-                               Map<PlantAnimationState, String> clipOverrides) {
+                               Map<PlantAnimationState, String> clipOverrides, int idleStageCount) {
         this.folder = folder;
         this.tier = tier;
         this.clipOverrides = clipOverrides;
+        this.idleStageCount = idleStageCount;
     }
 
     public String folder() {
@@ -24,6 +26,10 @@ public final class PlantAnimationSpec {
 
     public PlantAnimationTier tier() {
         return tier;
+    }
+
+    public int idleStageCount() {
+        return idleStageCount;
     }
 
     public String clipName(PlantAnimationState state) {
@@ -41,6 +47,7 @@ public final class PlantAnimationSpec {
     }
 
     public static Builder builder(PlantAnimationTier tier) {
+
         return new Builder(tier);
     }
 
@@ -48,9 +55,15 @@ public final class PlantAnimationSpec {
         private final PlantAnimationTier tier;
         private String folder;
         private final Map<PlantAnimationState, String> clips = new EnumMap<>(PlantAnimationState.class);
+        private int idleStageCount = 1;
 
         private Builder(PlantAnimationTier tier) {
             this.tier = tier;
+        }
+
+        public Builder idleStages(int count) {
+            this.idleStageCount = count;
+            return this;
         }
 
         /** Only needed when the asset folder doesn't match the normalized enum name. */
@@ -67,7 +80,7 @@ public final class PlantAnimationSpec {
 
         public PlantAnimationSpec build(PlantType type) {
             String resolved = folder != null ? folder : type.name().replace("_", "");
-            return new PlantAnimationSpec(resolved, tier, clips);
+            return new PlantAnimationSpec(resolved, tier, clips, idleStageCount);
         }
     }
 }

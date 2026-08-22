@@ -105,6 +105,7 @@ public class Plant implements Damageable {
         remaining -= absorbed;
         int hpDamage = Math.min(hp, remaining);
         hp -= hpDamage;
+        markDamaged();
         int total = absorbed + hpDamage;
         if (oldArmor > 0 && armor == 0) {
             behavior.onArmorBroken(this, engine);
@@ -286,5 +287,14 @@ public class Plant implements Damageable {
     public boolean isAttackingWithin(double windowSeconds) {
         double lastAttack = getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
         return ageSeconds - lastAttack <= windowSeconds;
+    }
+
+    public void markDamaged() {
+        putState("LAST_DAMAGED_AT", ageSeconds);
+    }
+
+    public boolean isDamagedWithin(double windowSeconds) {
+        double lastDamaged = getState("LAST_DAMAGED_AT", Double.class, Double.NEGATIVE_INFINITY);
+        return ageSeconds - lastDamaged <= windowSeconds;
     }
 }

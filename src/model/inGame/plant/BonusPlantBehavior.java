@@ -88,6 +88,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
         }
         Zombie target = randomHostile(engine);
         if (target != null) {
+            plant.markAttacked();
             engine.spawnProjectile(projectiles.homing(plant, target, 0, new HypnosisEffect()));
         }
     }
@@ -99,6 +100,7 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
         }
         Zombie target = randomHostile(engine);
         if (target != null) {
+            plant.markAttacked();
             engine.spawnProjectile(projectiles.homing(
                     plant, target, boostedDamage(plant, engine), new NormalEffect()));
         }
@@ -155,11 +157,12 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
         if (target == null || !ready(plant, deltaSeconds, 0.25)) {
             return;
         }
+        System.out.println("[Chomper] biting " + target.getName());
+        plant.markAttacked();
         target.receiveDamage(Integer.MAX_VALUE, DamageType.TRUE, engine);
         plant.putState("DIGEST_UNTIL", plant.getAgeSeconds() + digest);
         engine.recordEvent("Chomper swallowed " + target.getName() + ".");
     }
-
     private void tickWasabiWhip(Plant plant, GameEngine engine, double deltaSeconds) {
         if (!hasLaneContact(plant, engine, 1)
                 || !ready(plant, deltaSeconds, plant.getStats().getActionInterval())) {

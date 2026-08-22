@@ -1425,6 +1425,8 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         Rectangle cell = layout.cellBounds(row, column);
         PamEnvironmentActor idle = new PamEnvironmentActor(
                 pamPlayer, plantIdlePam(type), "idle", 0.42f, 0f, 0f);
+        idle.setIdleClips(PlantAnimationCatalog.idleClipSequence(type));
+        idle.resumeIdleCycle();
         idle.setBounds(cell.x, cell.y, cell.width, cell.height);
         entityLayer.addActor(idle);
         placedPlantActors.put(row + "," + column, idle);
@@ -1495,14 +1497,30 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 continue;
             }
             PamEnvironmentActor actor = entry.getValue();
-            actor.setClip(plant.isAttackingWithin(0.3) ? "attack" : "idle");
+            PlantType type = plant.getEffectiveType();
+
+            if (type == PlantType.SWEET_POTATO) {
+                String damageClip = PlantAnimationCatalog.clipName(type, PlantAnimationState.DAMAGE);
+                if (plant.isDamagedWithin(0.4)) {
+                    actor.setClip(damageClip);
+                } else {
+                    actor.resumeIdleCycle();
+                }
+            } else {
+                String attackClip = PlantAnimationCatalog.attackClipName(type);
+                if (plant.isAttackingWithin(0.3)) {
+                    actor.setClip(attackClip);
+                } else {
+                    actor.resumeIdleCycle();
+                }
+            }
 
             double lastAttackAt = plant.getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
             Double alreadySpawnedFor = spawnedEffectForAttackAt.get(key);
             if (lastAttackAt > Double.NEGATIVE_INFINITY
                     && (alreadySpawnedFor == null || alreadySpawnedFor < lastAttackAt)) {
                 spawnedEffectForAttackAt.put(key, lastAttackAt);
-                spawnAttackEffect(plant.getEffectiveType(), row, column);
+                spawnAttackEffect(type, row, column);
             }
         }
     }
