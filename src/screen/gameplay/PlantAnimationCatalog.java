@@ -40,6 +40,8 @@ public final class PlantAnimationCatalog {
     }
 
     private static void register() {
+        put(PlantType.SQUASH, initial()
+                .clip(PlantAnimationState.ATTACK, "jump_up_right")); // confirmed: [idle, jump_up_right]
         put(PlantType.WALL_NUT, initial().damageStages(3)); // idle, damage, damage2, damage3 — tier unverified, guessed INITIAL
         put(PlantType.TALL_NUT, initial().damageStages(2)); // idle, damage, damage2 — tier unverified, guessed INITIAL
         put(PlantType.PUMPKIN, initial().idleStages(3)); // idle, idle2, idle3 — no damage clips supplied, treated as idle variety like Cactus
@@ -62,7 +64,10 @@ public final class PlantAnimationCatalog {
         put(PlantType.CHERRY_BOMB, full());
         put(PlantType.CHOMPER, initial().idleStages(4));
         put(PlantType.CITRON, full());
-        put(PlantType.DOOM_SHROOM, full());
+        put(PlantType.DOOM_SHROOM, full()
+                .clip(PlantAnimationState.PLANT, "stage1_spawn")
+                .clip(PlantAnimationState.IDLE, "stage1_idle")
+                .clip(PlantAnimationState.ATTACK, "stage1_explode")); // confirmed: [stage1_spawn, stage1_idle, stage1_explode]
         put(PlantType.ELECTRIC_BLUEBERRY, initial()
                 .clip(PlantAnimationState.IDLE, "idle1_1")
                 .clip(PlantAnimationState.IDLE, "idle1_2")
@@ -110,7 +115,7 @@ public final class PlantAnimationCatalog {
         put(PlantType.PHAT_BEET, full().folder("PHATBEETS")); // folder is plural — verify
         put(PlantType.POTATO_MINE, initial());
         put(PlantType.PRIMAL_POTATO_MINE, full().folder("PRIMAL_POTATOMINE"));
-
+        put(PlantType.TANGLE_KELP, initial()); // confirmed: [idle, attack]
     }
 
     public static String damageStageClip(PlantType type, double hpRatio) {

@@ -8,7 +8,9 @@ import model.enums.PlantType;
 import model.inGame.zombie.Zombie;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 public class ExplosiveBehavior extends AbstractTimedBehavior {
     public enum Mode {
@@ -25,6 +27,18 @@ public class ExplosiveBehavior extends AbstractTimedBehavior {
         GRAVE_BUSTER
     }
 
+    private double attackDurationSeconds() {
+        return mode == Mode.DOOM ? 1.0 : INSTANT_EXPLOSIVE_ATTACK_SECONDS;
+    }
+
+    private static final Set<Mode> ZERO_HP_MODES = EnumSet.of(
+            Mode.CHERRY, Mode.JALAPENO, Mode.DOOM, Mode.ICE_SHROOM,
+            Mode.HOT_POTATO, Mode.GRAVE_BUSTER);
+
+    private static final double INSTANT_EXPLOSIVE_IDLE_SECONDS = 0.6;
+    private static final double INSTANT_EXPLOSIVE_ATTACK_SECONDS = 0.5;
+    private static final double SQUASH_CRUSH_LINGER_SECONDS = 0.6;
+
     private final Mode mode;
 
     public ExplosiveBehavior(Mode mode) {
@@ -33,27 +47,22 @@ public class ExplosiveBehavior extends AbstractTimedBehavior {
 
     @Override
     public void onPlant(Plant plant, GameEngine engine) {
+        if (ZERO_HP_MODES.contains(mode)) {
+            // These have Base HP 0 in canonical data (consumable/instant explosives,
+            // or Grave Buster which lingers at 0 HP while eating). Mark them so the
+            // engine's normal hp<=0 death check doesn't kill them on/after placement.
+            plant.putState("ACTIVE_ZERO_HP", true);
+        }
+
         switch (mode) {
-            case CHERRY -> {
-                engine.damageArea(plant.getPosition(), 1, 1, plant.getStats().getDamage(), DamageType.NORMAL);
-                plant.expire(engine);
+            case POTATO_MINE, PRIMAL_MINE -> {
+                double baseArm = mode == Mode.POTATO_MINE ? 15.0 : 5.0;
+                plant.putState("ARM_TIME", Math.max(0.0,
+                        baseArm + plant.getStats().getSpecial("ARM_TIME", 0)));
+                plant.putState("ARMED", false);
             }
-            case JALAPENO -> {
-                engine.damageLane(plant.getPosition().getRow(), plant.getStats().getDamage(), DamageType.FIRE);
-                engine.clearIceInLane(plant.getPosition().getRow());
-                plant.expire(engine);
-            }
-            case DOOM -> {
-                for (Zombie zombie : new ArrayList<>(engine.getZombies())) {
-                    zombie.takeDamage(plant.getStats().getDamage(), DamageType.NORMAL);
-                }
-                engine.getGameMap().setObstacle(plant.getPosition(), ObstacleType.CRATER);
-                plant.expire(engine);
-            }
-            case ICE_SHROOM -> {
-                engine.freezeAll(10 + plant.getStats().getSpecial("FREEZE_DURATION", 0));
-                plant.expire(engine);
-            }
+            case SQUASH -> plant.putState("CRUSHES_LEFT",
+                    1 + (int) plant.getStats().getSpecial("CRUSH_CHARGES", 0));
             case HOT_POTATO -> {
                 int radius = plant.getStats().hasFlag("MELT_AREA_3X3") ? 1 : 0;
                 engine.clearIce(plant.getPosition(), radius);
@@ -64,17 +73,14 @@ public class ExplosiveBehavior extends AbstractTimedBehavior {
                 }
                 plant.expire(engine);
             }
-            case POTATO_MINE, PRIMAL_MINE -> {
-                double baseArm = mode == Mode.POTATO_MINE ? 15.0 : 5.0;
-                plant.putState("ARM_TIME", Math.max(0.0,
-                        baseArm + plant.getStats().getSpecial("ARM_TIME", 0)));
-                plant.putState("ARMED", false);
+            case ICE_SHROOM -> {
+                engine.freezeAll(10 + plant.getStats().getSpecial("FREEZE_DURATION", 0));
+                plant.expire(engine);
             }
-            case SQUASH -> plant.putState("CRUSHES_LEFT",
-                    1 + (int) plant.getStats().getSpecial("CRUSH_CHARGES", 0));
-            case GRAVE_BUSTER -> plant.putState("ACTIVE_ZERO_HP", true);
-            case TANGLE_KELP, ICEBERG -> {
-                // Activated by contact in tick().
+            case CHERRY, JALAPENO, DOOM, GRAVE_BUSTER, TANGLE_KELP, ICEBERG -> {
+                // CHERRY, JALAPENO, DOOM: detonate on a timer, see tickInstantExplosive().
+                // GRAVE_BUSTER: ACTIVE_ZERO_HP already set above.
+                // TANGLE_KELP, ICEBERG: activated by contact in tick().
             }
         }
     }
@@ -87,6 +93,7 @@ public class ExplosiveBehavior extends AbstractTimedBehavior {
             case TANGLE_KELP -> tickTangleKelp(plant, engine);
             case ICEBERG -> tickIceberg(plant, engine);
             case GRAVE_BUSTER -> tickGraveBuster(plant, engine, deltaSeconds);
+            case CHERRY, JALAPENO, DOOM -> tickInstantExplosive(plant, engine);
             default -> {
             }
         }
@@ -112,15 +119,24 @@ public class ExplosiveBehavior extends AbstractTimedBehavior {
     }
 
     private void tickSquash(Plant plant, GameEngine engine) {
+        if (plant.getBooleanState("SQUASH_PENDING_EXPIRE")) {
+            double expireAt = plant.getState("SQUASH_EXPIRE_AT", Double.class, plant.getAgeSeconds());
+            if (plant.getAgeSeconds() >= expireAt) {
+                plant.expire(engine);
+            }
+            return;
+        }
         Zombie target = contactZombie(plant, engine, 1);
         if (target == null) {
             return;
         }
+        plant.markAttacked();
         target.takeDamage(boostedDamage(plant, engine), DamageType.TRUE);
         int left = plant.getState("CRUSHES_LEFT", Integer.class, 1) - 1;
         plant.putState("CRUSHES_LEFT", left);
         if (left <= 0) {
-            plant.expire(engine);
+            plant.putState("SQUASH_PENDING_EXPIRE", true);
+            plant.putState("SQUASH_EXPIRE_AT", plant.getAgeSeconds() + SQUASH_CRUSH_LINGER_SECONDS);
         }
     }
 
@@ -148,6 +164,40 @@ public class ExplosiveBehavior extends AbstractTimedBehavior {
         engine.getGameMap().clearObstacle(plant.getPosition());
         if (plant.getStats().hasFlag("EXPLODE_ON_FINISH")) {
             engine.damageArea(plant.getPosition(), 1, 1, plant.getStats().getDamage(), DamageType.NORMAL);
+        }
+        plant.expire(engine);
+    }
+
+    private void tickInstantExplosive(Plant plant, GameEngine engine) {
+        double age = plant.getAgeSeconds();
+        if (age >= INSTANT_EXPLOSIVE_IDLE_SECONDS
+                && !plant.getBooleanState("EXPLOSIVE_ATTACK_STARTED")) {
+            plant.markAttacked();
+            plant.putState("EXPLOSIVE_ATTACK_STARTED", true);
+            return;
+        }
+        if (plant.getBooleanState("EXPLOSIVE_ATTACK_STARTED")
+                && age >= INSTANT_EXPLOSIVE_IDLE_SECONDS + INSTANT_EXPLOSIVE_ATTACK_SECONDS) {
+            detonateInstantExplosive(plant, engine);
+        }
+    }
+
+    private void detonateInstantExplosive(Plant plant, GameEngine engine) {
+        switch (mode) {
+            case CHERRY -> engine.damageArea(
+                    plant.getPosition(), 1, 1, plant.getStats().getDamage(), DamageType.NORMAL);
+            case JALAPENO -> {
+                engine.damageLane(plant.getPosition().getRow(), plant.getStats().getDamage(), DamageType.FIRE);
+                engine.clearIceInLane(plant.getPosition().getRow());
+            }
+            case DOOM -> {
+                for (Zombie zombie : new ArrayList<>(engine.getZombies())) {
+                    zombie.takeDamage(plant.getStats().getDamage(), DamageType.NORMAL);
+                }
+                engine.getGameMap().setObstacle(plant.getPosition(), ObstacleType.CRATER);
+            }
+            default -> {
+            }
         }
         plant.expire(engine);
     }

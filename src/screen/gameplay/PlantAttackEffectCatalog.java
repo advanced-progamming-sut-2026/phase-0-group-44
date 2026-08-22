@@ -30,7 +30,7 @@ public final class PlantAttackEffectCatalog {
         register(PlantType.GRAVE_BUSTER, "768/INITIAL/EFFECTS/GRAVEBUSTER_EXPLOSION_POTATOMINE/GRAVEBUSTER_EXPLOSION_POTATOMINE.PAM", "animation", 0.8f);
         register(PlantType.HOT_POTATO, "768/FULL/EFFECTS/HOTPOTATO_STEAMFX/HOTPOTATO_STEAMFX.PAM", "animation", 0.8f);
         register(PlantType.ICE_SHROOM, "768/FULL/EFFECTS/ICESHROOM_MELEE_ATTACK/ICESHROOM_MELEE_ATTACK.PAM", "animation", 0.7f);
-        register(PlantType.JALAPENO, "768/INITIAL/EFFECTS/JALAPENO_FIRE/JALAPENO_FIRE.PAM", "animation", 0.8f);
+        register(PlantType.JALAPENO, "768/INITIAL/EFFECTS/JALAPENO_FIRE/JALAPENO_FIRE.PAM", "idle", 0.8f);
         register(PlantType.KERNEL_PULT, "768/INITIAL/EFFECTS/T_KERNALPULT_PROJECTILE/T_KERNALPULT_PROJECTILE.PAM", "animation", 0.6f);
         register(PlantType.MEGA_GATLING_PEA, "768/INITIAL/EFFECTS/MEGAGATLING_PROJECTILE/MEGAGATLING_PROJECTILE.PAM", "animation", 0.5f); // confirmed: [animation, animation3]
         register(PlantType.MELON_PULT, "768/INITIAL/EFFECTS/T_MELON_PROJECTILE/T_MELON_PROJECTILE.PAM", "animation", 0.6f); // confirmed: [animation, animation2, animation3]

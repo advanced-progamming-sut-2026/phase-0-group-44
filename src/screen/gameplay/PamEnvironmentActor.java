@@ -20,7 +20,7 @@ public final class PamEnvironmentActor extends Actor {
     private int idleIndex;
     private float idleTimer;
     private boolean idleMode;
-
+    private float timeScale = 1f;
 
     public PamEnvironmentActor(
             PamPlayer player,
@@ -42,6 +42,10 @@ public final class PamEnvironmentActor extends Actor {
         this.idleClips = clips == null || clips.isEmpty() ? java.util.List.of("idle") : clips;
     }
 
+    public void setTimeScale(float timeScale) {
+        this.timeScale = timeScale <= 0f ? 1f : timeScale;
+    }
+
     public void resumeIdleCycle() {
         if (!idleMode) {
             idleMode = true;
@@ -51,6 +55,7 @@ public final class PamEnvironmentActor extends Actor {
             this.stateTime = 0f;
             this.failed = false;
         }
+        this.timeScale = 1f; // idle always plays at normal speed
     }
 
     public void setClip(String clip) {
@@ -69,8 +74,8 @@ public final class PamEnvironmentActor extends Actor {
     @Override
     public void act(float delta) {
         super.act(delta);
-        stateTime += delta;
-        if (idleMode && idleClips.size() > 1) {
+        stateTime += delta * timeScale;
+        if (idleMode) {
             idleTimer += delta;
             if (idleTimer >= idleCycleSeconds) {
                 idleTimer -= idleCycleSeconds;
