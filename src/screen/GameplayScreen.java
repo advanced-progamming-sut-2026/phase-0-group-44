@@ -1826,22 +1826,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 }
             }
 
-            if (type == PlantType.SWEET_POTATO) {
-                String damageClip = PlantAnimationCatalog.clipName(type, PlantAnimationState.DAMAGE);
-                if (plant.isDamagedWithin(0.4)) {
-                    actor.setClip(damageClip);
-                } else {
-                    actor.resumeIdleCycle();
-                }
-            } else {
-                String attackClip = PlantAnimationCatalog.attackClipName(type);
-                if (plant.isAttackingWithin(0.6)) {  // was 0.3
-                    actor.setClip(attackClip);
-                } else {
-                    actor.resumeIdleCycle();
-                }
-            }
-
             double lastAttackAt = plant.getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
             Double alreadySpawnedFor = spawnedEffectForAttackAt.get(key);
             if (lastAttackAt > Double.NEGATIVE_INFINITY
