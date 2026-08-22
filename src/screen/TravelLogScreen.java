@@ -85,11 +85,7 @@ public final class TravelLogScreen implements Screen {
         skin = PvzSkin.get();
         toast = new ToastManager(stage, skin);
 
-        backgroundTexture = new Texture(
-                Gdx.files.internal(
-                        MAIN_MENU_ASSET_ROOT + "background.png"
-                )
-        );
+        backgroundTexture = TextureQuality.load(MAIN_MENU_ASSET_ROOT + "background.png");
 
         Gdx.input.setInputProcessor(stage);
         rebuild();

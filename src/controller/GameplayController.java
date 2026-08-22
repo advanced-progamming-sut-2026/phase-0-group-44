@@ -228,7 +228,7 @@ public class GameplayController {
                 events.publish(DomainEventType.ZOMBIE_KILLED, user, attributes);
             }
             if (rewardService != null) {
-                messages.addAll(rewardService.onZombieDeath(death.isGlowing(), user, world));
+                messages.addAll(rewardService.onZombieDeath(death, user, world));
             }
         }
 
@@ -387,6 +387,24 @@ public class GameplayController {
         result.appendToMessage("collected " + outcome.getGained() + " sun; total " + simulation.getSunAmount());
         return result;
     }
+    public Result<Integer> collectPlantFood(int x, int y) {
+        Result<Integer> result = new Result<>();
+        GameEngine world = simulation.getWorld();
+        boolean collected = world.collectPlantFoodPickup(x, y);
+        result.setData(world.getPlantFood());
+        if (!collected) {
+            if (world.getPlantFood() >= GameEngine.MAX_PLANT_FOOD) {
+                result.appendToMessage("plant food bank is full");
+            } else {
+                result.appendToMessage("no plant food at (" + x + ", " + y + ")");
+            }
+            return result;
+        }
+        result.setStatus(true);
+        result.appendToMessage("collected plant food; total " + world.getPlantFood());
+        return result;
+    }
+
     public Result<Integer> showSunAmount() {
         Result<Integer> result = new Result<>();
 

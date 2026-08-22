@@ -89,17 +89,18 @@ public class BoardController {
             return result;
         }
 
+        boolean freePreWave = isFreePreWavePlanting();
+
         // Pea Pod stacking: چک کن آیا از قبل یک Pea Pod روی این تایل هست
         Plant existingPrimary = engine.getGameMap().getTile(position).getPrimaryPlant();
         if (type == PlantType.PEA_POD && existingPrimary != null
                 && existingPrimary.getEffectiveType() == PlantType.PEA_POD) {
-            return stackPeaPod(result, existingPrimary, conveyor, type, x, y, position);
+            return stackPeaPod(result, existingPrimary, conveyor, freePreWave, type, x, y, position);
         }
 
-        boolean freePreWave = isFreePreWavePlanting();
         Plant plant;
         try {
-            plant = engine.plant(type, 1, position, !conveyor, !conveyor && !freePreWave);
+            plant = engine.plant(type, 1, position, !conveyor && !freePreWave, !conveyor && !freePreWave);
         } catch (IllegalStateException e) {
             result.appendToMessage(translatePlantError(e.getMessage()));
             return result;
@@ -120,24 +121,24 @@ public class BoardController {
     }
 
     private Result<String> stackPeaPod(Result<String> result, Plant existing, boolean conveyor,
-                                       PlantType type, int x, int y, Position position) {
+                                       boolean freePreWave, PlantType type, int x, int y, Position position) {
         int heads = existing.getState("PEA_POD_HEADS", Integer.class, 1);
         if (heads >= 5) {
             result.appendToMessage("pea pod already has five heads");
             return result;
         }
-        if (!conveyor && engine.isOnCooldown(type)) {
+        if (!conveyor && !freePreWave && engine.isOnCooldown(type)) {
             result.appendToMessage("this plant is still recharging");
             return result;
         }
         int cost = PlantRegistry.getDefault().require(type).statsAtLevel(1).getCost();
-        if (!conveyor && engine.getSun() < cost) {
+        if (!conveyor && !freePreWave && engine.getSun() < cost) {
             result.appendToMessage("not enough sun");
             return result;
         }
         if (conveyor) {
             adventureState.consumeConveyorPacket(type);
-        } else {
+        } else if (!freePreWave) {
             engine.removeSun(cost);
         }
         existing.putState("PEA_POD_HEADS", heads + 1);

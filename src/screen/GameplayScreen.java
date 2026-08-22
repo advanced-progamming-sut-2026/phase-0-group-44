@@ -37,8 +37,11 @@ import model.enums.PlantType;
 import model.enums.ZombieType;
 import model.inGame.GameOutcome;
 import model.inGame.GameSession;
+import model.inGame.PlantFoodPickup;
 import model.inGame.Sun;
 import model.inGame.plant.Plant;
+import model.level.SpecialLevelType;
+import model.sim.adventure.AdventureRuntimeState;
 import model.sim.Simulation;
 import model.sim.adventure.AdventureInitializer;
 import model.sim.adventure.AdventureRuleSystem;
@@ -140,6 +143,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private int selectedColumn = -1;
     private ToolMode toolMode = ToolMode.NONE;
     private final Map<Sun, PamEnvironmentActor> sunPickupActors = new IdentityHashMap<>();
+    private final Map<PlantFoodPickup, Group> plantFoodPickupActors = new IdentityHashMap<>();
     private float messageSeconds;
     private float tickAccumulator;
     private boolean outcomeShown;
@@ -147,6 +151,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private boolean draggingPlant;
     private GameEngine finishedEngine;
     private BattlefieldSeedBank seedBank;
+    private BattlefieldConveyorBelt conveyorBelt;
     private PlantType armedPlantType;
     private Texture darkTintTexture;
     private final Map<String, Double> spawnedEffectForAttackAt = new LinkedHashMap<>();
@@ -303,6 +308,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         paused = false;
         toolMode = ToolMode.NONE;
         sunPickupActors.clear();
+        plantFoodPickupActors.clear();
         tickAccumulator = 0f;
         outcomeShown = false;
         missionIntroActive = true;
@@ -458,6 +464,11 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         seedBank = buildSeedBank();
         if (seedBank != null) {
             stage.addActor(seedBank.actor());
+        }
+
+        conveyorBelt = buildConveyorBelt();
+        if (conveyorBelt != null) {
+            stage.addActor(conveyorBelt.actor());
         }
 
         announcementLayer = new BattlefieldAnnouncementLayer(
@@ -988,8 +999,20 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         sunLabel.setText(String.valueOf(sun));
         if (seedBank != null) {
             GameEngine liveEngine = engine();
-            seedBank.sync(sun, type ->
-                    !previewMode && liveEngine != null && liveEngine.isOnCooldown(type));
+            boolean freeSetup = !previewMode
+                    && liveEngine != null
+                    && isFreeSetupPhase(liveEngine);
+            // Plant What You Get deliberately ignores both sun cost and cooldown
+            // until the player presses START WAVE. Keep the seed cards visually
+            // available too, so the HUD matches the actual planting rules.
+            seedBank.sync(freeSetup ? Integer.MAX_VALUE : sun, type ->
+                    !freeSetup && !previewMode
+                            && liveEngine != null
+                            && liveEngine.isOnCooldown(type));
+        }
+        if (conveyorBelt != null) {
+            GameEngine liveEngine = engine();
+            conveyorBelt.sync(liveEngine == null ? null : liveEngine.getAdventureState());
         }
 
         int currentWave = 0;
@@ -1018,7 +1041,11 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             ratio = 0.22f;
         } else {
             previewLabel.setText("");
-            if (totalWaves > 0) {
+            boolean freeSetup = engine != null && isFreeSetupPhase(engine);
+            if (freeSetup) {
+                waveLabel.setText("SETUP PHASE");
+                ratio = 0f;
+            } else if (totalWaves > 0) {
                 waveLabel.setText("WAVE " + currentWave + " / " + totalWaves);
                 ratio = Math.max(0f, Math.min(1f, currentWave / (float) totalWaves));
             } else {
@@ -1077,6 +1104,30 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             actor.setClip(sunClip(sun.getType()));
             positionSunActor(actor, sun);
         }
+
+        syncPlantFoodPickups(engine);
+    }
+
+    private void syncPlantFoodPickups(GameEngine engine) {
+        List<PlantFoodPickup> livePickups = engine.getPlantFoodPickups();
+        var iterator = plantFoodPickupActors.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<PlantFoodPickup, Group> entry = iterator.next();
+            if (!livePickups.contains(entry.getKey())) {
+                entry.getValue().remove();
+                iterator.remove();
+            }
+        }
+
+        for (PlantFoodPickup pickup : livePickups) {
+            Group actor = plantFoodPickupActors.get(pickup);
+            if (actor == null) {
+                actor = createPlantFoodPickupActor(pickup);
+                plantFoodPickupActors.put(pickup, actor);
+                pickupLayer.addActor(actor);
+            }
+            positionPlantFoodPickup(actor, pickup);
+        }
     }
 
     private PamEnvironmentActor createSunActor(Sun sun) {
@@ -1119,6 +1170,104 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         actor.setBounds(x, y, cell.width, cell.height);
     }
 
+    private Group createPlantFoodPickupActor(PlantFoodPickup pickup) {
+        Group actor = new Group();
+        actor.setOrigin(Align.center);
+
+        // Use the actual leaf HUD artwork for the physical drop. The old PAM is
+        // a pickup/effect animation and read more like an effect appearing on a
+        // tile than a leaf falling out of the zombie's body.
+        Image leaf = new Image(loadTexture(HUD_ROOT + "plantfood_leaf.png"));
+        leaf.setScaling(Scaling.fit);
+        leaf.setTouchable(Touchable.disabled);
+        leaf.setOrigin(Align.center);
+        leaf.setBounds(0f, 0f, 1f, 1f);
+        leaf.addAction(Actions.forever(Actions.sequence(
+                Actions.rotateBy(11f, 0.18f),
+                Actions.rotateBy(-22f, 0.36f),
+                Actions.rotateBy(11f, 0.18f)
+        )));
+        actor.addActor(leaf);
+
+        actor.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float localX, float localY) {
+                if (!pickup.isFalling()) {
+                    collectPlantFoodImmediately(actor, pickup);
+                }
+            }
+        });
+        return actor;
+    }
+
+    private void positionPlantFoodPickup(Group actor, PlantFoodPickup pickup) {
+        Rectangle board = layout.boardBounds();
+        Rectangle cell = layout.cellBounds(pickup.getTileY(), pickup.getTileX());
+        float size = Math.min(cell.width, cell.height) * 0.58f;
+        float landingX = cell.x + (cell.width - size) * 0.5f;
+        float landingY = cell.y + cell.height * 0.08f;
+        float x = landingX;
+        float y = landingY;
+
+        if (pickup.isFalling()) {
+            float progress = (float) pickup.getFallProgress();
+            double fallDuration = pickup.getFallDurationSeconds();
+            if (fallDuration > 1e-9) {
+                progress += (float) (tickAccumulator / fallDuration);
+                progress = Math.max(0f, Math.min(1f, progress));
+            }
+
+            // Start at the glowing zombie's exact horizontal death position, at
+            // roughly torso height. First the leaf pops out of the body, then
+            // gravity visibly brings it down to the lawn.
+            float sourceCenterX = board.x + (float) pickup.getSourceX() * layout.cellWidth();
+            float sourceX = sourceCenterX - size * 0.5f;
+            float sourceY = cell.y + cell.height * 0.82f;
+            float peakY = sourceY + cell.height * 0.48f;
+
+            if (progress < 0.22f) {
+                float pop = progress / 0.22f;
+                float easedPop = 1f - (1f - pop) * (1f - pop);
+                x = sourceX + cell.width * 0.08f * easedPop;
+                y = sourceY + (peakY - sourceY) * easedPop;
+            } else {
+                float fall = (progress - 0.22f) / 0.78f;
+                float gravity = fall * fall;
+                float fallStartX = sourceX + cell.width * 0.08f;
+                x = fallStartX + (landingX - fallStartX) * fall
+                        + (float) Math.sin(fall * Math.PI) * cell.width * 0.08f;
+                y = peakY + (landingY - peakY) * gravity;
+            }
+        } else {
+            // Once landed, a small pulse makes the collectible readable without
+            // making it look like it is still flying.
+            float pulse = 1f + (float) Math.sin(
+                    pickup.getRemainingVisibleSeconds() * Math.PI * 2.0) * 0.045f;
+            actor.setScale(pulse);
+        }
+
+        actor.setBounds(x, y, size, size);
+        if (actor.getChildren().size > 0) {
+            actor.getChildren().first().setBounds(0f, 0f, size, size);
+            actor.getChildren().first().setOrigin(Align.center);
+        }
+    }
+
+    private void collectPlantFoodImmediately(
+            Actor actor, PlantFoodPickup pickup) {
+        if (gameplayController == null || actor == null || pickup == null) {
+            return;
+        }
+        Result<Integer> result = gameplayController.collectPlantFood(
+                pickup.getTileX(), pickup.getTileY());
+        if (!result.getStatus()) {
+            return;
+        }
+        actor.remove();
+        plantFoodPickupActors.remove(pickup);
+        showAction(result.getMessage());
+    }
+
     private void collectSunImmediately(PamEnvironmentActor actor, Sun sun) {
         if (gameplayController == null || actor == null || sun == null) {
             return;
@@ -1140,6 +1289,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             actor.remove();
         }
         sunPickupActors.clear();
+        for (Group actor : plantFoodPickupActors.values()) {
+            actor.remove();
+        }
+        plantFoodPickupActors.clear();
     }
 
     /**
@@ -1175,6 +1328,28 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             }
 
             collectSunImmediately(actor, entry.getKey());
+            return;
+        }
+
+        GameEngine currentEngine = engine();
+        if (currentEngine == null || currentEngine.getPlantFood() >= GameEngine.MAX_PLANT_FOOD) {
+            return;
+        }
+        for (Map.Entry<PlantFoodPickup, Group> entry
+                : new ArrayList<>(plantFoodPickupActors.entrySet())) {
+            Group actor = entry.getValue();
+            if (actor.getStage() == null || entry.getKey().isFalling()) {
+                continue;
+            }
+            float hitWidth = actor.getWidth() * 0.72f;
+            float hitHeight = actor.getHeight() * 0.72f;
+            float hitX = actor.getX() + (actor.getWidth() - hitWidth) * 0.5f;
+            float hitY = actor.getY() + (actor.getHeight() - hitHeight) * 0.5f;
+            if (pointer.x < hitX || pointer.x > hitX + hitWidth
+                    || pointer.y < hitY || pointer.y > hitY + hitHeight) {
+                continue;
+            }
+            collectPlantFoodImmediately(actor, entry.getKey());
             return;
         }
     }
@@ -1515,7 +1690,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 return;
             }
             pamRoot = assets;
-            pamTextures = new TextureBank("768", assets);
+            pamTextures = new TextureBank(PamAssetQuality.bestResolution(assets), assets);
             pamPlayer = new PamPlayer(pamTextures, assets);
         } catch (RuntimeException exception) {
             pamRoot = null;
@@ -1529,7 +1704,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         if (cached != null) {
             return cached;
         }
-        Texture texture = new Texture(Gdx.files.internal(path));
+        Texture texture = TextureQuality.load(path);
         textures.put(path, texture);
         return texture;
     }
@@ -1621,6 +1796,34 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         );
     }
 
+    private BattlefieldConveyorBelt buildConveyorBelt() {
+        GameEngine liveEngine = engine();
+        if (previewMode || !isSpecialLevel(liveEngine, SpecialLevelType.CONVEYOR_BELT)) {
+            return null;
+        }
+        BattlefieldConveyorBelt belt = new BattlefieldConveyorBelt(
+                whiteTexture,
+                loadTexture("ui/collection/ready.png"),
+                skin,
+                this::loadPlantIcon,
+                this
+        );
+        belt.sync(liveEngine.getAdventureState());
+        return belt;
+    }
+
+    private boolean isSpecialLevel(GameEngine liveEngine, SpecialLevelType type) {
+        AdventureRuntimeState state = liveEngine == null ? null : liveEngine.getAdventureState();
+        return state != null
+                && state.getConfig() != null
+                && state.getConfig().getSpecialType() == type;
+    }
+
+    private boolean isFreeSetupPhase(GameEngine liveEngine) {
+        return isSpecialLevel(liveEngine, SpecialLevelType.PLANT_WHAT_YOU_GET)
+                && !liveEngine.areWavesStarted();
+    }
+
     private PlantDefinition findDefinition(PlantType type) {
         Result<ArrayList<PlantDefinition>> all = app.getCollectionController().showAllPlants();
         if (!all.getStatus() || all.getData() == null) {
@@ -1650,20 +1853,26 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             return false;
         }
 
-        PlantDefinition definition = findDefinition(type);
+        AdventureRuntimeState adventureState = liveEngine.getAdventureState();
+        boolean conveyor = isSpecialLevel(liveEngine, SpecialLevelType.CONVEYOR_BELT);
+        boolean freeSetup = isFreeSetupPhase(liveEngine);
 
-        int cost = definition == null
-                ? Integer.MAX_VALUE
-                : definition.getCost();
-
-        if (liveEngine.getSun() < cost) {
-            showAction("NOT ENOUGH SUN");
-            return false;
-        }
-
-        if (liveEngine.isOnCooldown(type)) {
-            showAction("STILL RECHARGING");
-            return false;
+        if (conveyor) {
+            if (adventureState == null || adventureState.getConveyorPacketCount(type) <= 0) {
+                showAction("NO CONVEYOR PACKET");
+                return false;
+            }
+        } else if (!freeSetup) {
+            PlantDefinition definition = findDefinition(type);
+            int cost = definition == null ? Integer.MAX_VALUE : definition.getCost();
+            if (liveEngine.getSun() < cost) {
+                showAction("NOT ENOUGH SUN");
+                return false;
+            }
+            if (liveEngine.isOnCooldown(type)) {
+                showAction("STILL RECHARGING");
+                return false;
+            }
         }
 
         draggingPlant = true;

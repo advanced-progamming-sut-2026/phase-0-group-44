@@ -19,6 +19,7 @@ import controller.MenuController;
 import controller.PlantSelectionController;
 import model.Result;
 import model.Store;
+import model.enums.PlantCategory;
 import model.enums.PlantType;
 import model.inGame.GameSession;
 import model.inGame.PlantSelection;
@@ -121,6 +122,11 @@ public final class PlantSelectionScreen implements Screen {
 
         root.add(buildTopBar()).growX().colspan(2).row();
 
+        if (controller.isLockedPlantsLevel()) {
+            root.add(buildLockedPlantsBanner()).growX().colspan(2)
+                    .pad(6f, 20f, 0f, 20f).row();
+        }
+
         sidebar = new Table();
         sidebar.top();
         root.add(sidebar).width(SIDEBAR_CARD_SIZE + 24f).top().pad(10f, 12f, 10f, 6f);
@@ -174,6 +180,42 @@ public final class PlantSelectionScreen implements Screen {
         return topBar;
     }
 
+    private Table buildLockedPlantsBanner() {
+        Table banner = new Table();
+        banner.setBackground(skin.getDrawable("image_ui_dialog_asset_inner_bkgd_10"));
+        banner.pad(9f, 14f, 9f, 14f);
+
+        Label title = new Label("LOCKED PLANTS CHALLENGE", skin, "medium_outline");
+        title.setColor(1f, 0.82f, 0.30f, 1f);
+        banner.add(title).left().padRight(22f);
+
+        String required = controller.getForcedPlants().isEmpty()
+                ? "NO REQUIRED PLANTS"
+                : "REQUIRED: " + controller.getForcedPlants().stream()
+                .map(this::typeDisplayName)
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
+        Label requiredLabel = new Label(required, skin);
+        requiredLabel.setColor(0.88f, 1f, 0.76f, 1f);
+        banner.add(requiredLabel).left().padRight(22f);
+
+        String locked = controller.getExcludedCategories().isEmpty()
+                ? ""
+                : "LOCKED: " + controller.getExcludedCategories().stream()
+                .map(PlantCategory::name)
+                .map(name -> name.replace('_', ' '))
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("") + " PLANTS";
+        Label lockedLabel = new Label(locked, skin);
+        lockedLabel.setColor(1f, 0.58f, 0.45f, 1f);
+        banner.add(lockedLabel).left().expandX();
+
+        Label hint = new Label("Required plants cannot be removed.", skin);
+        hint.setColor(0.78f, 0.82f, 0.82f, 1f);
+        banner.add(hint).right();
+        return banner;
+    }
+
     private Table buildBottomBar() {
         Table bottomBar = new Table();
         bottomBar.pad(4f, 0f, 4f, 0f);
@@ -203,7 +245,8 @@ public final class PlantSelectionScreen implements Screen {
         for (PlantType type : chosen) {
             sidebar.add(buildSidebarCard(type)).size(SIDEBAR_CARD_SIZE, SIDEBAR_CARD_SIZE + 24f).padBottom(8f).row();
         }
-        for (int i = chosen.size(); i < DEFAULT_CAPACITY; i++) {
+        int capacity = Math.max(chosen.size(), controller.getSelectionCapacity());
+        for (int i = chosen.size(); i < capacity; i++) {
             sidebar.add(buildEmptySlot()).size(SIDEBAR_CARD_SIZE, SIDEBAR_CARD_SIZE + 24f).padBottom(8f).row();
         }
     }
@@ -217,12 +260,21 @@ public final class PlantSelectionScreen implements Screen {
             widget.setIcon(loadPlantIcon(type));
             widget.setBottomLabel(String.valueOf(definition.getCost()));
         }
+        boolean forced = controller.isForcedPlant(type);
         widget.setBoosted(isBoosted(type));
         widget.setSelected(true);
+        if (forced) {
+            widget.setTopBadge("REQ");
+            widget.setBottomLabel("REQUIRED");
+        }
 
         widget.addListener(new ClickListener() {
             @Override
             public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                if (forced) {
+                    toast.showInfo(typeDisplayName(type) + " is required by this level.");
+                    return;
+                }
                 Result<String> result = controller.removePlant(type.name());
                 if (result.getStatus()) {
                     refreshSidebar();
@@ -312,13 +364,15 @@ public final class PlantSelectionScreen implements Screen {
         PlantCardWidget widget = new PlantCardWidget(skin, GRID_CARD_SIZE - 12f,
                 cardReadyBg(), cardSelectedBg(), cardGoldBg());
         widget.setIcon(loadPlantIcon(definition.getType()));
+        boolean forced = controller.isForcedPlant(definition.getType());
         widget.setLocked(!selectable);
         widget.setBoosted(selectable && isBoosted(definition.getType()));
         widget.setSelected(controller.getSelection().contains(definition.getType()));
-        widget.setBottomLabel(selectable ? String.valueOf(definition.getCost()) : "LOCKED");
+        widget.setBottomLabel(!selectable ? "LOCKED"
+                : forced ? "REQUIRED" : String.valueOf(definition.getCost()));
 
         PlantCollectionView owned = ownedView(definition.getType());
-        widget.setTopBadge(owned == null ? "" : "LV" + owned.getCard().getLevel());
+        widget.setTopBadge(forced ? "REQ" : owned == null ? "" : "LV" + owned.getCard().getLevel());
 
         widget.addListener(new ClickListener() {
             @Override
@@ -363,20 +417,27 @@ public final class PlantSelectionScreen implements Screen {
         detailPanel.add(info).left().expandX();
 
         boolean selected = controller.getSelection().contains(type);
-        TextButton selectButton = new TextButton(selected ? "REMOVE" : "SELECT", skin, selected ? "brown" : "purple");
-        selectButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                Result<String> result = selected ? controller.removePlant(type.name()) : controller.addPlant(type.name());
-                if (result.getStatus()) {
-                    refreshSidebar();
-                    refreshGrid();
-                    refreshDetailPanel();
-                } else {
-                    toast.showError(result.getMessage());
+        boolean forced = controller.isForcedPlant(type);
+        TextButton selectButton = new TextButton(
+                forced ? "REQUIRED" : selected ? "REMOVE" : "SELECT",
+                skin, forced ? "green_small" : selected ? "brown" : "purple");
+        if (forced) {
+            selectButton.setDisabled(true);
+        } else {
+            selectButton.addListener(new ChangeListener() {
+                @Override
+                public void changed(ChangeEvent event, Actor actor) {
+                    Result<String> result = selected ? controller.removePlant(type.name()) : controller.addPlant(type.name());
+                    if (result.getStatus()) {
+                        refreshSidebar();
+                        refreshGrid();
+                        refreshDetailPanel();
+                    } else {
+                        toast.showError(result.getMessage());
+                    }
                 }
-            }
-        });
+            });
+        }
         detailPanel.add(selectButton).width(140f).height(48f).padRight(10f);
 
         if (owned != null && owned.getCard().canUpgrade()) {
@@ -500,7 +561,7 @@ public final class PlantSelectionScreen implements Screen {
         if (cached != null) {
             return cached;
         }
-        Texture texture = new Texture(Gdx.files.internal(path));
+        Texture texture = TextureQuality.load(path);
         iconCache.put(path, texture);
         textures.add(texture);
         return texture;

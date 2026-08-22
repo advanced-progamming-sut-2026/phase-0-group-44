@@ -131,7 +131,7 @@ public final class GreenhouseScreen implements Screen {
                 pamAvailable = false;
                 return;
             }
-            pamTextures = new TextureBank("768", assets);
+            pamTextures = new TextureBank(PamAssetQuality.bestResolution(assets), assets);
             pamPlayer = new PamPlayer(pamTextures, assets);
             pamAvailable = true;
         } catch (RuntimeException ex) {
@@ -708,7 +708,7 @@ public final class GreenhouseScreen implements Screen {
         if (cached != null) {
             return cached;
         }
-        Texture texture = new Texture(Gdx.files.internal(path));
+        Texture texture = TextureQuality.load(path);
         textures.put(path, texture);
         return texture;
     }

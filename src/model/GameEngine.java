@@ -8,6 +8,7 @@ import model.enums.TerrainType;
 import model.enums.ZombieType;
 import model.inGame.GameMap;
 import model.inGame.GameOutcome;
+import model.inGame.PlantFoodPickup;
 import model.inGame.Sun;
 import model.inGame.plant.Plant;
 import model.inGame.plant.PlantDefinition;
@@ -84,6 +85,7 @@ public class GameEngine {
     }
 
     private final List<Sun> suns = new ArrayList<>();
+    private final List<PlantFoodPickup> plantFoodPickups = new ArrayList<>();
     private boolean skySunEnabled;
     private double secondsSinceSkySunSpawn;
 
@@ -138,6 +140,53 @@ public class GameEngine {
 
     public List<Sun> getSuns() {
         return List.copyOf(suns);
+    }
+
+    public List<PlantFoodPickup> getPlantFoodPickups() {
+        return List.copyOf(plantFoodPickups);
+    }
+
+    /** Drops one collectible Plant Food reward at a zombie death tile. */
+    public PlantFoodPickup spawnPlantFoodPickup(int tileX, int tileY) {
+        return spawnPlantFoodPickup(tileX + 0.5, tileY);
+    }
+
+    /**
+     * Drops Plant Food from the zombie's exact board-space death position.
+     * The pickup still lands in a normal tile for collection, while the view can
+     * animate the leaf beginning at the body instead of teleporting from a cell.
+     */
+    public PlantFoodPickup spawnPlantFoodPickup(double sourceX, int tileY) {
+        double clampedSourceX = Math.max(0.0, Math.min(gameMap.getColumns() - 1e-6, sourceX));
+        int x = Math.max(0, Math.min(gameMap.getColumns() - 1, (int) Math.floor(clampedSourceX)));
+        int y = Math.max(0, Math.min(gameMap.getRows() - 1, tileY));
+        PlantFoodPickup pickup = new PlantFoodPickup(
+                x, y, clampedSourceX, PlantFoodPickup.FALL_DURATION_SECONDS);
+        plantFoodPickups.add(pickup);
+        recordEvent("A glowing zombie dropped Plant Food at (" + x + ", " + y + ").");
+        return pickup;
+    }
+
+    /**
+     * Collects one Plant Food pickup at the requested tile. The pickup remains
+     * on the lawn when the Plant Food bank is already full.
+     */
+    public boolean collectPlantFoodPickup(int tileX, int tileY) {
+        if (plantFood >= MAX_PLANT_FOOD) {
+            return false;
+        }
+        for (PlantFoodPickup pickup : new ArrayList<>(plantFoodPickups)) {
+            if (!pickup.isAt(tileX, tileY) || pickup.isFalling()) {
+                continue;
+            }
+            if (!addPlantFood()) {
+                return false;
+            }
+            plantFoodPickups.remove(pickup);
+            recordEvent("Collected Plant Food at (" + tileX + ", " + tileY + ").");
+            return true;
+        }
+        return false;
     }
 
     public List<String> advance(int ticks) {
@@ -365,6 +414,7 @@ public class GameEngine {
             projectile.tick(this, deltaSeconds);
         }
         tickFallingSuns(deltaSeconds);
+        tickPlantFoodPickups(deltaSeconds);
         projectiles.removeIf(projectile -> !projectile.isActive());
         cleanupDeadZombies();
         cleanupDeadPlants();
@@ -398,6 +448,17 @@ public class GameEngine {
             detachFromProducerPlant(sun);
             recordEvent("Uncollected sun expired at position ("
                     + sun.getTileX() + ", " + sun.getTileY() + ")");
+        }
+    }
+
+    private void tickPlantFoodPickups(double deltaSeconds) {
+        for (PlantFoodPickup pickup : new ArrayList<>(plantFoodPickups)) {
+            pickup.tick(deltaSeconds);
+            if (pickup.isExpired()) {
+                plantFoodPickups.remove(pickup);
+                recordEvent("Uncollected Plant Food expired at ("
+                        + pickup.getTileX() + ", " + pickup.getTileY() + ").");
+            }
         }
     }
 
@@ -568,7 +629,7 @@ public class GameEngine {
     private void recordDeath(Zombie zombie, boolean cheatKill) {
         model.sim.zombie.ZombieSpec spec = model.sim.zombie.ZombieSpec.fromDefinition(zombie.getDefinition());
         pendingDeaths.add(new model.sim.zombie.ZombieDeath(
-                spec, zombie.getColumn(), zombie.getRow(),
+                spec, zombie.getColumn(), zombie.getRow(), zombie.getX(),
                 zombie.getBooleanState("GLOWING"), cheatKill));
         zombieKillCount++;
     }

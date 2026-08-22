@@ -51,9 +51,7 @@ public final class SettingsScreen implements Screen {
         skin = PvzSkin.get();
 
         batch = new SpriteBatch();
-        backgroundTexture = new Texture(
-                Gdx.files.internal("ui/settingsBG.PNG")
-        );
+        backgroundTexture = TextureQuality.load("ui/settingsBG.PNG");
 
         Gdx.input.setInputProcessor(stage);
 

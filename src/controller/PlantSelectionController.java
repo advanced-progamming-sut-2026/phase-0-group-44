@@ -104,14 +104,15 @@ public class PlantSelectionController {
             return startGame();
         }
 
-        List<PlantType> available = availablePlantTypes(user);
-        if (!available.isEmpty() && available.size() < rules.getCapacity()) {
-            for (PlantType type : available) {
-                selection.add(type);
-            }
-            return startGame();
-        }
-
+        /*
+         * Phase 2 requires an actual plant-selection screen for every level whose
+         * selection is not explicitly bypassed (for example Conveyor Belt).
+         *
+         * The old Phase-1 convenience path auto-selected every available plant
+         * and immediately started the game when the player owned fewer plants
+         * than the level capacity. That made Locked Plants — and potentially
+         * ordinary levels on smaller collections — skip the selection UI.
+         */
         result.setStatus(true);
         result.appendToMessage(beginResult.getMessage());
         return result;
@@ -385,6 +386,30 @@ public class PlantSelectionController {
 
     public PlantSelection getSelection() {
         return selection;
+    }
+
+    /** Phase-2 UI helpers for level-specific plant-selection presentation. */
+    public boolean isLockedPlantsLevel() {
+        return level != null && level.getAdventureConfig() != null
+                && level.getAdventureConfig().getSpecialType()
+                == model.level.SpecialLevelType.LOCKED_PLANTS;
+    }
+
+    public boolean isForcedPlant(PlantType type) {
+        return level != null && type != null && level.getSelectionRules().isForced(type);
+    }
+
+    public Set<PlantType> getForcedPlants() {
+        return level == null ? Set.of() : level.getSelectionRules().getForcedPlants();
+    }
+
+    public Set<PlantCategory> getExcludedCategories() {
+        return level == null ? Set.of() : level.getSelectionRules().getExcludedCategories();
+    }
+
+    public int getSelectionCapacity() {
+        return level == null ? LevelSelectionRules.DEFAULT_CAPACITY
+                : level.getSelectionRules().getCapacity();
     }
 
     /**

@@ -102,11 +102,7 @@ public final class LeaderboardScreen implements Screen {
          * Change this path if you make a
          * dedicated leaderboard background.
          */
-        backgroundTexture = new Texture(
-                Gdx.files.internal(
-                        "ui/leaderboardBG.png"
-                )
-        );
+        backgroundTexture = TextureQuality.load("ui/leaderboardBG.png");
 
         /*
          * Semi-transparent backgrounds.

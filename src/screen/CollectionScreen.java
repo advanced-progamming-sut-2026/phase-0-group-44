@@ -617,7 +617,7 @@ public final class CollectionScreen implements Screen {
         if (cached != null) {
             return cached;
         }
-        Texture texture = new Texture(Gdx.files.internal(path));
+        Texture texture = TextureQuality.load(path);
         iconCache.put(path, texture);
         textures.add(texture);
         return texture;

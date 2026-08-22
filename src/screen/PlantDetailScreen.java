@@ -427,7 +427,7 @@ public final class PlantDetailScreen implements Screen {
     // ---------------------------------------------------------------- assets
 
     private Texture loadTexture(String path) {
-        Texture texture = new Texture(Gdx.files.internal(path));
+        Texture texture = TextureQuality.load(path);
         textures.add(texture);
         return texture;
     }

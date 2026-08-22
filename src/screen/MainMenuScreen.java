@@ -779,12 +779,7 @@ public final class MainMenuScreen implements Screen {
     ) {
 
         Texture texture =
-                new Texture(
-                        Gdx.files.internal(
-                                ASSET_ROOT
-                                        + fileName
-                        )
-                );
+                TextureQuality.load(ASSET_ROOT + fileName);
 
         textures.add(
                 texture

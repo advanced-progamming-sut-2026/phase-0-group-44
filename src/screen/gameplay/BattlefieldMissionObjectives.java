@@ -58,8 +58,9 @@ public final class BattlefieldMissionObjectives {
                 objectives.add("Don't let the zombies reach the house.");
             }
             case LOVE_YOUR_PLANTS -> {
-                objectives.add("Lose no more than "
-                        + Math.max(1, config.getMaximumPlantLosses()) + " plants.");
+                objectives.add("Do not reach "
+                        + Math.max(1, config.getMaximumPlantLosses()) + " lost plants.");
+                objectives.add("The HUD shows how many plant-loss slots remain.");
                 objectives.add("Don't let the zombies reach the house.");
             }
             case PLANT_WHAT_YOU_GET -> {
@@ -71,7 +72,19 @@ public final class BattlefieldMissionObjectives {
                 objectives.add("Don't let the zombies reach the house.");
             }
             case LOCKED_PLANTS -> {
-                objectives.add("Play with the level's given / locked plant selection.");
+                var rules = session.getLevel().getSelectionRules();
+                String required = rules.getForcedPlants().stream()
+                        .map(Enum::name)
+                        .map(namePart -> namePart.replace('_', ' '))
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("the required plants");
+                String locked = rules.getExcludedCategories().stream()
+                        .map(Enum::name)
+                        .map(namePart -> namePart.replace('_', ' '))
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("restricted");
+                objectives.add("Required plant: " + required + ".");
+                objectives.add(locked + " plants are locked for this level.");
                 objectives.add("Don't let the zombies reach the house.");
             }
             case NIGHT_OPS -> {

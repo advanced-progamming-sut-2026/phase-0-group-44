@@ -5,16 +5,20 @@ import model.inGame.GameOutcome;
 import model.enums.ZombieType;
 import model.inGame.zombie.Zombie;
 import model.level.SpecialLevelType;
+import model.level.TimedWarObjective;
 import model.sim.zombie.ZombieSpec;
 import model.sim.zombie.ZombieSpecSource;
 import util.RandomSource;
 import util.RandomSourceAdapter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 public class WaveSystem {
 
     public static final double NEXT_WAVE_THRESHOLD = 0.75;
+    private static final double TIMED_WAR_NEXT_WAVE_THRESHOLD = 0.50;
+    private static final double GLOWING_ZOMBIE_CHANCE = 0.05;
 
     private final WaveConfig config;
     private final ZombieSpecSource specSource;
@@ -23,6 +27,10 @@ public class WaveSystem {
     private int currentWaveInitialHealth;
     private boolean started;
     private boolean allWavesSpawned;
+    /** Ensure the level visibly demonstrates the Plant Food carrier mechanic at least once. */
+    private boolean guaranteedGlowingSpawned;
+    /** Zombies spawned by the currently active wave only. */
+    private List<Zombie> currentWaveZombies = List.of();
 
     public WaveSystem(WaveConfig config, ZombieSpecSource specSource) {
         this.config = config;
@@ -48,9 +56,17 @@ public class WaveSystem {
     }
 
     private boolean shouldStartNextWave(GameEngine engine) {
-        int currentHealth = aggregateHealth(engine);
+        /*
+         * Chapter setup can place zombies before wave 1 (for example the
+         * frozen zombie in Frostbite Caves). Those zombies are not part of
+         * the wave and must not hold back wave progression.
+         */
+        int currentHealth = aggregateHealth(currentWaveZombies);
         int lost = currentWaveInitialHealth - currentHealth;
-        return lost >= (int) Math.ceil(currentWaveInitialHealth * NEXT_WAVE_THRESHOLD);
+        double threshold = isZombieKillTimedWar(engine)
+                ? TIMED_WAR_NEXT_WAVE_THRESHOLD
+                : NEXT_WAVE_THRESHOLD;
+        return lost >= (int) Math.ceil(currentWaveInitialHealth * threshold);
     }
 
     private void startWave(GameEngine engine, int waveNumber) {
@@ -63,8 +79,8 @@ public class WaveSystem {
         }
         engine.recordEvent("Wave " + waveNumber + " started.");
 
-        spawnWave(engine, waveNumber);
-        currentWaveInitialHealth = aggregateHealth(engine);
+        currentWaveZombies = spawnWave(engine, waveNumber);
+        currentWaveInitialHealth = aggregateHealth(currentWaveZombies);
 
         if (finalWave) {
             allWavesSpawned = true;
@@ -101,7 +117,7 @@ public class WaveSystem {
         return targetCost;
     }
 
-    private void spawnWave(GameEngine engine, int waveNumber) {
+    private List<Zombie> spawnWave(GameEngine engine, int waveNumber) {
         int targetCost = config.costOfWave(waveNumber);
         Random random = engine.getRandom();
         RandomSource randomSource = RandomSourceAdapter.wrap(random); // ← اصلاح شد
@@ -117,12 +133,23 @@ public class WaveSystem {
                             + " cannot be composed from the available zombies.");
         }
 
+        if (isZombieKillTimedWar(engine)) {
+            int target = engine.getAdventureState().getConfig().getTimedWarTarget();
+            int waves = Math.max(1, config.getWaveCount());
+            int minimumPerWave = Math.max(1, (int) Math.ceil(target / (double) waves));
+            ZombieSpec cheapest = cheapestSpec(availableSpecs);
+            while (cheapest != null && composition.size() < minimumPerWave) {
+                composition.add(cheapest);
+            }
+        }
+
         int rows = engine.getGameMap().getRows();
         int spawnColumn = engine.getGameMap().getColumns();
         boolean tornadoes = config.isFinalWave(waveNumber)
                 && engine.getAdventureState() != null
                 && engine.getAdventureState().getConfig().getChapterRules().hasFinalWaveTornadoes();
 
+        List<Zombie> spawned = new ArrayList<>(composition.size());
         for (ZombieSpec spec : composition) {
             int lane = random.nextInt(rows);
             double spawnX = spawnColumn;
@@ -133,15 +160,43 @@ public class WaveSystem {
                         + advance + " columns into lane " + lane + ".");
             }
             Zombie zombie = engine.spawnZombie(spec.getType(), lane, spawnX);
+            boolean glowing = !guaranteedGlowingSpawned
+                    || random.nextDouble() < GLOWING_ZOMBIE_CHANCE;
+            if (glowing) {
+                zombie.putState("GLOWING", true);
+                guaranteedGlowingSpawned = true;
+                engine.recordEvent("A glowing zombie entered lane " + lane + ".");
+            }
+            spawned.add(zombie);
             engine.recordEvent("Zombie " + spec.getName() + " spawned at wave " + waveNumber
                     + " in lane " + lane + " which costed " + spec.getWaveCost() + ".");
         }
+        return spawned;
     }
 
-    private int aggregateHealth(GameEngine engine) {
+    private boolean isZombieKillTimedWar(GameEngine engine) {
+        return engine.getAdventureState() != null
+                && engine.getAdventureState().getConfig().getSpecialType() == SpecialLevelType.TIMED_WAR
+                && engine.getAdventureState().getConfig().getTimedWarObjective() == TimedWarObjective.ZOMBIE_KILLS;
+    }
+
+    private ZombieSpec cheapestSpec(List<ZombieSpec> specs) {
+        ZombieSpec cheapest = null;
+        for (ZombieSpec spec : specs) {
+            if (spec == null || spec.getWaveCost() <= 0) {
+                continue;
+            }
+            if (cheapest == null || spec.getWaveCost() < cheapest.getWaveCost()) {
+                cheapest = spec;
+            }
+        }
+        return cheapest;
+    }
+
+    private int aggregateHealth(List<Zombie> zombies) {
         int total = 0;
-        for (Zombie zombie : engine.getZombies()) {
-            total += zombie.getHealth();
+        for (Zombie zombie : zombies) {
+            total += Math.max(0, zombie.getHealth());
         }
         return total;
     }

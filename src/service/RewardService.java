@@ -3,6 +3,7 @@ package service;
 import model.GameEngine;
 import model.miniGame.GreenHouse;
 import model.sim.SimulationWorld;
+import model.sim.zombie.ZombieDeath;
 import model.user.User;
 import util.RandomSource;
 
@@ -46,6 +47,28 @@ public class RewardService {
     /** Rolls whether a spawning zombie glows (5%). */
     public boolean rollGlowing() {
         return random.nextDouble() < GLOW_CHANCE;
+    }
+
+    /**
+     * Gameplay-facing death reward path. Glowing zombies now drop a collectible
+     * Plant Food pickup on the lawn instead of granting it instantly.
+     */
+    public List<String> onZombieDeath(ZombieDeath death, User user, GameEngine world) {
+        List<String> messages = new ArrayList<>();
+        if (death == null) {
+            return messages;
+        }
+
+        if (death.isGlowing() && world != null) {
+            world.spawnPlantFoodPickup(death.getDeathX(), death.getRow());
+            messages.add("The glowing zombie dropped Plant Food onto the lawn.");
+        }
+
+        if (!death.isCheatKill() && random.nextDouble() < DROP_CHANCE) {
+            messages.add(applyDrop(rollDrop(), user));
+            userService.updateUser(user);
+        }
+        return messages;
     }
 
     /**

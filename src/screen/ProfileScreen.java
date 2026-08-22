@@ -124,13 +124,9 @@ public final class ProfileScreen implements Screen {
          * assets/ui/profileBG1.PNG
          */
 
-        morningBackground = new Texture(
-                Gdx.files.internal("ui/profileBG1.PNG")
-        );
+        morningBackground = TextureQuality.load("ui/profileBG1.PNG");
 
-        nightBackground = new Texture(
-                Gdx.files.internal("ui/profileBG.PNG")
-        );
+        nightBackground = TextureQuality.load("ui/profileBG.PNG");
 
         Gdx.input.setInputProcessor(stage);
 

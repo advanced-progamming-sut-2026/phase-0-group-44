@@ -42,7 +42,7 @@ public final class RegisterScreen implements Screen {
 
         toast = new ToastManager(stage, skin);
         Gdx.input.setInputProcessor(stage);
-        backgroundTexture = new Texture(Gdx.files.internal("ui/RegisterMenu.png"));
+        backgroundTexture = TextureQuality.load("ui/RegisterMenu.png");
         root = new Table();
         root.setBackground(new TextureRegionDrawable(backgroundTexture));
         root.setFillParent(true);

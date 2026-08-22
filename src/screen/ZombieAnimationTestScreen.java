@@ -133,7 +133,7 @@ public final class ZombieAnimationTestScreen implements Screen {
 
         textureBank =
                 new TextureBank(
-                        "768",
+                        PamAssetQuality.bestResolution(assets),
                         assets
                 );
 

@@ -19,6 +19,8 @@ import controller.GameplayController;
 import model.GameEngine;
 import model.Result;
 import model.inGame.GameSession;
+import model.inGame.plant.Plant;
+import model.inGame.zombie.Zombie;
 import model.level.AdventureLevelConfig;
 import model.level.SpecialLevelType;
 import model.level.TileCoordinate;
@@ -73,6 +75,7 @@ public final class BattlefieldSpecialLevelLayer {
     private boolean previewWavesStarted;
     private String renderedSignature = "";
     private SpecialLevelType lastIntroType;
+    private int lastPlantLossCount = -1;
 
     private GameEngine currentEngine;
     private GameSession currentSession;
@@ -201,10 +204,18 @@ public final class BattlefieldSpecialLevelLayer {
         switch (type) {
             case SAVE_OUR_SEEDS -> {
                 if (state != null) {
-                    value.append('|').append(state.getProtectedTiles());
+                    for (TileCoordinate coordinate : state.getProtectedTiles()) {
+                        Plant plant = protectedPlant(engine, coordinate);
+                        value.append('|').append(coordinate.getX()).append(',')
+                                .append(coordinate.getY()).append(':')
+                                .append(plant == null ? -1 : plant.getHp()).append('/')
+                                .append(plant == null ? 0 : plant.getMaxHp());
+                    }
                 }
             }
-            case DEAD_LINE -> value.append('|').append(config.getDeadLineColumn());
+            case DEAD_LINE -> value.append('|')
+                    .append(config.getDeadLineColumn())
+                    .append('|').append(deadLineThreat(engine, config.getDeadLineColumn()));
             case TIMED_WAR -> {
                 long elapsed = state == null ? 0L : state.getElapsedTicks();
                 long remainingTicks = Math.max(0L, config.getTimedWarTicks() - elapsed);
@@ -238,90 +249,266 @@ public final class BattlefieldSpecialLevelLayer {
         if (type == SpecialLevelType.SAVE_OUR_SEEDS) {
             addProtectedTiles(engine, previewMode);
         } else if (type == SpecialLevelType.DEAD_LINE) {
-            addDeadLine(session, previewMode);
+            addDeadLine(engine, session, previewMode);
         }
     }
 
     private void addProtectedTiles(GameEngine engine, boolean previewMode) {
         if (previewMode || engine == null || engine.getAdventureState() == null) {
-            addProtectMarker(2, 0);
-            addProtectMarker(2, 2);
-            addProtectMarker(2, 4);
+            addProtectMarker(2, 0, 100, 100);
+            addProtectMarker(2, 2, 72, 100);
+            addProtectMarker(2, 4, 100, 100);
             return;
         }
         for (TileCoordinate coordinate : engine.getAdventureState().getProtectedTiles()) {
-            addProtectMarker(coordinate.getX(), coordinate.getY());
+            Plant plant = protectedPlant(engine, coordinate);
+            addProtectMarker(
+                    coordinate.getX(),
+                    coordinate.getY(),
+                    plant == null ? 0 : plant.getHp(),
+                    plant == null ? 1 : plant.getMaxHp());
         }
     }
 
-    private void addProtectMarker(int column, int row) {
+    private Plant protectedPlant(GameEngine engine, TileCoordinate coordinate) {
+        if (engine == null || coordinate == null) {
+            return null;
+        }
+        var tile = engine.getGameMap().getTile(coordinate.getY(), coordinate.getX());
+        if (tile == null) {
+            return null;
+        }
+        if (tile.getPrimaryPlant() != null) {
+            return tile.getPrimaryPlant();
+        }
+        if (tile.getArmorPlant() != null) {
+            return tile.getArmorPlant();
+        }
+        return tile.getSupportPlant();
+    }
+
+    private void addProtectMarker(int column, int row, int hp, int maxHp) {
         Rectangle cell = layout.cellBounds(row, column);
+        float ratio = maxHp <= 0 ? 0f : Math.max(0f, Math.min(1f, (float) hp / maxHp));
+        boolean danger = ratio <= 0.35f;
+        boolean warning = !danger && ratio <= 0.70f;
 
-        // Keep the plant itself visible: mark the protected CELL rather than
-        // covering it with the full caution-tile animation.
-        float inset = 5f;
-        float line = 4f;
-        Color gold = new Color(1f, 0.78f, 0.08f, 0.92f);
+        Color accent = danger
+                ? new Color(1f, 0.16f, 0.08f, 0.96f)
+                : warning
+                ? new Color(1f, 0.55f, 0.06f, 0.96f)
+                : new Color(1f, 0.82f, 0.10f, 0.96f);
 
-        addOutlinePart(cell.x + inset, cell.y + inset,
-                cell.width - inset * 2f, line, gold);
-        addOutlinePart(cell.x + inset, cell.y + cell.height - inset - line,
-                cell.width - inset * 2f, line, gold);
-        addOutlinePart(cell.x + inset, cell.y + inset,
-                line, cell.height - inset * 2f, gold);
-        addOutlinePart(cell.x + cell.width - inset - line, cell.y + inset,
-                line, cell.height - inset * 2f, gold);
+        // A faint fill makes the objective tile unmistakable without hiding the plant.
+        Image tint = new Image(whiteTexture);
+        tint.setColor(accent.r, accent.g, accent.b, danger ? 0.16f : 0.10f);
+        tint.setBounds(cell.x + 3f, cell.y + 3f, cell.width - 6f, cell.height - 6f);
+        tint.addAction(Actions.forever(Actions.sequence(
+                Actions.alpha(danger ? 0.22f : 0.13f, danger ? 0.32f : 0.70f),
+                Actions.alpha(danger ? 0.10f : 0.06f, danger ? 0.32f : 0.70f)
+        )));
+        boardLayer.addActor(tint);
+
+        addCornerBrackets(cell, accent, danger);
+
+        // Small objective badge above the protected plant.
+        Label badge = new Label(danger ? "PROTECT!" : "PROTECT", skin, "medium_outline");
+        badge.setAlignment(Align.center);
+        badge.setColor(accent);
+        badge.setFontScale(0.72f);
+        badge.setBounds(cell.x + 6f, cell.y + cell.height - 27f, cell.width - 12f, 23f);
+        badge.addAction(Actions.forever(Actions.sequence(
+                Actions.alpha(1f, 0.55f),
+                Actions.alpha(danger ? 0.48f : 0.72f, 0.55f)
+        )));
+        boardLayer.addActor(badge);
+
+        // Health strip gives the player useful warning before the protected plant is lost.
+        float barX = cell.x + 12f;
+        float barY = cell.y + 8f;
+        float barWidth = cell.width - 24f;
+        Image barBack = new Image(whiteTexture);
+        barBack.setColor(0.02f, 0.02f, 0.02f, 0.76f);
+        barBack.setBounds(barX - 2f, barY - 2f, barWidth + 4f, 8f);
+        boardLayer.addActor(barBack);
+
+        Image bar = new Image(whiteTexture);
+        bar.setColor(danger ? 1f : warning ? 1f : 0.40f,
+                danger ? 0.12f : warning ? 0.58f : 0.92f,
+                danger ? 0.05f : warning ? 0.06f : 0.18f, 0.98f);
+        bar.setBounds(barX, barY, barWidth * ratio, 4f);
+        boardLayer.addActor(bar);
 
         if (pamPlayer != null && pamRoot != null) {
             PamEnvironmentActor marker = new PamEnvironmentActor(
                     pamPlayer, PROTECT_TILE_PAM, "animation", 0.20f, 0f, 0f);
-            marker.setBounds(cell.x + 7f, cell.y + cell.height - 39f, 32f, 32f);
-            marker.getColor().a = 0.88f;
+            marker.setBounds(cell.x + 5f, cell.y + cell.height - 42f, 34f, 34f);
+            marker.getColor().a = danger ? 1f : 0.88f;
             boardLayer.addActor(marker);
         }
     }
 
-    private void addOutlinePart(float x, float y, float width, float height, Color color) {
+    private void addCornerBrackets(Rectangle cell, Color color, boolean danger) {
+        float inset = 5f;
+        float thickness = 4f;
+        float arm = Math.min(18f, cell.width * 0.22f);
+        float left = cell.x + inset;
+        float right = cell.x + cell.width - inset;
+        float bottom = cell.y + inset;
+        float top = cell.y + cell.height - inset;
+
+        addOutlinePart(left, bottom, arm, thickness, color, danger);
+        addOutlinePart(left, bottom, thickness, arm, color, danger);
+        addOutlinePart(right - arm, bottom, arm, thickness, color, danger);
+        addOutlinePart(right - thickness, bottom, thickness, arm, color, danger);
+        addOutlinePart(left, top - thickness, arm, thickness, color, danger);
+        addOutlinePart(left, top - arm, thickness, arm, color, danger);
+        addOutlinePart(right - arm, top - thickness, arm, thickness, color, danger);
+        addOutlinePart(right - thickness, top - arm, thickness, arm, color, danger);
+    }
+
+    private void addOutlinePart(
+            float x, float y, float width, float height, Color color, boolean danger
+    ) {
         Image line = new Image(whiteTexture);
         line.setColor(color);
         line.setBounds(x, y, width, height);
         line.addAction(Actions.forever(Actions.sequence(
-                Actions.alpha(0.98f, 0.55f),
-                Actions.alpha(0.58f, 0.55f)
+                Actions.alpha(1f, danger ? 0.28f : 0.55f),
+                Actions.alpha(danger ? 0.42f : 0.62f, danger ? 0.28f : 0.55f)
         )));
         boardLayer.addActor(line);
     }
 
-    private void addDeadLine(GameSession session, boolean previewMode) {
+    private void addDeadLine(GameEngine engine, GameSession session, boolean previewMode) {
         AdventureLevelConfig config = config(session);
         int column = previewMode || config == null ? 2 : config.getDeadLineColumn();
         column = Math.max(0, Math.min(8, column));
+
         Rectangle board = layout.boardBounds();
         Rectangle cell = layout.cellBounds(0, column);
         float lineX = cell.x;
+        DeadLineThreat threat = previewMode ? DeadLineThreat.WARNING : deadLineThreat(engine, column);
+
+        // The area to the left of the model's deadline is the forbidden zone.
+        // The model loses as soon as zombie.getX() < deadLineColumn, so the
+        // boundary must be drawn on the LEFT edge of that column.
+        Image forbidden = new Image(whiteTexture);
+        forbidden.setColor(0.72f, 0.015f, 0.015f,
+                threat == DeadLineThreat.DANGER ? 0.18f : 0.09f);
+        forbidden.setBounds(board.x, board.y, Math.max(0f, lineX - board.x), board.height);
+        boardLayer.addActor(forbidden);
+
+        // Subtle stripes make the unsafe side readable without obscuring the board.
+        float stripeSpacing = Math.max(22f, layout.cellWidth() * 0.42f);
+        for (float x = board.x + 10f; x < lineX - 4f; x += stripeSpacing) {
+            Image stripe = new Image(whiteTexture);
+            stripe.setColor(1f, 0.18f, 0.06f,
+                    threat == DeadLineThreat.DANGER ? 0.16f : 0.08f);
+            stripe.setBounds(x, board.y, 5f, board.height);
+            stripe.setRotation(-14f);
+            boardLayer.addActor(stripe);
+        }
 
         Image glow = new Image(whiteTexture);
-        glow.setColor(1f, 0.05f, 0.02f, 0.18f);
-        glow.setBounds(lineX - 8f, board.y, 16f, board.height);
+        glow.setColor(1f, 0.05f, 0.02f,
+                threat == DeadLineThreat.DANGER ? 0.42f : 0.22f);
+        glow.setBounds(lineX - 10f, board.y, 20f, board.height);
         glow.addAction(Actions.forever(Actions.sequence(
-                Actions.alpha(0.38f, 0.45f),
-                Actions.alpha(0.12f, 0.45f)
+                Actions.alpha(threat == DeadLineThreat.DANGER ? 0.62f : 0.38f,
+                        threat == DeadLineThreat.DANGER ? 0.20f : 0.42f),
+                Actions.alpha(threat == DeadLineThreat.DANGER ? 0.18f : 0.10f,
+                        threat == DeadLineThreat.DANGER ? 0.20f : 0.42f)
         )));
         boardLayer.addActor(glow);
 
-        Image core = new Image(whiteTexture);
-        core.setColor(1f, 0.12f, 0.04f, 0.88f);
-        core.setBounds(lineX - 2f, board.y, 4f, board.height);
-        boardLayer.addActor(core);
+        // Draw the boundary as bright dashes so it remains visible over water,
+        // ice, graves, plants and zombie sprites.
+        float dashHeight = Math.max(20f, layout.cellHeight() * 0.27f);
+        float gap = Math.max(8f, layout.cellHeight() * 0.10f);
+        for (float y = board.y; y < board.y + board.height; y += dashHeight + gap) {
+            Image dash = new Image(whiteTexture);
+            dash.setColor(1f,
+                    threat == DeadLineThreat.DANGER ? 0.06f : 0.12f,
+                    0.03f, 0.96f);
+            dash.setBounds(lineX - 3f, y, 6f,
+                    Math.min(dashHeight, board.y + board.height - y));
+            boardLayer.addActor(dash);
+        }
 
         for (int row = 0; row < 5; row++) {
             Rectangle rowCell = layout.cellBounds(row, column);
-            Label warning = new Label("!", skin, "medium_outline");
+
+            Label warning = new Label(threat == DeadLineThreat.DANGER ? "!!" : "!",
+                    skin, "medium_outline");
             warning.setAlignment(Align.center);
-            warning.setColor(1f, 0.32f, 0.10f, 0.95f);
-            warning.setBounds(lineX - 21f, rowCell.y + rowCell.height * 0.5f - 17f, 42f, 34f);
+            warning.setColor(1f,
+                    threat == DeadLineThreat.DANGER ? 0.08f : 0.38f,
+                    0.08f, 1f);
+            warning.setBounds(lineX - 48f,
+                    rowCell.y + rowCell.height * 0.5f - 17f, 38f, 34f);
+            if (threat != DeadLineThreat.SAFE) {
+                warning.addAction(Actions.forever(Actions.sequence(
+                        Actions.scaleTo(1.18f, 1.18f, 0.22f),
+                        Actions.scaleTo(1f, 1f, 0.22f)
+                )));
+            }
             boardLayer.addActor(warning);
+
+            Label arrow = new Label(">", skin, "medium_outline");
+            arrow.setAlignment(Align.center);
+            arrow.setColor(1f, 0.80f, 0.26f, 0.92f);
+            arrow.setBounds(lineX + 8f,
+                    rowCell.y + rowCell.height * 0.5f - 16f, 32f, 32f);
+            boardLayer.addActor(arrow);
         }
+
+        Label zoneLabel = new Label("NO ZOMBIES", skin, "medium_outline");
+        zoneLabel.setColor(1f, 0.45f, 0.22f, 0.84f);
+        zoneLabel.setAlignment(Align.center);
+        zoneLabel.setBounds(board.x + 4f, board.y + board.height - 30f,
+                Math.max(90f, lineX - board.x - 8f), 28f);
+        boardLayer.addActor(zoneLabel);
+    }
+
+    private DeadLineThreat deadLineThreat(GameEngine engine, int deadlineColumn) {
+        if (engine == null) {
+            return DeadLineThreat.SAFE;
+        }
+        double nearest = Double.POSITIVE_INFINITY;
+        for (Zombie zombie : engine.getZombies()) {
+            if (zombie == null || zombie.isDead()) {
+                continue;
+            }
+            nearest = Math.min(nearest, zombie.getX());
+        }
+        if (!Double.isFinite(nearest)) {
+            return DeadLineThreat.SAFE;
+        }
+        double tilesAway = nearest - deadlineColumn;
+        if (tilesAway <= 0.80d) {
+            return DeadLineThreat.DANGER;
+        }
+        if (tilesAway <= 2.0d) {
+            return DeadLineThreat.WARNING;
+        }
+        return DeadLineThreat.SAFE;
+    }
+
+    private String deadLineDetail(GameEngine engine, AdventureLevelConfig config, boolean previewMode) {
+        int column = previewMode || config == null ? 2 : config.getDeadLineColumn();
+        DeadLineThreat threat = previewMode ? DeadLineThreat.WARNING : deadLineThreat(engine, column);
+        return switch (threat) {
+            case SAFE -> "KEEP ZOMBIES RIGHT OF THE RED LINE  •  SAFE";
+            case WARNING -> "WARNING  •  ZOMBIES APPROACHING THE LINE";
+            case DANGER -> "DANGER!  •  ZOMBIE AT THE RED LINE";
+        };
+    }
+
+    private enum DeadLineThreat {
+        SAFE,
+        WARNING,
+        DANGER
     }
 
     private void buildObjectiveHud(
@@ -330,10 +517,26 @@ public final class BattlefieldSpecialLevelLayer {
             GameSession session,
             boolean previewMode
     ) {
+        if (type == SpecialLevelType.TIMED_WAR) {
+            lastPlantLossCount = -1;
+            buildTimedWarHud(engine, session, previewMode);
+            return;
+        }
+        if (type == SpecialLevelType.LOVE_YOUR_PLANTS) {
+            buildLoveYourPlantsHud(engine, session, previewMode);
+            return;
+        }
+        if (type == SpecialLevelType.PLANT_WHAT_YOU_GET) {
+            lastPlantLossCount = -1;
+            buildPlantWhatYouGetHud(engine, previewMode);
+            return;
+        }
+        lastPlantLossCount = -1;
+
         final float x = 982f;
         final float y = 566f;
         final float width = 242f;
-        final float height = type == SpecialLevelType.TIMED_WAR ? 84f : 68f;
+        final float height = 68f;
 
         Image shadow = new Image(whiteTexture);
         shadow.setColor(0f, 0f, 0f, 0.62f);
@@ -363,46 +566,379 @@ public final class BattlefieldSpecialLevelLayer {
         detailLabel.setBounds(x + 12f, y + 8f, width - 24f, height - 40f);
         objectiveLayer.addActor(detailLabel);
 
-        if (type == SpecialLevelType.TIMED_WAR) {
-            addTimedWarIcon(x + width - 58f, y + 10f, engine, session, previewMode);
-        }
-
-        if (type == SpecialLevelType.PLANT_WHAT_YOU_GET
-                && !(previewMode ? previewWavesStarted : engine != null && engine.areWavesStarted())) {
-            addStartWaveButton();
-        }
     }
 
-    private void addTimedWarIcon(
-            float x,
-            float y,
+    /**
+     * Dedicated setup/battle HUD for Plant What You Get. Before the player
+     * starts the waves, planting is unlimited: no sun is charged and cards do
+     * not wait for cooldown. Once START WAVE is pressed, the normal rules resume.
+     */
+    private void buildPlantWhatYouGetHud(GameEngine engine, boolean previewMode) {
+        boolean started = previewMode
+                ? previewWavesStarted
+                : engine != null && engine.areWavesStarted();
+
+        final float x = 944f;
+        final float y = started ? 558f : 500f;
+        final float width = 280f;
+        final float height = started ? 92f : 156f;
+        Color accent = started
+                ? new Color(0.32f, 0.92f, 0.42f, 1f)
+                : new Color(0.74f, 0.42f, 1f, 1f);
+
+        Image shadow = new Image(whiteTexture);
+        shadow.setColor(0f, 0f, 0f, 0.66f);
+        shadow.setBounds(x + 5f, y - 5f, width, height);
+        objectiveLayer.addActor(shadow);
+
+        Image panel = new Image(whiteTexture);
+        panel.setColor(0.055f, 0.055f, 0.075f, 0.96f);
+        panel.setBounds(x, y, width, height);
+        objectiveLayer.addActor(panel);
+
+        Image topRule = new Image(whiteTexture);
+        topRule.setColor(accent);
+        topRule.setBounds(x, y + height - 5f, width, 5f);
+        objectiveLayer.addActor(topRule);
+
+        Label title = new Label("PLANT WHAT YOU GET", skin, "medium_outline");
+        title.setColor(new Color(1f, 0.90f, 0.48f, 1f));
+        title.setBounds(x + 12f, y + height - 38f, width - 24f, 30f);
+        objectiveLayer.addActor(title);
+
+        Label phase = new Label(started ? "BATTLE ACTIVE" : "SETUP PHASE", skin, "medium_outline");
+        phase.setColor(accent);
+        phase.setBounds(x + 12f, y + height - 68f, width - 24f, 24f);
+        objectiveLayer.addActor(phase);
+
+        if (started) {
+            Label normal = new Label("NORMAL SUN COSTS & COOLDOWNS", skin);
+            normal.setColor(0.82f, 0.88f, 0.84f, 1f);
+            normal.setBounds(x + 12f, y + 12f, width - 24f, 24f);
+            objectiveLayer.addActor(normal);
+            return;
+        }
+
+        Label free = new Label("FREE PLANTING  •  NO COOLDOWN", skin);
+        free.setColor(0.92f, 0.88f, 1f, 1f);
+        free.setBounds(x + 12f, y + 60f, width - 24f, 24f);
+        objectiveLayer.addActor(free);
+
+        Label hint = new Label("ARRANGE YOUR DEFENSE, THEN START", skin);
+        hint.setColor(0.78f, 0.80f, 0.86f, 1f);
+        hint.setBounds(x + 12f, y + 40f, width - 24f, 22f);
+        objectiveLayer.addActor(hint);
+
+        addStartWaveButton(x + 38f, y + 8f, width - 76f, 38f);
+    }
+
+    /**
+     * Dedicated HUD for the "Don't Lose Plants" adventure rule.  The Phase-2
+     * requirement is that the player can always tell how many losses remain,
+     * so this uses a large number, a shrinking meter, and one pip per allowed
+     * plant loss instead of hiding the state in a small sentence.
+     */
+    private void buildLoveYourPlantsHud(
             GameEngine engine,
             GameSession session,
             boolean previewMode
     ) {
         AdventureLevelConfig config = config(session);
-        if (pamPlayer != null && pamRoot != null) {
-            PamEnvironmentActor clock = new PamEnvironmentActor(
-                    pamPlayer, CLOCK_PAM, "default", 0.30f, 0f, 0f);
-            clock.setBounds(x, y, 42f, 42f);
-            objectiveLayer.addActor(clock);
+        int maximum = previewMode || config == null
+                ? 5 : Math.max(1, config.getMaximumPlantLosses());
+        int losses = previewMode || engine == null
+                ? 2 : Math.max(0, engine.getPlantLossCount());
+        int remaining = Math.max(0, maximum - losses);
+        float ratio = Math.max(0f, Math.min(1f, (float) remaining / (float) maximum));
+
+        boolean danger = remaining <= 1;
+        boolean warning = !danger && remaining <= Math.max(2, maximum / 2);
+        Color accent = danger
+                ? new Color(1f, 0.18f, 0.10f, 1f)
+                : warning
+                        ? new Color(1f, 0.62f, 0.10f, 1f)
+                        : new Color(0.34f, 0.92f, 0.36f, 1f);
+
+        final float x = 944f;
+        final float y = 532f;
+        final float width = 280f;
+        final float height = 126f;
+
+        Image shadow = new Image(whiteTexture);
+        shadow.setColor(0f, 0f, 0f, 0.66f);
+        shadow.setBounds(x + 5f, y - 5f, width, height);
+        objectiveLayer.addActor(shadow);
+
+        Image panel = new Image(whiteTexture);
+        panel.setColor(0.055f, 0.085f, 0.065f, 0.95f);
+        panel.setBounds(x, y, width, height);
+        objectiveLayer.addActor(panel);
+
+        Image topRule = new Image(whiteTexture);
+        topRule.setColor(accent);
+        topRule.setBounds(x, y + height - 5f, width, 5f);
+        if (danger) {
+            topRule.addAction(Actions.forever(Actions.sequence(
+                    Actions.alpha(0.42f, 0.34f),
+                    Actions.alpha(1f, 0.34f)
+            )));
+        }
+        objectiveLayer.addActor(topRule);
+
+        Label title = new Label("DON'T LOSE PLANTS", skin, "medium_outline");
+        title.setColor(danger ? accent : new Color(1f, 0.90f, 0.48f, 1f));
+        title.setBounds(x + 12f, y + 88f, width - 24f, 28f);
+        objectiveLayer.addActor(title);
+
+        Label caption = new Label("PLANT LOSSES LEFT", skin);
+        caption.setColor(0.80f, 0.86f, 0.80f, 1f);
+        caption.setBounds(x + 12f, y + 64f, 150f, 20f);
+        objectiveLayer.addActor(caption);
+
+        Label number = new Label(remaining + " / " + maximum, skin, "medium_outline");
+        number.setAlignment(Align.right);
+        number.setFontScale(1.08f);
+        number.setColor(accent);
+        number.setBounds(x + 174f, y + 60f, 92f, 28f);
+        objectiveLayer.addActor(number);
+
+        addHudMeter(x + 12f, y + 52f, width - 24f, 8f, ratio, accent);
+
+        float gap = 5f;
+        float totalPipWidth = width - 24f;
+        float pipWidth = Math.max(8f, (totalPipWidth - gap * (maximum - 1)) / maximum);
+        for (int i = 0; i < maximum; i++) {
+            Image pip = new Image(whiteTexture);
+            boolean available = i < remaining;
+            pip.setColor(available
+                    ? new Color(accent.r, accent.g, accent.b, 0.94f)
+                    : new Color(0.20f, 0.23f, 0.20f, 0.72f));
+            pip.setBounds(x + 12f + i * (pipWidth + gap), y + 31f, pipWidth, 11f);
+            objectiveLayer.addActor(pip);
         }
 
+        String state = remaining <= 0
+                ? "LIMIT REACHED"
+                : danger ? "LAST CHANCE"
+                : warning ? "BE CAREFUL"
+                : "PLANTS ARE SAFE";
+        Label status = new Label(state, skin);
+        status.setAlignment(Align.right);
+        status.setColor(accent);
+        status.setBounds(x + 92f, y + 7f, 174f, 18f);
+        objectiveLayer.addActor(status);
+
+        if (!previewMode) {
+            if (lastPlantLossCount >= 0 && losses > lastPlantLossCount) {
+                addPlantLostFlash(losses - lastPlantLossCount);
+            }
+            lastPlantLossCount = losses;
+        }
+    }
+
+    private void addPlantLostFlash(int amount) {
+        Group flash = new Group();
+        flash.setTouchable(Touchable.disabled);
+        flash.setBounds(452f, 430f, 376f, 64f);
+        flash.getColor().a = 0f;
+
+        Image back = new Image(whiteTexture);
+        back.setColor(0.36f, 0.015f, 0.01f, 0.90f);
+        back.setBounds(0f, 0f, 376f, 64f);
+        flash.addActor(back);
+
+        Image rule = new Image(whiteTexture);
+        rule.setColor(1f, 0.20f, 0.08f, 1f);
+        rule.setBounds(0f, 58f, 376f, 6f);
+        flash.addActor(rule);
+
+        Label text = new Label(amount > 1 ? amount + " PLANTS LOST!" : "PLANT LOST!",
+                skin, "medium_outline");
+        text.setAlignment(Align.center);
+        text.setColor(1f, 0.86f, 0.74f, 1f);
+        text.setBounds(12f, 12f, 352f, 40f);
+        flash.addActor(text);
+
+        flash.addAction(Actions.sequence(
+                Actions.fadeIn(0.10f),
+                Actions.delay(0.70f),
+                Actions.fadeOut(0.28f),
+                Actions.removeActor()
+        ));
+        objectiveLayer.addActor(flash);
+    }
+
+    /**
+     * A dedicated Timed War HUD.  Phase 2 requires both the time remaining and
+     * the live mission progress to remain readable during gameplay; showing the
+     * two as independent meters makes it much harder to confuse the objective
+     * with the normal zombie-wave progress bar.
+     */
+    private void buildTimedWarHud(
+            GameEngine engine,
+            GameSession session,
+            boolean previewMode
+    ) {
+        AdventureLevelConfig config = config(session);
+        AdventureRuntimeState state = engine == null ? null : engine.getAdventureState();
         TimedWarObjective objective = previewMode || config == null
                 ? TimedWarObjective.ZOMBIE_KILLS : config.getTimedWarObjective();
+        int target = previewMode || config == null ? 10 : Math.max(1, config.getTimedWarTarget());
+        int progress = previewMode ? 4 : timedProgress(engine, config);
+        progress = Math.max(0, progress);
+
+        long totalTicks = previewMode || config == null
+                ? 30L * TickContext.TICKS_PER_SECOND : Math.max(1, config.getTimedWarTicks());
+        long elapsedTicks = previewMode
+                ? 12L * TickContext.TICKS_PER_SECOND
+                : state == null ? 0L : Math.max(0L, state.getElapsedTicks());
+        long remainingTicks = Math.max(0L, totalTicks - elapsedTicks);
+        long seconds = (remainingTicks + TickContext.TICKS_PER_SECOND - 1L)
+                / TickContext.TICKS_PER_SECOND;
+
+        float timeRatio = Math.max(0f, Math.min(1f, (float) remainingTicks / (float) totalTicks));
+        float goalRatio = Math.max(0f, Math.min(1f, (float) progress / (float) target));
+        boolean urgent = seconds <= 10L && progress < target;
+        boolean completed = progress >= target;
+
+        final float x = 944f;
+        final float y = 520f;
+        final float width = 280f;
+        final float height = 138f;
+
+        Image shadow = new Image(whiteTexture);
+        shadow.setColor(0f, 0f, 0f, 0.66f);
+        shadow.setBounds(x + 5f, y - 5f, width, height);
+        objectiveLayer.addActor(shadow);
+
+        Image panel = new Image(whiteTexture);
+        panel.setColor(0.055f, 0.085f, 0.075f, 0.94f);
+        panel.setBounds(x, y, width, height);
+        objectiveLayer.addActor(panel);
+
+        Image topRule = new Image(whiteTexture);
+        if (completed) {
+            topRule.setColor(0.32f, 0.94f, 0.38f, 1f);
+        } else if (urgent) {
+            topRule.setColor(1f, 0.18f, 0.08f, 1f);
+            topRule.addAction(Actions.forever(Actions.sequence(
+                    Actions.alpha(0.42f, 0.35f),
+                    Actions.alpha(1f, 0.35f)
+            )));
+        } else {
+            topRule.setColor(0.98f, 0.74f, 0.20f, 1f);
+        }
+        topRule.setBounds(x, y + height - 5f, width, 5f);
+        objectiveLayer.addActor(topRule);
+
+        Label title = new Label("TIMED WAR", skin, "medium_outline");
+        title.setColor(completed
+                ? new Color(0.52f, 1f, 0.56f, 1f)
+                : urgent ? new Color(1f, 0.42f, 0.25f, 1f)
+                : new Color(1f, 0.90f, 0.48f, 1f));
+        title.setBounds(x + 12f, y + height - 34f, 150f, 28f);
+        objectiveLayer.addActor(title);
+
+        addTimedWarClock(x + 184f, y + height - 42f);
+
+        Label timeCaption = new Label("TIME LEFT", skin);
+        timeCaption.setColor(0.78f, 0.84f, 0.80f, 1f);
+        timeCaption.setBounds(x + 12f, y + 82f, 72f, 20f);
+        objectiveLayer.addActor(timeCaption);
+
+        Label time = new Label(formatTime(seconds), skin, "medium_outline");
+        time.setAlignment(Align.right);
+        time.setFontScale(1.10f);
+        time.setColor(urgent ? new Color(1f, 0.30f, 0.18f, 1f) : Color.WHITE);
+        time.setBounds(x + 162f, y + 78f, 104f, 28f);
+        if (urgent) {
+            time.addAction(Actions.forever(Actions.sequence(
+                    Actions.alpha(0.42f, 0.32f),
+                    Actions.alpha(1f, 0.32f)
+            )));
+        }
+        objectiveLayer.addActor(time);
+
+        Color timeColor = urgent
+                ? new Color(1f, 0.20f, 0.08f, 1f)
+                : timeRatio <= 0.35f
+                        ? new Color(1f, 0.62f, 0.08f, 1f)
+                        : new Color(0.28f, 0.88f, 0.34f, 1f);
+        addHudMeter(x + 12f, y + 70f, width - 24f, 8f, timeRatio, timeColor);
+
         Texture iconTexture = objective == TimedWarObjective.SUN_PRODUCED
                 ? sunTexture : zombieHeadTexture;
         if (iconTexture != null) {
             Image icon = new Image(iconTexture);
             icon.setScaling(Scaling.fit);
-            icon.setBounds(x - 40f, y + 2f, 34f, 34f);
+            icon.setBounds(x + 10f, y + 22f, 34f, 34f);
             objectiveLayer.addActor(icon);
         }
+
+        String goalName = objective == TimedWarObjective.SUN_PRODUCED
+                ? "SUN PRODUCED" : "ZOMBIES DEFEATED";
+        Label goal = new Label(goalName, skin);
+        goal.setColor(0.86f, 0.90f, 0.86f, 1f);
+        goal.setBounds(x + 50f, y + 40f, 150f, 20f);
+        objectiveLayer.addActor(goal);
+
+        Label numbers = new Label(Math.min(progress, target) + " / " + target,
+                skin, "medium_outline");
+        numbers.setAlignment(Align.right);
+        numbers.setColor(completed
+                ? new Color(0.48f, 1f, 0.52f, 1f) : Color.WHITE);
+        numbers.setBounds(x + 192f, y + 38f, 74f, 24f);
+        objectiveLayer.addActor(numbers);
+
+        addHudMeter(x + 50f, y + 28f, width - 62f, 8f, goalRatio,
+                completed
+                        ? new Color(0.30f, 0.96f, 0.38f, 1f)
+                        : new Color(0.98f, 0.76f, 0.16f, 1f));
+
+        int remaining = Math.max(0, target - progress);
+        Label status = new Label(completed
+                ? "TARGET COMPLETE"
+                : remaining + (objective == TimedWarObjective.SUN_PRODUCED
+                        ? " SUN TO GO" : " TO GO"), skin);
+        status.setAlignment(Align.right);
+        status.setColor(completed
+                ? new Color(0.52f, 1f, 0.56f, 1f)
+                : urgent ? new Color(1f, 0.45f, 0.28f, 1f)
+                : new Color(0.78f, 0.82f, 0.78f, 1f));
+        status.setBounds(x + 112f, y + 6f, 154f, 18f);
+        objectiveLayer.addActor(status);
     }
 
-    private void addStartWaveButton() {
+    private void addTimedWarClock(float x, float y) {
+        if (pamPlayer == null || pamRoot == null) {
+            return;
+        }
+        PamEnvironmentActor clock = new PamEnvironmentActor(
+                pamPlayer, CLOCK_PAM, "default", 0.27f, 0f, 0f);
+        clock.setBounds(x, y, 34f, 34f);
+        objectiveLayer.addActor(clock);
+    }
+
+    private void addHudMeter(
+            float x, float y, float width, float height, float ratio, Color fillColor
+    ) {
+        Image back = new Image(whiteTexture);
+        back.setColor(0.015f, 0.02f, 0.018f, 0.92f);
+        back.setBounds(x, y, width, height);
+        objectiveLayer.addActor(back);
+
+        float inset = 2f;
+        Image fill = new Image(whiteTexture);
+        fill.setColor(fillColor);
+        fill.setBounds(x + inset, y + inset,
+                Math.max(0f, (width - inset * 2f) * Math.max(0f, Math.min(1f, ratio))),
+                Math.max(1f, height - inset * 2f));
+        objectiveLayer.addActor(fill);
+    }
+
+    private void addStartWaveButton(float x, float y, float width, float height) {
         TextButton start = new TextButton("START WAVE", skin, "purple");
-        start.setBounds(530f, 82f, 220f, 50f);
+        start.setBounds(x, y, width, height);
         start.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
@@ -477,8 +1013,8 @@ public final class BattlefieldSpecialLevelLayer {
         AdventureLevelConfig config = config(session);
         AdventureRuntimeState state = engine == null ? null : engine.getAdventureState();
         return switch (type) {
-            case SAVE_OUR_SEEDS -> "PROTECT THE MARKED PLANTS";
-            case DEAD_LINE -> "DO NOT LET ZOMBIES CROSS THE RED LINE";
+            case SAVE_OUR_SEEDS -> protectedPlantsDetail(engine, state, previewMode);
+            case DEAD_LINE -> deadLineDetail(engine, config, previewMode);
             case TIMED_WAR -> timedWarDetail(engine, config, state, previewMode);
             case LOVE_YOUR_PLANTS -> {
                 int maximum = previewMode || config == null ? 3 : config.getMaximumPlantLosses();
@@ -503,9 +1039,52 @@ public final class BattlefieldSpecialLevelLayer {
                 }
                 yield "PLANT FROM THE CONVEYOR  •  READY " + packets;
             }
-            case LOCKED_PLANTS -> "PLAY WITH THE GIVEN / LOCKED PLANT SELECTION";
+            case LOCKED_PLANTS -> lockedPlantsDetail(session, previewMode);
             case NIGHT_OPS -> "NIGHT OPS  •  SKY SUN IS DISABLED";
         };
+    }
+
+    private String lockedPlantsDetail(GameSession session, boolean previewMode) {
+        if (previewMode || session == null || session.getLevel() == null) {
+            return "REQUIRED PLANT SELECTED  •  EXPLOSIVE PLANTS LOCKED";
+        }
+        var rules = session.getLevel().getSelectionRules();
+        String required = rules.getForcedPlants().stream()
+                .map(Enum::name)
+                .map(name -> name.replace('_', ' '))
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("NONE");
+        String locked = rules.getExcludedCategories().stream()
+                .map(Enum::name)
+                .map(name -> name.replace('_', ' '))
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("NONE");
+        return "REQUIRED  " + required + "  •  LOCKED  " + locked;
+    }
+
+    private String protectedPlantsDetail(
+            GameEngine engine, AdventureRuntimeState state, boolean previewMode
+    ) {
+        if (previewMode || engine == null || state == null) {
+            return "PROTECTED  3 / 3  •  KEEP THEM ALIVE";
+        }
+        int total = state.getProtectedTiles().size();
+        int alive = 0;
+        boolean damaged = false;
+        boolean danger = false;
+        for (TileCoordinate coordinate : state.getProtectedTiles()) {
+            Plant plant = protectedPlant(engine, coordinate);
+            if (plant == null || plant.isDead()) {
+                danger = true;
+                continue;
+            }
+            alive++;
+            float ratio = plant.getMaxHp() <= 0 ? 0f : (float) plant.getHp() / plant.getMaxHp();
+            damaged |= ratio < 0.999f;
+            danger |= ratio <= 0.35f;
+        }
+        String status = danger ? "DANGER" : damaged ? "UNDER ATTACK" : "ALL SAFE";
+        return "PROTECTED  " + alive + " / " + total + "  •  " + status;
     }
 
     private String timedWarDetail(

@@ -272,8 +272,37 @@ public final class AdventureMenuScreen implements Screen {
         carousel.add(buildCarouselArrow(1)).size(48f, 48f);
 
         content.add(carousel).height(430f).row();
-        content.add(buildChapterSummary(current)).padTop(1f);
+        content.add(buildChapterSummary(current)).padTop(1f).row();
+
+        if (isDebugModeEnabled()) {
+            content.add(buildDebugUnlockAllButton()).padTop(7f);
+        }
         return content;
+    }
+
+    private boolean isDebugModeEnabled() {
+        User user = Store.getLoggedInUser();
+        return user != null
+                && user.getSettings() != null
+                && user.getSettings().isDebugMode();
+    }
+
+    private TextButton buildDebugUnlockAllButton() {
+        TextButton unlock = new TextButton("DEBUG: UNLOCK ALL LEVELS", skin, "purple");
+        unlock.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Result<String> result = gameController.cheatUnlockAllLevels();
+                if (!result.getStatus()) {
+                    toast.showError(result.getMessage());
+                    return;
+                }
+
+                toast.showInfo("All Adventure chapters and levels unlocked");
+                rebuild();
+            }
+        });
+        return unlock;
     }
 
     private Actor buildCarouselArrow(int direction) {
@@ -774,7 +803,7 @@ public final class AdventureMenuScreen implements Screen {
         if (cached != null) {
             return cached;
         }
-        Texture texture = new Texture(Gdx.files.internal(path));
+        Texture texture = TextureQuality.load(path);
         textures.put(path, texture);
         return texture;
     }

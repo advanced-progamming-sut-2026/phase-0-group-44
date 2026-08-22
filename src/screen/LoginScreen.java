@@ -44,7 +44,7 @@ public final class LoginScreen implements Screen {
     }
 
     private void buildForm() {
-        backgroundTexture = new Texture(Gdx.files.internal("ui/LoginMenu.png"));
+        backgroundTexture = TextureQuality.load("ui/LoginMenu.png");
         Table root = new Table();
         root.setBackground(new TextureRegionDrawable(backgroundTexture));
         root.setFillParent(true);

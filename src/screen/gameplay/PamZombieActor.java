@@ -1,5 +1,6 @@
 package screen.gameplay;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
@@ -330,6 +331,17 @@ public final class PamZombieActor extends Actor {
                 centerY
         );
 
+        Color originalBatchColor = new Color(batch.getColor());
+        if (zombie.getBooleanState("GLOWING")) {
+            float pulse = MathUtils.sin(stateTime * 7.0f) * 0.5f + 0.5f;
+            batch.setColor(
+                    1f,
+                    0.78f + 0.18f * pulse,
+                    0.30f + 0.24f * pulse,
+                    originalBatchColor.a
+            );
+        }
+
         pamPlayer.draw(
                 batch,
                 animationInfo.getPath(),
@@ -343,6 +355,7 @@ public final class PamZombieActor extends Actor {
                         : partsVisibility
         );
 
+        batch.setColor(originalBatchColor);
         batch.setTransformMatrix(
                 originalTransform
         );

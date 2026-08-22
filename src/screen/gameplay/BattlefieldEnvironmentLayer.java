@@ -135,7 +135,7 @@ public final class BattlefieldEnvironmentLayer extends Group {
             case LOW_TIDE -> addLowTideCell(cell);
             case SLIPPERY_UP -> addSlipperyTile(cell, true);
             case SLIPPERY_DOWN -> addSlipperyTile(cell, false);
-            case FROZEN -> addTint(cell, new Color(0.62f, 0.88f, 1f, 0.22f));
+            case FROZEN -> addTint(cell, new Color(0.62f, 0.88f, 1f, 0.12f));
             case NECROMANCY -> addNecromancy(cell);
             default -> {
                 // The official background already supplies the normal terrain art.
@@ -363,12 +363,30 @@ public final class BattlefieldEnvironmentLayer extends Group {
             }
 
             Rectangle bounds = layout.mowerBounds(row);
-            String clip = "idle";
+            // MOWER_DARK's supplied idle clip is extremely subtle against the
+            // Dark Ages background. Its transition clip keeps the complete mower
+            // readable while it is waiting, then LawnMowerAnimationLayer takes
+            // over with transition -> attack once the model marks it used.
+            String clip = theme.world() == GameWorld.DARK_AGES ? "transition" : "idle";
             float scale = theme.mowerScale();
             if (theme.world() == GameWorld.FROSTBITE_CAVES) {
                 scale *= 1.24f;
             } else if (theme.world() == GameWorld.BIG_WAVE_BEACH) {
                 scale *= 1.18f;
+            } else if (theme.world() == GameWorld.DARK_AGES) {
+                scale *= 1.22f;
+
+                // A small moonlit halo separates the brown/green Dark Ages mower
+                // from the similarly dark scenery. It sits behind the real PAM.
+                Image readyGlow = new Image(whiteTexture);
+                readyGlow.setColor(0.46f, 0.30f, 0.72f, 0.16f);
+                readyGlow.setBounds(
+                        bounds.x + bounds.width * 0.04f,
+                        bounds.y + bounds.height * 0.20f,
+                        bounds.width * 0.92f,
+                        bounds.height * 0.60f
+                );
+                addActor(readyGlow);
             }
 
             boolean rendered = addPam(bounds, theme.mowerPam(), clip, scale, 0f, 0f);
@@ -381,7 +399,8 @@ public final class BattlefieldEnvironmentLayer extends Group {
             // Drawing the same native PAM a second time makes them read clearly
             // against the bright ice/sand without replacing them with generated art.
             if (theme.world() == GameWorld.FROSTBITE_CAVES
-                    || theme.world() == GameWorld.BIG_WAVE_BEACH) {
+                    || theme.world() == GameWorld.BIG_WAVE_BEACH
+                    || theme.world() == GameWorld.DARK_AGES) {
                 addPam(bounds, theme.mowerPam(), clip, scale, 0f, 0f);
             }
         }
