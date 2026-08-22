@@ -168,6 +168,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private static final Map<PlantType, Double> ATTACK_WINDOW_SECONDS = Map.of(
             PlantType.SQUASH, 0.7,
             PlantType.DOOM_SHROOM, 1.1);
+    private static final float PLANT_ANIMATION_SCALE = 1.75f;
 
     private final Map<String, PlantType> placedPlantTypes = new LinkedHashMap<>();
     private Group imitaterPickerLayer;
@@ -177,11 +178,15 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private final Map<String, Float> cactusUpPoseRemaining = new LinkedHashMap<>();
     private static final double CACTUS_MELEE_RANGE = 1.0; // guessed adjacency threshold — verify
     private static final float CACTUS_UP_POSE_SECONDS = 0.4f; // guessed transition-pose duration — verify
+    private final Map<String, Integer> bowlingBulbSpecialIndex = new LinkedHashMap<>();
+    private final Map<String, Double> bowlingBulbLastAttackSeen = new LinkedHashMap<>();
+    private final Map<String, Double> bowlingBulbReloadStartedAt = new LinkedHashMap<>();
+    private static final double BOWLING_BULB_RELOAD_STAGE_SECONDS = 0.3; // guessed per-stage reload duration — verify
+    private static final double SPLIT_PEA_RANGE = 20.0; // matches ShooterBehavior's default forward range; ignores RANGE stat bonus — verify
 
-    /*
-     * Developer zombie graphics tester.
-     * LEFT / RIGHT selects; Z force-spawns regardless of level restrictions.
-     */
+    private static final double GOLD_BLOOM_IDLE_SECONDS = 0.5; // guessed — verify; must sum with below to SunProducerBehavior.INSTANT_POSE_SECONDS
+    private static final double GOLD_BLOOM_ATTACK_SECONDS = 0.6; // guessed — verify
+
     private static final ZombieType[] ZOMBIE_TEST_TYPES = {
             ZombieType.NORMAL,
             ZombieType.CONEHEAD,
@@ -217,6 +222,14 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
     private int zombieTestIndex;
     private boolean plantTestingCheatsEnabled;
+
+    private static float[] scaledBounds(Rectangle cell, float scale) {
+        float width = cell.width * scale;
+        float height = cell.height * scale;
+        float x = cell.x + (cell.width - width) * 0.5f;
+        float y = cell.y + (cell.height - height) * 0.5f;
+        return new float[]{x, y, width, height};
+    }
 
     private String plantIdlePam(PlantType type) {
         String resolved = PlantAnimationCatalog.resolveExistingPamPath(type, pamRoot);
@@ -1898,14 +1911,15 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 hoverHighlight.setVisible(true);
             }
             if (dragGhost != null) {
-                dragGhost.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+                float[] ghostBounds = scaledBounds(bounds, PLANT_ANIMATION_SCALE);
+                dragGhost.setBounds(ghostBounds[0], ghostBounds[1], ghostBounds[2], ghostBounds[3]);
             }
         } else {
             if (hoverHighlight != null) {
                 hoverHighlight.setVisible(false);
             }
             if (dragGhost != null) {
-                float size = layout.cellBounds(0, 0).width;
+                float size = layout.cellBounds(0, 0).width * PLANT_ANIMATION_SCALE;
                 dragGhost.setBounds(stageX - size / 2f, stageY - size / 2f, size, size);
             }
         }
@@ -2058,13 +2072,20 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         removePlantedActor(row, column);
         Rectangle cell = layout.cellBounds(row, column);
         String initialClip = MINE_TYPES.contains(type) ? "plant" : "idle";
+        String resolvedPam = plantIdlePam(type);
+        if (type == PlantType.GOLD_BLOOM) {
+            System.out.println("[GoldBloom] resolved PAM path = " + resolvedPam
+                    + " initialClip=" + initialClip
+                    + " idleClips=" + PlantAnimationCatalog.idleClipSequence(type));
+        }
         PamEnvironmentActor idle = new PamEnvironmentActor(
-                pamPlayer, plantIdlePam(type), initialClip, 0.42f, 0f, 0f);
+                pamPlayer, resolvedPam, initialClip, 0.42f, 0f, 0f);
         idle.setIdleClips(PlantAnimationCatalog.idleClipSequence(type));
         if (!MINE_TYPES.contains(type)) {
             idle.resumeIdleCycle();
         }
-        idle.setBounds(cell.x, cell.y, cell.width, cell.height);
+        float[] idleBounds = scaledBounds(cell, PLANT_ANIMATION_SCALE);
+        idle.setBounds(idleBounds[0], idleBounds[1], idleBounds[2], idleBounds[3]);
         entityLayer.addActor(idle);
         String key = row + "," + column;
         placedPlantActors.put(key, idle);
@@ -2078,6 +2099,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         spawnedEffectForAttackAt.remove(key);
         cactusMeleeActive.remove(key);
         cactusUpPoseRemaining.remove(key);
+        bowlingBulbSpecialIndex.remove(key);
+        bowlingBulbLastAttackSeen.remove(key);
+        bowlingBulbReloadStartedAt.remove(key);
         if (existing != null) {
             existing.remove();
         }
@@ -2209,11 +2233,19 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 } else {
                     actor.resumeIdleCycle();
                 }
-            }  else if (MINE_TYPES.contains(type)) {
+            } else if (MINE_TYPES.contains(type)) {
                 updateMineAnimation(actor, plant, type);
-            }else if (type == PlantType.CACTUS) {
+            } else if (type == PlantType.CACTUS) {
                 updateCactusAnimation(actor, plant, key);
-            }else {
+            } else if (type == PlantType.BOWLING_BULB) {
+                updateBowlingBulbAnimation(actor, plant, key);
+            } else if (type == PlantType.CITRON) {
+                updateCitronAnimation(actor, plant);
+            } else if (type == PlantType.SPLIT_PEA) {
+                updateSplitPeaAnimation(actor, plant);
+            } else if (type == PlantType.GOLD_BLOOM) {
+                updateGoldBloomAnimation(actor, plant);
+            } else {
                 String attackClip = PlantAnimationCatalog.attackClipName(type);
                 double window = ATTACK_WINDOW_SECONDS.getOrDefault(type, 0.6);
                 if (plant.isAttackingWithin(window)) {
@@ -2226,12 +2258,132 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
             double lastAttackAt = plant.getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
             Double alreadySpawnedFor = spawnedEffectForAttackAt.get(key);
-            if (lastAttackAt > Double.NEGATIVE_INFINITY
+            if (type != PlantType.BOWLING_BULB
+                    && lastAttackAt > Double.NEGATIVE_INFINITY
                     && (alreadySpawnedFor == null || alreadySpawnedFor < lastAttackAt)) {
                 spawnedEffectForAttackAt.put(key, lastAttackAt);
                 spawnAttackEffect(type, row, column);
             }
         }
+    }
+    private void updateGoldBloomAnimation(PamEnvironmentActor actor, Plant plant) {
+        double age = plant.getAgeSeconds();
+        if (age < GOLD_BLOOM_IDLE_SECONDS) {
+            actor.resumeIdleCycle();
+            return;
+        }
+        actor.setClip(PlantAnimationCatalog.attackClipName(PlantType.GOLD_BLOOM));
+    }
+
+    private void updateBowlingBulbAnimation(PamEnvironmentActor actor, Plant plant, String key) {
+        PlantAnimationState[] specialStages = {
+                PlantAnimationState.SPECIAL, PlantAnimationState.SPECIAL2, PlantAnimationState.SPECIAL3
+        };
+        PlantAnimationState[] reloadStages = {
+                PlantAnimationState.RELOAD, PlantAnimationState.RELOAD2, PlantAnimationState.RELOAD3
+        };
+
+        double lastAttackAt = plant.getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
+        double age = plant.getAgeSeconds();
+        boolean attacking = plant.isAttackingWithin(ATTACK_WINDOW_SECONDS.getOrDefault(PlantType.BOWLING_BULB, 0.6));
+
+        if (attacking) {
+            Double seen = bowlingBulbLastAttackSeen.get(key);
+            if (seen == null || seen < lastAttackAt) {
+                bowlingBulbLastAttackSeen.put(key, lastAttackAt);
+                int index = bowlingBulbSpecialIndex.getOrDefault(key, 0);
+                spawnBowlingBulbEffect(specialStages[index], plant);
+                int next = index + 1;
+                if (next >= specialStages.length) {
+                    next = 0;
+                    bowlingBulbReloadStartedAt.put(key, age);
+                }
+                bowlingBulbSpecialIndex.put(key, next);
+            }
+            int shownIndex = bowlingBulbSpecialIndex.getOrDefault(key, 1) - 1;
+            if (shownIndex < 0) {
+                shownIndex = specialStages.length - 1;
+            }
+            actor.setClip(PlantAnimationCatalog.clipName(PlantType.BOWLING_BULB, specialStages[shownIndex]));
+            return;
+        }
+
+        Double reloadStartedAt = bowlingBulbReloadStartedAt.get(key);
+        if (reloadStartedAt != null) {
+            double elapsed = age - reloadStartedAt;
+            int reloadStageIndex = (int) (elapsed / BOWLING_BULB_RELOAD_STAGE_SECONDS);
+            if (reloadStageIndex >= reloadStages.length) {
+                bowlingBulbReloadStartedAt.remove(key);
+            } else {
+                actor.setClip(PlantAnimationCatalog.clipName(PlantType.BOWLING_BULB, reloadStages[reloadStageIndex]));
+                return;
+            }
+        }
+        actor.resumeIdleCycle();
+    }
+
+    private void spawnBowlingBulbEffect(PlantAnimationState stage, Plant plant) {
+        if (pamPlayer == null) {
+            return;
+        }
+        PlantAttackEffectCatalog.EffectSpec spec = PlantAttackEffectCatalog.forVariant(
+                PlantType.BOWLING_BULB, stage.name().toLowerCase(Locale.ROOT));
+        if (spec == null) {
+            return;
+        }
+        Rectangle cell = layout.cellBounds(plant.getPosition().getRow(), plant.getPosition().getColumn());
+        float[] bulbBounds = scaledBounds(cell, PLANT_ANIMATION_SCALE);
+        PamTransientEffectActor effect = new PamTransientEffectActor(
+                pamPlayer, spec.pamPath(), spec.clip(), 0.42f, 0f, 0f, spec.duration());
+        effect.setBounds(bulbBounds[0], bulbBounds[1], bulbBounds[2], bulbBounds[3]);
+        entityLayer.addActor(effect);
+    }
+
+    private static final double CITRON_CHARGE_SECONDS = 0.5; // guessed — verify
+    private static final double CITRON_INTRO_IDLE_SECONDS = 0.3; // guessed — verify
+    private static final double CITRON_RECOVERY_SECONDS = 0.5; // guessed — verify
+
+    private void updateCitronAnimation(PamEnvironmentActor actor, Plant plant) {
+        double age = plant.getAgeSeconds();
+        if (age < CITRON_CHARGE_SECONDS) {
+            actor.setClip(PlantAnimationCatalog.clipName(PlantType.CITRON, PlantAnimationState.CHARGE));
+            return;
+        }
+        if (age < CITRON_CHARGE_SECONDS + CITRON_INTRO_IDLE_SECONDS) {
+            actor.setClip(PlantAnimationCatalog.clipName(PlantType.CITRON, PlantAnimationState.IDLE));
+            return;
+        }
+        if (plant.isAttackingWithin(ATTACK_WINDOW_SECONDS.getOrDefault(PlantType.CITRON, 0.6))) {
+            actor.setClip(PlantAnimationCatalog.attackClipName(PlantType.CITRON));
+            return;
+        }
+        double lastAttackAt = plant.getState("LAST_ATTACK_AT", Double.class, Double.NEGATIVE_INFINITY);
+        if (lastAttackAt > Double.NEGATIVE_INFINITY && age - lastAttackAt < CITRON_RECOVERY_SECONDS) {
+            actor.setClip(PlantAnimationCatalog.clipName(PlantType.CITRON, PlantAnimationState.RECOVERY));
+            return;
+        }
+        actor.setClip(PlantAnimationCatalog.clipName(PlantType.CITRON, PlantAnimationState.IDLE2));
+    }
+
+    private void updateSplitPeaAnimation(PamEnvironmentActor actor, Plant plant) {
+        if (!plant.isAttackingWithin(ATTACK_WINDOW_SECONDS.getOrDefault(PlantType.SPLIT_PEA, 0.6))) {
+            actor.resumeIdleCycle();
+            return;
+        }
+        GameEngine currentEngine = engine();
+        boolean ahead = currentEngine != null
+                && currentEngine.getFirstZombieAhead(plant, SPLIT_PEA_RANGE) != null;
+        boolean behind = currentEngine != null
+                && currentEngine.getFirstZombieBehind(plant, SPLIT_PEA_RANGE) != null;
+        PlantAnimationState state;
+        if (ahead && behind) {
+            state = PlantAnimationState.ATTACK2; // both sides
+        } else if (behind) {
+            state = PlantAnimationState.ATTACK3; // left only
+        } else {
+            state = PlantAnimationState.ATTACK; // right only (default)
+        }
+        actor.setClip(PlantAnimationCatalog.clipName(PlantType.SPLIT_PEA, state));
     }
 
     private void updateCactusAnimation(PamEnvironmentActor actor, Plant plant, String key) {
@@ -2304,7 +2456,8 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         Rectangle cell = layout.cellBounds(row, column);
         PamTransientEffectActor effect = new PamTransientEffectActor(
                 pamPlayer, spec.pamPath(), spec.clip(), 0.42f, 0f, 0f, spec.duration());
-        effect.setBounds(cell.x, cell.y, cell.width, cell.height);
+        float[] effectBounds = scaledBounds(cell, PLANT_ANIMATION_SCALE);
+        effect.setBounds(effectBounds[0], effectBounds[1], effectBounds[2], effectBounds[3]);
         entityLayer.addActor(effect);
     }
 

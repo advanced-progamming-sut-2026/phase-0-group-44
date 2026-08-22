@@ -40,6 +40,21 @@ public final class PlantAnimationCatalog {
     }
 
     private static void register() {
+        put(PlantType.SUN_SHROOM, initial()
+                .clip(PlantAnimationState.IDLE, "idle_stage3")
+                .clip(PlantAnimationState.ATTACK, "special_stage1"));
+        put(PlantType.PRIMAL_SUNFLOWER, initial().folder("PRIMAL_SUNFLOWER").idleStages(2)
+                .clip(PlantAnimationState.ATTACK, "special")); // folder guessed as PRIMALSUNFLOWER — verify, other PRIMAL_ folders keep the underscore
+        put(PlantType.SUNFLOWER, initial()
+                .clip(PlantAnimationState.ATTACK, "special"));
+        put(PlantType.TWIN_SUNFLOWER, initial().folder("SUNFLOWER_TWIN")
+                .clip(PlantAnimationState.ATTACK, "special")); // folder guessed as TWINSUNFLOWER — verify
+        put(PlantType.SNOW_PEA, initial());
+        put(PlantType.REPEATER, initial());
+        put(PlantType.THREEPEATER, initial());
+        put(PlantType.ROTOBAGA, full().folder("ROTORUTABAGA").idleStages(2)); // confirmed path: 768/FULL/PLANT/ROTORUTABAGA/ROTORUTABAGA.PAM
+        put(PlantType.SPLIT_PEA, initial()); // attack/attack2/attack3 = right/both/left, chosen at runtime in GameplayScreen
+        put(PlantType.SEA_SHROOM, full().idleStages(2));
         put(PlantType.CACTUS, initial().idleStages(3)); // confirmed: [idle, idle2, idle3, attack, down, down_idle, down_attack, up]
         put(PlantType.TANGLE_KELP, initial()); // confirmed: [idle, attack]
         put(PlantType.TORCHWOOD, initial()); // confirmed: [idle]
@@ -68,7 +83,7 @@ public final class PlantAnimationCatalog {
                 .clip(PlantAnimationState.ATTACK, "attack"));
         put(PlantType.CHERRY_BOMB, full());
         put(PlantType.CHOMPER, initial().idleStages(4));
-        put(PlantType.CITRON, full());
+        put(PlantType.CITRON, full().idleStages(2)); // charge→idle play once, then loops idle2; attack→recovery handled in GameplayScreen
         put(PlantType.DOOM_SHROOM, full()
                 .clip(PlantAnimationState.PLANT, "stage1_spawn")
                 .clip(PlantAnimationState.IDLE, "stage1_idle")
@@ -90,12 +105,12 @@ public final class PlantAnimationCatalog {
         put(PlantType.ENFORCE_MINT, initial());
         put(PlantType.ENLIGHTEN_MINT, initial());
         put(PlantType.EXPLODE_O_NUT, initial().idleStages(3).damageStages(3));
-        put(PlantType.FIRE_PEASHOOTER, initial());
+        put(PlantType.FIRE_PEASHOOTER, initial().idleStages(2));
         put(PlantType.FUME_SHROOM, initial());
         put(PlantType.GARLIC, full().damageStages(2)
                 .clip(PlantAnimationState.DAMAGE, "idle_damage")
                 .clip(PlantAnimationState.DAMAGE2, "idle_damage2"));
-        put(PlantType.GOLD_BLOOM, initial());
+        put(PlantType.GOLD_BLOOM, initial().idleStages(3)); // attack clip name already defaults to "attack" — matches spec as-is
         put(PlantType.GOO_PEASHOOTER, initial().idleStages(3));
         put(PlantType.GRAPESHOT, initial());
         put(PlantType.GRAVE_BUSTER, initial());
@@ -116,7 +131,10 @@ public final class PlantAnimationCatalog {
         put(PlantType.PEA_POD, full().idleStages(5));
         put(PlantType.PEASHOOTER, initial());
         put(PlantType.PEPPER_PULT, full());
-        put(PlantType.PUFF_SHROOM, full().folder("PERFSHROOM")); // source says "perfshroom" — double-check this one
+        put(PlantType.PUFF_SHROOM, full().folder("PUFFSHROOM").idleStages(2)
+                .clip(PlantAnimationState.IDLE, "idle_stage1")
+                .clip(PlantAnimationState.IDLE2, "idle2_stage1")
+                .clip(PlantAnimationState.ATTACK, "special_stage1")); // source says "perfshroom" folder — double-check
         put(PlantType.PHAT_BEET, full().folder("PHATBEETS")); // folder is plural — verify
         put(PlantType.POTATO_MINE, initial());
         put(PlantType.PRIMAL_POTATO_MINE, full().folder("PRIMAL_POTATOMINE"));
