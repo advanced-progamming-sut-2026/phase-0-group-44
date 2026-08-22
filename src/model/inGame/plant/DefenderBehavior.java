@@ -45,6 +45,7 @@ public class DefenderBehavior implements PlantBehavior {
     @Override
     public void onArmorBroken(Plant plant, GameEngine engine) {
         if (mode == Mode.EXPLODE_O_NUT) {
+            plant.markAttacked();
             engine.damageArea(plant.getPosition(), 1, 1,
                     plant.getStats().getDamage(), DamageType.NORMAL);
         }
@@ -53,6 +54,7 @@ public class DefenderBehavior implements PlantBehavior {
     @Override
     public void onDeath(Plant plant, GameEngine engine) {
         if (mode == Mode.EXPLODE_O_NUT) {
+            plant.markAttacked();
             engine.damageArea(plant.getPosition(), 1, 1,
                     plant.getStats().getDamage(), DamageType.NORMAL);
         }
@@ -66,16 +68,23 @@ public class DefenderBehavior implements PlantBehavior {
             }
             return;
         }
+
+
         int armor = switch (mode) {
-            case TALL_NUT -> 8000;
-            case ENDURIAN -> 3000;
-            case EXPLODE_O_NUT, PUMPKIN, WALL_NUT -> 4000;
-            case SUN_BEAN -> 1000;
+            case TALL_NUT -> 50;
+            case ENDURIAN -> 50;
+            case EXPLODE_O_NUT, PUMPKIN, WALL_NUT -> 50;
+            case SUN_BEAN -> 25;
             case GARLIC -> 0;
         };
         plant.addArmor(armor);
         if (mode == Mode.ENDURIAN) {
             plant.putState("PLANT_FOOD_REFLECT", true);
         }
+        
+        if (mode == Mode.SUN_BEAN) {
+            plant.markAttacked();
+        }
+        plant.addArmor(armor);
     }
 }

@@ -36,6 +36,8 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
     private static final double CHOMPER_DIGEST_SECONDS = 40.0;
     private final Mode mode;
     private final ProjectileFactory projectiles = new ProjectileFactory();
+    private static final double GRAPESHOT_IDLE_SECONDS = 0.8;
+    private static final double GRAPESHOT_ATTACK_SECONDS = 0.6;
 
     public BonusPlantBehavior(Mode mode) {
         this.mode = mode;
@@ -45,8 +47,8 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
     public void onPlant(Plant plant, GameEngine engine) {
         switch (mode) {
             case PEA_POD -> plant.putState("PEA_POD_HEADS", 1);
-            case GRAPESHOT -> detonateGrapeshot(plant, engine);
             case KIWIBEAST -> plant.putState("KIWIBEAST_STAGE", 1);
+            case GRAPESHOT -> plant.putState("ACTIVE_ZERO_HP", true);
             default -> {
                 // Remaining bonus plants initialize lazily on their first tick.
             }
@@ -66,12 +68,26 @@ public final class BonusPlantBehavior extends AbstractTimedBehavior {
             case KIWIBEAST -> tickKiwibeast(plant, engine, deltaSeconds);
             case SWEET_POTATO -> tickSweetPotato(plant, engine);
             case HYPNO_SHROOM, CAT_TAIL -> tickModifier(plant, engine, deltaSeconds);
-            case GRAPESHOT -> {
-                // Instant-use behavior is handled by onPlant.
-            }
+            case GRAPESHOT -> tickGrapeshot(plant, engine);
         }
     }
 
+    private void tickGrapeshot(Plant plant, GameEngine engine) {
+        double age = plant.getAgeSeconds();
+        boolean justStartedAttack = false;
+
+        if (age >= GRAPESHOT_IDLE_SECONDS && !plant.getBooleanState("GRAPESHOT_ATTACK_STARTED")) {
+            plant.markAttacked();
+            plant.putState("GRAPESHOT_ATTACK_STARTED", true);
+            justStartedAttack = true;
+            System.out.println("[Grapeshot] attack started at age=" + age);
+        }
+
+        if (!justStartedAttack && age >= GRAPESHOT_IDLE_SECONDS + GRAPESHOT_ATTACK_SECONDS) {
+            System.out.println("[Grapeshot] detonating at age=" + age);
+            detonateGrapeshot(plant, engine);
+        }
+    }
     private void tickPeaPod(Plant plant, GameEngine engine, double deltaSeconds) {
         if (engine.getFirstZombieAhead(plant, 20.0) == null
                 || !ready(plant, deltaSeconds, plant.getStats().getActionInterval())) {

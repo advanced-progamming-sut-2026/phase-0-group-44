@@ -1762,11 +1762,12 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             if (!currentEngine.getGameMap()
                     .getTile(row, column)
                     .hasAnyPlant()) {
+
                 removePlantedActor(row, column);
             }
         }
-        syncPlantAnimations();
     }
+
     private void syncPlantAnimations() {
         if (previewMode) {
             return;
@@ -1795,6 +1796,35 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             }
             PamEnvironmentActor actor = entry.getValue();
             PlantType type = plant.getEffectiveType();
+            if (type == PlantType.GRAPESHOT) {
+                System.out.println("[GrapeshotAnim] attackingWithin(0.6)=" + plant.isAttackingWithin(0.6)
+                        + " age=" + plant.getAgeSeconds());
+            }
+
+            if (type == PlantType.SWEET_POTATO) {
+                String damageClip = PlantAnimationCatalog.clipName(type, PlantAnimationState.DAMAGE);
+                if (plant.isDamagedWithin(0.4)) {
+                    actor.setClip(damageClip);
+                } else {
+                    actor.resumeIdleCycle();
+                }
+            } else if (DEFENDER_DAMAGE_TYPES.contains(type)) {
+                double hpRatio = plant.getMaxHp() > 0
+                        ? plant.getHp() / (double) plant.getMaxHp() : 1.0;
+                String damageClip = PlantAnimationCatalog.damageStageClip(type, hpRatio);
+                if (damageClip != null) {
+                    actor.setClip(damageClip);
+                } else {
+                    actor.resumeIdleCycle();
+                }
+            } else {
+                String attackClip = PlantAnimationCatalog.attackClipName(type);
+                if (plant.isAttackingWithin(0.6)) {
+                    actor.setClip(attackClip);
+                } else {
+                    actor.resumeIdleCycle();
+                }
+            }
 
             if (type == PlantType.SWEET_POTATO) {
                 String damageClip = PlantAnimationCatalog.clipName(type, PlantAnimationState.DAMAGE);
@@ -1805,7 +1835,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 }
             } else {
                 String attackClip = PlantAnimationCatalog.attackClipName(type);
-                if (plant.isAttackingWithin(0.3)) {
+                if (plant.isAttackingWithin(0.6)) {  // was 0.3
                     actor.setClip(attackClip);
                 } else {
                     actor.resumeIdleCycle();
@@ -1821,6 +1851,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             }
         }
     }
+
+    private static final Set<PlantType> DEFENDER_DAMAGE_TYPES = Set.of(
+            PlantType.WALL_NUT, PlantType.TALL_NUT, PlantType.ENDURIAN,
+            PlantType.GARLIC, PlantType.EXPLODE_O_NUT);
 
     private void spawnAttackEffect(PlantType type, int row, int column) {
         if (pamPlayer == null) {
@@ -1876,7 +1910,15 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         advanceGameplay(delta);
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
-        removeFinishedPlantActors(displayEngine);
+
+        if (displayEngine != null) {
+            // FIRST: detect attacks and spawn their visual effects
+            syncPlantAnimations();
+
+            // SECOND: remove plants that no longer exist
+            removeFinishedPlantActors(displayEngine);
+        }
+
 
         if (zombieActorManager != null && displayEngine != null) {
             zombieActorManager.sync(displayEngine);

@@ -40,6 +40,10 @@ public final class PlantAnimationCatalog {
     }
 
     private static void register() {
+        put(PlantType.WALL_NUT, initial().damageStages(3)); // idle, damage, damage2, damage3 — tier unverified, guessed INITIAL
+        put(PlantType.TALL_NUT, initial().damageStages(2)); // idle, damage, damage2 — tier unverified, guessed INITIAL
+        put(PlantType.PUMPKIN, initial().idleStages(3)); // idle, idle2, idle3 — no damage clips supplied, treated as idle variety like Cactus
+        put(PlantType.SUN_BEAN, initial().idleStages(2)); // idle, idle2 — no damage clips supplied
         put(PlantType.STARFRUIT, initial());
         put(PlantType.SWEET_POTATO, initial().clip(PlantAnimationState.DAMAGE, "idle_damage"));
         put(PlantType.APPEASE_MINT, initial());
@@ -71,13 +75,16 @@ public final class PlantAnimationCatalog {
 
         // real clips: idle1_1, idle1_2, idle2_1..4, idle3_1..3, idle4_1..3, attack, plantfood, water
         put(PlantType.ENCHANT_MINT, initial());
-        put(PlantType.ENDURIAN, full());
+        put(PlantType.ENDURIAN, full().damageStages(1)
+                .clip(PlantAnimationState.IDLE, "attack_loop"));
         put(PlantType.ENFORCE_MINT, initial());
         put(PlantType.ENLIGHTEN_MINT, initial());
-        put(PlantType.EXPLODE_O_NUT, initial());
+        put(PlantType.EXPLODE_O_NUT, initial().idleStages(3).damageStages(3));
         put(PlantType.FIRE_PEASHOOTER, initial());
         put(PlantType.FUME_SHROOM, initial());
-        put(PlantType.GARLIC, full());
+        put(PlantType.GARLIC, full().damageStages(2)
+                .clip(PlantAnimationState.DAMAGE, "idle_damage")
+                .clip(PlantAnimationState.DAMAGE2, "idle_damage2"));
         put(PlantType.GOLD_BLOOM, initial());
         put(PlantType.GOO_PEASHOOTER, initial().idleStages(3));
         put(PlantType.GRAPESHOT, initial());
@@ -104,6 +111,22 @@ public final class PlantAnimationCatalog {
         put(PlantType.POTATO_MINE, initial());
         put(PlantType.PRIMAL_POTATO_MINE, full().folder("PRIMAL_POTATOMINE"));
 
+    }
+
+    public static String damageStageClip(PlantType type, double hpRatio) {
+        PlantAnimationSpec s = spec(type);
+        int stages = s.damageStageCount();
+        if (stages <= 0 || hpRatio >= 1.0) {
+            return null;
+        }
+        double damageFraction = 1.0 - Math.max(0.0, Math.min(1.0, hpRatio));
+        double band = 1.0 / stages;
+        int stageIndex = (int) Math.ceil(damageFraction / band);
+        stageIndex = Math.max(1, Math.min(stages, stageIndex));
+        PlantAnimationState[] damageStates = {
+                PlantAnimationState.DAMAGE, PlantAnimationState.DAMAGE2, PlantAnimationState.DAMAGE3
+        };
+        return s.clipName(damageStates[stageIndex - 1]);
     }
 
     public static java.util.List<String> idleClipSequence(PlantType type) {
