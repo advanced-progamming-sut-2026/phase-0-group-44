@@ -129,7 +129,19 @@ public final class PlantSelectionScreen implements Screen {
 
         sidebar = new Table();
         sidebar.top();
-        root.add(sidebar).width(SIDEBAR_CARD_SIZE + 24f).top().pad(10f, 12f, 10f, 6f);
+
+        // Keep the chosen-plant column scrollable so eight slots never force the
+        // whole screen taller than the window and push LET'S ROCK off-screen.
+        ScrollPane sidebarScroll = new ScrollPane(sidebar, skin);
+        sidebarScroll.setFadeScrollBars(false);
+        sidebarScroll.setScrollingDisabled(true, false);
+        sidebarScroll.setOverscroll(false, false);
+        root.add(sidebarScroll)
+                .width(SIDEBAR_CARD_SIZE + 30f)
+                .growY()
+                .minHeight(0f)
+                .top()
+                .pad(10f, 12f, 4f, 6f);
 
         Table right = new Table();
         right.top();
@@ -138,11 +150,23 @@ public final class PlantSelectionScreen implements Screen {
         right.add(detailPanel).growX().padBottom(10f).row();
 
         ScrollPane gridScroll = buildGridScroll();
-        right.add(gridScroll).grow().row();
+        right.add(gridScroll).grow().minHeight(0f).row();
 
-        right.add(buildBottomBar()).growX().padTop(8f);
+        root.add(right)
+                .grow()
+                .minHeight(0f)
+                .pad(10f, 6f, 4f, 12f)
+                .row();
 
-        root.add(right).grow().pad(10f, 6f, 10f, 12f).row();
+        // Reserve a fixed row for the start control. Previously this lived inside
+        // the right column after the large plant grid, so on shorter windows the
+        // table's preferred height placed it below the visible viewport.
+        root.add(buildBottomBar())
+                .growX()
+                .colspan(2)
+                .height(72f)
+                .pad(0f, 20f, 8f, 20f)
+                .row();
 
         refreshSidebar();
         refreshDetailPanel();
