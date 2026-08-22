@@ -191,6 +191,8 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         return PlantAnimationCatalog.clipName(type, PlantAnimationState.IDLE);
     }
 
+    private record SunPickupTarget(int x, int y) { }
+
     private enum ToolMode {
         NONE,
         SHOVEL,
@@ -898,10 +900,16 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             }
         }
 
+        // Zombies enter from the right side of the lawn, so the wave meter
+        // advances from right to left as danger moves toward the house.
+        final float fillLeft = 512f;
         final float fillMax = 244f;
-        waveFill.setWidth(fillMax * ratio);
+        float fillWidth = fillMax * ratio;
+        waveFill.setX(fillLeft + fillMax - fillWidth);
+        waveFill.setWidth(fillWidth);
         if (waveHead != null) {
-            waveHead.setX(495f + fillMax * ratio - 17f);
+            float headCenterX = fillLeft + fillMax * (1f - ratio);
+            waveHead.setX(headCenterX - 17f);
         }
 
         if (messageSeconds > 0f) {
@@ -933,6 +941,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                     pamPlayer, SUN_PAM, clip, 0.34f, 0f,
                     sun.isFalling() ? cell.height * 0.18f : 0f);
             actor.setBounds(cell.x, cell.y, cell.width, cell.height);
+            actor.setUserObject(new SunPickupTarget(column, row));
             final int x = column;
             final int y = row;
             actor.addListener(new ClickListener() {
@@ -947,6 +956,49 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 }
             });
             pickupLayer.addActor(actor);
+        }
+    }
+
+    /**
+     * Phase-2 specifies sun collection on mouse-over. Polling the pickup layer
+     * directly also makes collection robust when a transparent interaction
+     * actor is visually above a sun and would otherwise steal Scene2D events.
+     */
+    private void updateSunHoverCollection() {
+        if (previewMode || paused || missionIntroActive || outcomeShown
+                || gameplayController == null || pickupLayer == null
+                || (announcementLayer != null && announcementLayer.isGameplayBlocked())) {
+            return;
+        }
+
+        Vector2 pointer = stage.getViewport().unproject(
+                new Vector2(Gdx.input.getX(), Gdx.input.getY()));
+
+        for (Actor actor : pickupLayer.getChildren()) {
+            if (!(actor.getUserObject() instanceof SunPickupTarget target)) {
+                continue;
+            }
+
+            // Use a centered hit area rather than the whole tile, so merely
+            // crossing a cell does not collect a sun that is visually far away.
+            float hitWidth = actor.getWidth() * 0.62f;
+            float hitHeight = actor.getHeight() * 0.62f;
+            float hitX = actor.getX() + (actor.getWidth() - hitWidth) * 0.5f;
+            float hitY = actor.getY() + (actor.getHeight() - hitHeight) * 0.5f;
+            if (pointer.x < hitX || pointer.x > hitX + hitWidth
+                    || pointer.y < hitY || pointer.y > hitY + hitHeight) {
+                continue;
+            }
+
+            Result<Integer> result = gameplayController.collectSun(target.x(), target.y());
+            if (result.getStatus()) {
+                showAction(result.getMessage());
+                // Force a pickup rebuild next frame so the collected actor
+                // disappears immediately even though Scene2D input ordering
+                // is no longer involved in the collection itself.
+                pickupSignature = "";
+            }
+            return;
         }
     }
 
@@ -1598,6 +1650,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                     displayEngine, Store.getActiveSession(), previewMode, gameplayController);
         }
         syncPickups();
+        updateSunHoverCollection();
         stage.act(paused && !outcomeShown ? 0f : delta);
         updateHud();
         updatePointerHighlights();
