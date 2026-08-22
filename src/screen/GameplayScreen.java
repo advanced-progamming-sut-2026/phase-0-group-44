@@ -105,6 +105,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private Group hudLayer;
     private BattlefieldPauseOutcomeLayer pauseOutcomeLayer;
     private BattlefieldMissionStartLayer missionStartLayer;
+    private BattlefieldAnnouncementLayer announcementLayer;
 
     private PamEnvironmentActor hoverHighlight;
     private PamEnvironmentActor selectedHighlight;
@@ -412,6 +413,19 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         if (seedBank != null) {
             stage.addActor(seedBank.actor());
         }
+
+        announcementLayer = new BattlefieldAnnouncementLayer(
+                whiteTexture,
+                skin,
+                pamPlayer
+        );
+        GameEngine liveEngine = engine();
+        announcementLayer.queueLevelIntro(
+                Store.getActiveSession(),
+                !previewMode && liveEngine != null && liveEngine.areWavesStarted()
+        );
+        announcementLayer.setSuppressed(missionIntroActive);
+        stage.addActor(announcementLayer.root());
     }
 
     /** Public integration hook for plant/zombie/projectile actors. */
@@ -761,7 +775,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     }
 
     private void advanceGameplay(float delta) {
-        if (previewMode || paused || missionIntroActive || outcomeShown || gameplayController == null) {
+        if (previewMode || paused || missionIntroActive || outcomeShown
+                || gameplayController == null
+                || (announcementLayer != null && announcementLayer.isGameplayBlocked())) {
             return;
         }
 
@@ -785,7 +801,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         ticks = Math.min(ticks, 4);
         tickAccumulator -= ticks / (float) GameEngine.TICKS_PER_SECOND;
 
-        gameplayController.advanceTime(ticks);
+        Result<List<String>> advanced = gameplayController.advanceTime(ticks);
+        if (announcementLayer != null && advanced.getStatus()) {
+            announcementLayer.consumeEvents(advanced.getData(), liveEngine.getCurrentWave());
+        }
 
         // GameplayController performs rewards/conclusion and may clear Store's
         // active simulation, but the captured engine still carries the outcome.
@@ -1551,6 +1570,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
         updateZombieTestSelection();
         maintainPlantTestingCheats();
+        if (announcementLayer != null) {
+            announcementLayer.setSuppressed(paused || missionIntroActive || outcomeShown);
+            announcementLayer.update(delta);
+        }
         advanceGameplay(delta);
 
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
