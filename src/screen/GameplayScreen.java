@@ -2082,6 +2082,47 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             existing.remove();
         }
     }
+    /**
+     * Keeps the graphical plant layer synchronized with plants that already exist
+     * in the model before GameplayScreen creates them. This is important for
+     * adventure levels such as Save Our Seeds, whose protected plants are
+     * pre-placed by AdventureInitializer instead of being planted by drag/drop.
+     *
+     * Existing player-planted actors are left alone so their current animation
+     * state is preserved.
+     */
+    private void syncMissingPlantActors(GameEngine currentEngine) {
+        if (previewMode || currentEngine == null || pamPlayer == null) {
+            return;
+        }
+
+        for (model.inGame.plant.Plant plant : currentEngine.getGameMap().getPlants()) {
+            if (plant == null || plant.isDead() || plant.getPosition() == null) {
+                continue;
+            }
+
+            int row = plant.getPosition().getRow();
+            int column = plant.getPosition().getColumn();
+
+            // The current gameplay animation system is modelled around the
+            // primary plant actor. Support/armor layering is handled separately
+            // and can be expanded without risking the teammate animation work.
+            if (currentEngine.getGameMap().getTile(row, column).getPrimaryPlant() != plant) {
+                continue;
+            }
+
+            String key = row + "," + column;
+            if (placedPlantActors.containsKey(key)) {
+                continue;
+            }
+
+            PlantType visualType = plant.getType() == PlantType.IMITATER
+                    ? PlantType.IMITATER
+                    : plant.getEffectiveType();
+            spawnPlantedIdleActor(visualType, row, column);
+        }
+    }
+
     private void removeFinishedPlantActors(GameEngine currentEngine) {
         if (currentEngine == null || placedPlantActors.isEmpty()) {
             return;
@@ -2308,6 +2349,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         GameEngine displayEngine = engine() != null ? engine() : finishedEngine;
 
         if (displayEngine != null) {
+            // Plants may already exist in the model when gameplay opens
+            // (for example Save Our Seeds protected plants).
+            syncMissingPlantActors(displayEngine);
+
             // FIRST: detect attacks and spawn their visual effects
             syncPlantAnimations();
 

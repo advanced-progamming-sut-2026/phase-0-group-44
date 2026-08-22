@@ -436,7 +436,19 @@ public final class PlantSelectionScreen implements Screen {
         info.top().left();
         info.add(new Label(focusedDefinition.getName(), skin, "medium_outline")).left().row();
         if (owned != null) {
-            info.add(new Label("Level " + owned.getCard().getLevel(), skin, "medium_outline")).left().padTop(4f).row();
+            info.add(new Label("Level " + owned.getCard().getLevel(), skin, "medium_outline"))
+                    .left().padTop(4f).row();
+            if (owned.getCard().canUpgrade()) {
+                int currentSeeds = owned.getCard().getSeedPackets();
+                int requiredSeeds = owned.getCard().getUpgradeSeedPacketCost();
+                int requiredCoins = owned.getCard().getUpgradeCoinCost();
+                info.add(new Label("Seed packets: " + currentSeeds + " / " + requiredSeeds, skin))
+                        .left().padTop(3f).row();
+                info.add(new Label("Upgrade cost: " + requiredCoins + " coins", skin))
+                        .left().padTop(2f).row();
+            } else {
+                info.add(new Label("MAX LEVEL", skin, "medium_outline")).left().padTop(3f).row();
+            }
         }
         detailPanel.add(info).left().expandX();
 
@@ -465,23 +477,45 @@ public final class PlantSelectionScreen implements Screen {
         detailPanel.add(selectButton).width(140f).height(48f).padRight(10f);
 
         if (owned != null && owned.getCard().canUpgrade()) {
-            TextButton upgradeButton = new TextButton(
-                    "UPGRADE\n" + owned.getCard().getUpgradeCoinCost() + " coins", skin, "green_small");
-            upgradeButton.addListener(new ChangeListener() {
-                @Override
-                public void changed(ChangeEvent event, Actor actor) {
-                    Result<PlantCollectionView> result = collectionController.upgradePlant(
-                            Store.getLoggedInUser(), focusedDefinition.getName());
-                    if (result.getStatus()) {
-                        toast.showInfo(result.getMessage());
-                        refreshGrid();
-                        refreshDetailPanel();
-                    } else {
-                        toast.showError(result.getMessage());
+            User user = Store.getLoggedInUser();
+            int seedPackets = owned.getCard().getSeedPackets();
+            int seedCost = owned.getCard().getUpgradeSeedPacketCost();
+            int coinCost = owned.getCard().getUpgradeCoinCost();
+            int coins = user == null ? 0 : user.getCoins();
+            boolean enoughSeeds = seedPackets >= seedCost;
+            boolean enoughCoins = coins >= coinCost;
+            boolean upgradeReady = enoughSeeds && enoughCoins;
+
+            String upgradeText;
+            if (!enoughSeeds) {
+                upgradeText = "NEED " + (seedCost - seedPackets) + " SEEDS";
+            } else if (!enoughCoins) {
+                upgradeText = "NEED " + (coinCost - coins) + " COINS";
+            } else {
+                upgradeText = "UPGRADE";
+            }
+
+            TextButton upgradeButton = new TextButton(upgradeText, skin,
+                    upgradeReady ? "green_small" : "brown");
+            upgradeButton.setDisabled(!upgradeReady);
+            if (upgradeReady) {
+                upgradeButton.addListener(new ChangeListener() {
+                    @Override
+                    public void changed(ChangeEvent event, Actor actor) {
+                        Result<PlantCollectionView> result = collectionController.upgradePlant(
+                                Store.getLoggedInUser(), focusedDefinition.getName());
+                        if (result.getStatus()) {
+                            toast.showInfo(result.getMessage());
+                            refreshGrid();
+                            refreshSidebar();
+                            refreshDetailPanel();
+                        } else {
+                            toast.showError(result.getMessage());
+                        }
                     }
-                }
-            });
-            detailPanel.add(upgradeButton).width(150f).height(48f).padRight(10f);
+                });
+            }
+            detailPanel.add(upgradeButton).width(170f).height(48f).padRight(10f);
         }
 
         if (selected) {

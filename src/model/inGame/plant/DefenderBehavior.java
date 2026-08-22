@@ -85,6 +85,5 @@ public class DefenderBehavior implements PlantBehavior {
         if (mode == Mode.SUN_BEAN) {
             plant.markAttacked();
         }
-        plant.addArmor(armor);
     }
 }
