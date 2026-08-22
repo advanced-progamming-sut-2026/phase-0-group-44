@@ -601,4 +601,64 @@ public class BoardController {
         builder.append(slot).append(" plant: ").append(plant.getType().name())
                 .append(" (health ").append(plant.getHp()).append(")\n");
     }
+
+    public Result<String> plantImitater(PlantType copiedType, int x, int y) {
+        Result<String> result = new Result<>();
+
+        if (copiedType == null) {
+            result.appendToMessage("choose a plant to imitate");
+            return result;
+        }
+        if (copiedType == PlantType.IMITATER) {
+            result.appendToMessage("imitater cannot imitate itself");
+            return result;
+        }
+
+        boolean conveyor = isConveyorLevel();
+        if (!conveyor && selection != null && !selection.contains(PlantType.IMITATER)) {
+            result.appendToMessage("this plant is not selected for the level");
+            return result;
+        }
+        if (conveyor && adventureState.getConveyorPacketCount(PlantType.IMITATER) <= 0) {
+            result.appendToMessage("no conveyor packet for this plant");
+            return result;
+        }
+
+        Position position;
+        try {
+            position = new Position(y, x);
+        } catch (IllegalArgumentException e) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+        if (!engine.getGameMap().isInside(position)) {
+            result.appendToMessage("invalid tile");
+            return result;
+        }
+
+        boolean freePreWave = isFreePreWavePlanting();
+        Plant plant;
+        try {
+            plant = engine.plantImitater(copiedType, 1, position, !conveyor, !conveyor && !freePreWave);
+        } catch (IllegalStateException e) {
+            result.appendToMessage(translatePlantError(e.getMessage()));
+            return result;
+        } catch (IllegalArgumentException e) {
+            result.appendToMessage("cannot imitate that plant");
+            return result;
+        }
+
+        if (conveyor) {
+            adventureState.consumeConveyorPacket(PlantType.IMITATER);
+        }
+        if (session != null) {
+            session.recordPlantUsed(PlantType.IMITATER);
+        }
+        publishPlantEvent(PlantType.IMITATER, x, y);
+
+        result.setStatus(true);
+        result.setData(plant.getType().name());
+        result.appendToMessage("planted IMITATER (as " + copiedType.name() + ") at (" + x + ", " + y + ")");
+        return result;
+    }
 }

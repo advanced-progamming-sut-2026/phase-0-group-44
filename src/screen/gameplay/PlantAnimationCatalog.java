@@ -40,6 +40,11 @@ public final class PlantAnimationCatalog {
     }
 
     private static void register() {
+        put(PlantType.CACTUS, initial().idleStages(3)); // confirmed: [idle, idle2, idle3, attack, down, down_idle, down_attack, up]
+        put(PlantType.TANGLE_KELP, initial()); // confirmed: [idle, attack]
+        put(PlantType.TORCHWOOD, initial()); // confirmed: [idle]
+        put(PlantType.LILY_PAD, full().idleStages(4)); // confirmed: [idle, idle2, idle3, idle4]
+        put(PlantType.IMITATER, initial().folder("IMITATER").idleStages(2)); // confirmed: [idle, idle2, attack]
         put(PlantType.SQUASH, initial()
                 .clip(PlantAnimationState.ATTACK, "jump_up_right")); // confirmed: [idle, jump_up_right]
         put(PlantType.WALL_NUT, initial().damageStages(3)); // idle, damage, damage2, damage3 — tier unverified, guessed INITIAL
@@ -98,7 +103,7 @@ public final class PlantAnimationCatalog {
         put(PlantType.HYPNO_SHROOM, initial());
         put(PlantType.ICE_SHROOM, full());
         put(PlantType.ICEBERG_LETTUCE, initial().folder("ICEBURG")); // asset folder is short/misspelled — verify
-        put(PlantType.IMITATER, initial().folder("IMITATOR")); // enum spelling differs from folder — verify
+        put(PlantType.IMITATER, initial().folder("IMITATER")); // enum spelling differs from folder — verify
         put(PlantType.JALAPENO, initial());
         put(PlantType.KERNEL_PULT, initial().folder("KERNALPULT")); // folder uses "KERNAL" — verify
         put(PlantType.KIWIBEAST, initial()
@@ -116,6 +121,8 @@ public final class PlantAnimationCatalog {
         put(PlantType.POTATO_MINE, initial());
         put(PlantType.PRIMAL_POTATO_MINE, full().folder("PRIMAL_POTATOMINE"));
         put(PlantType.TANGLE_KELP, initial()); // confirmed: [idle, attack]
+        put(PlantType.FUME_SHROOM, initial().idleStages(2)
+                .clip(PlantAnimationState.ATTACK, "special")); // confirmed: [idle, idle2, special]; special = attack pose
     }
 
     public static String damageStageClip(PlantType type, double hpRatio) {

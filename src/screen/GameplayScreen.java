@@ -165,6 +165,13 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             PlantType.DOOM_SHROOM, 1.1);
 
     private final Map<String, PlantType> placedPlantTypes = new LinkedHashMap<>();
+    private Group imitaterPickerLayer;
+    private int pendingImitaterRow = -1;
+    private int pendingImitaterColumn = -1;
+    private final Map<String, Boolean> cactusMeleeActive = new LinkedHashMap<>();
+    private final Map<String, Float> cactusUpPoseRemaining = new LinkedHashMap<>();
+    private static final double CACTUS_MELEE_RANGE = 1.0; // guessed adjacency threshold — verify
+    private static final float CACTUS_UP_POSE_SECONDS = 0.4f; // guessed transition-pose duration — verify
 
     /*
      * Developer zombie graphics tester.
@@ -1186,7 +1193,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         if (hoverHighlight == null) {
             return;
         }
-        if (paused || missionIntroActive || outcomeShown) {
+        if (paused || missionIntroActive || outcomeShown || imitaterPickerLayer != null) {
             hoverHighlight.setVisible(false);
             if (toolCursor != null) {
                 toolCursor.setVisible(false);
@@ -1696,11 +1703,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     }
 
     @Override
-    public void onDragEnd(
-            PlantType type,
-            float stageX,
-            float stageY
-    ) {
+    public void onDragEnd(PlantType type, float stageX, float stageY) {
         draggingPlant = false;
 
         if (dragGhost != null) {
@@ -1713,7 +1716,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
 
         int[] cell = layout.screenToCell(stageX, stageY);
-
         if (cell[0] < 0 || boardController == null) {
             return;
         }
@@ -1721,14 +1723,123 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         int row = cell[0];
         int column = cell[1];
 
-        Result<String> result = boardController.plantPlant(type, cell[1], cell[0]);
-        System.out.println("plantPlant result status=" + result.getStatus() + " msg=" + result.getMessage());
+        if (type == PlantType.IMITATER) {
+            openImitaterPicker(row, column);
+            return;
+        }
 
+        Result<String> result = boardController.plantPlant(type, column, row);
         showAction(result.getMessage());
-
         if (result.getStatus()) {
             spawnPlantedIdleActor(type, row, column);
         }
+    }
+
+    private void openImitaterPicker(int row, int column) {
+        GameSession session = Store.getActiveSession();
+        if (session == null || session.getSelection() == null) {
+            showAction("NO LOADOUT AVAILABLE");
+            return;
+        }
+
+        List<PlantType> options = new ArrayList<>();
+        for (PlantType candidate : session.getSelection().getChosen()) {
+            if (candidate != PlantType.IMITATER) {
+                options.add(candidate);
+            }
+        }
+        if (options.isEmpty()) {
+            showAction("NOTHING TO IMITATE");
+            return;
+        }
+
+        showImitaterPickerLayer(options);
+        pendingImitaterRow = row;
+        pendingImitaterColumn = column;
+    }
+
+    private void showImitaterPickerLayer(List<PlantType> options) {
+        removeImitaterPickerActor();
+
+        Group layer = new Group();
+        layer.setSize(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+        Image backdrop = new Image(darkTintTexture);
+        backdrop.setScaling(Scaling.stretch);
+        backdrop.setBounds(0f, 0f, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+        backdrop.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                cancelImitaterPicker();
+            }
+        });
+        layer.addActor(backdrop);
+
+        Label prompt = new Label("CHOOSE A PLANT TO IMITATE", skin, "medium_outline");
+        prompt.setAlignment(Align.center);
+
+        float iconSize = 74f;
+        float spacing = 12f;
+        float totalWidth = options.size() * iconSize + Math.max(0, options.size() - 1) * spacing;
+        float startX = (VIRTUAL_WIDTH - totalWidth) / 2f;
+        float iconY = VIRTUAL_HEIGHT / 2f - iconSize / 2f;
+
+        prompt.setBounds(0f, iconY + iconSize + 20f, VIRTUAL_WIDTH, 30f);
+        layer.addActor(prompt);
+
+        for (int i = 0; i < options.size(); i++) {
+            PlantType option = options.get(i);
+            Image icon = new Image(loadPlantIcon(option));
+            icon.setScaling(Scaling.fit);
+            icon.setBounds(startX + i * (iconSize + spacing), iconY, iconSize, iconSize);
+            icon.setTouchable(Touchable.enabled);
+            icon.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    event.stop();
+                    confirmImitaterChoice(option);
+                }
+            });
+            layer.addActor(icon);
+        }
+
+        imitaterPickerLayer = layer;
+        stage.addActor(imitaterPickerLayer);
+        imitaterPickerLayer.toFront();
+    }
+
+    private void removeImitaterPickerActor() {
+        if (imitaterPickerLayer != null) {
+            imitaterPickerLayer.remove();
+            imitaterPickerLayer = null;
+        }
+    }
+
+    private void confirmImitaterChoice(PlantType copiedType) {
+        int row = pendingImitaterRow;
+        int column = pendingImitaterColumn;
+        closeImitaterPicker();
+
+        if (row < 0 || column < 0 || boardController == null) {
+            return;
+        }
+
+        Result<String> result = boardController.plantImitater(copiedType, column, row);
+        showAction(result.getMessage());
+        if (result.getStatus()) {
+            spawnPlantedIdleActor(PlantType.IMITATER, row, column);
+        }
+    }
+
+    private void cancelImitaterPicker() {
+        closeImitaterPicker();
+        showAction("");
+    }
+
+    private void closeImitaterPicker() {
+        removeImitaterPickerActor();
+        pendingImitaterRow = -1;
+        pendingImitaterColumn = -1;
     }
 
     private void spawnPlantedIdleActor(PlantType type, int row, int column) {
@@ -1756,11 +1867,12 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         PamEnvironmentActor existing = placedPlantActors.remove(key);
         placedPlantTypes.remove(key);
         spawnedEffectForAttackAt.remove(key);
+        cactusMeleeActive.remove(key);
+        cactusUpPoseRemaining.remove(key);
         if (existing != null) {
             existing.remove();
         }
     }
-
     private void removeFinishedPlantActors(GameEngine currentEngine) {
         if (currentEngine == null || placedPlantActors.isEmpty()) {
             return;
@@ -1849,6 +1961,8 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 }
             }  else if (MINE_TYPES.contains(type)) {
                 updateMineAnimation(actor, plant, type);
+            }else if (type == PlantType.CACTUS) {
+                updateCactusAnimation(actor, plant, key);
             }else {
                 String attackClip = PlantAnimationCatalog.attackClipName(type);
                 double window = ATTACK_WINDOW_SECONDS.getOrDefault(type, 0.6);
@@ -1867,6 +1981,46 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 spawnedEffectForAttackAt.put(key, lastAttackAt);
                 spawnAttackEffect(type, row, column);
             }
+        }
+    }
+
+    private void updateCactusAnimation(PamEnvironmentActor actor, Plant plant, String key) {
+        GameEngine currentEngine = engine();
+        boolean meleeZombiePresent = currentEngine != null
+                && currentEngine.getFirstZombieAhead(plant, CACTUS_MELEE_RANGE) != null;
+        boolean wasMelee = cactusMeleeActive.getOrDefault(key, false);
+
+        if (meleeZombiePresent) {
+            cactusMeleeActive.put(key, true);
+            cactusUpPoseRemaining.remove(key);
+            boolean attacking = plant.isAttackingWithin(0.6);
+            actor.setClip(PlantAnimationCatalog.clipName(PlantType.CACTUS,
+                    attacking ? PlantAnimationState.DOWN_ATTACK : PlantAnimationState.DOWN_IDLE));
+            return;
+        }
+
+        cactusMeleeActive.put(key, false);
+        if (wasMelee) {
+            cactusUpPoseRemaining.put(key, CACTUS_UP_POSE_SECONDS);
+        }
+
+        Float remaining = cactusUpPoseRemaining.get(key);
+        if (remaining != null) {
+            actor.setClip(PlantAnimationCatalog.clipName(PlantType.CACTUS, PlantAnimationState.UP));
+            remaining -= Gdx.graphics.getDeltaTime();
+            if (remaining <= 0f) {
+                cactusUpPoseRemaining.remove(key);
+            } else {
+                cactusUpPoseRemaining.put(key, remaining);
+            }
+            return;
+        }
+
+        String attackClip = PlantAnimationCatalog.attackClipName(PlantType.CACTUS);
+        if (plant.isAttackingWithin(ATTACK_WINDOW_SECONDS.getOrDefault(PlantType.CACTUS, 0.6))) {
+            actor.setClip(attackClip);
+        } else {
+            actor.resumeIdleCycle();
         }
     }
 
@@ -2036,6 +2190,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private final class BattlefieldKeys extends InputAdapter {
         @Override
         public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+            if (imitaterPickerLayer != null) {
+                return false; // let Stage/backdrop handle it
+            }
+
             if (button != Input.Buttons.LEFT || stage == null) {
                 return false;
             }
@@ -2089,6 +2247,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
         @Override
         public boolean keyDown(int keycode) {
+            if (imitaterPickerLayer != null) {
+                return keycode == Input.Keys.ESCAPE;
+            }
+
             if (missionIntroActive) {
                 if (keycode == Input.Keys.ENTER || keycode == Input.Keys.SPACE) {
                     continueFromMissionIntro();

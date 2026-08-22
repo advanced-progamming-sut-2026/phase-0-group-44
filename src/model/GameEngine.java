@@ -304,17 +304,25 @@ public class GameEngine {
         return existing;
     }
 
-    public Plant plantImitater(PlantType copiedType, int imitaterLevel, Position position) {
+    public Plant plantImitater(PlantType copiedType, int imitaterLevel, Position position,
+                               boolean chargeSun, boolean startCooldown) {
         Plant plant = plantFactory.createImitater(copiedType, imitaterLevel);
-        if (getCooldown(PlantType.IMITATER) > 0.0) {
-            throw new IllegalStateException("Imitater is recharging.");
+        if (startCooldown && !cooldownsDisabled && getCooldown(PlantType.IMITATER) > 0.0) {
+            throw new IllegalStateException(
+                    "Imitater is recharging for " + getCooldown(PlantType.IMITATER) + " more seconds.");
         }
-        if (sun < plant.getCost()) {
+        if (chargeSun && sun < plant.getCost()) {
             throw new IllegalStateException("Not enough sun.");
         }
-        sun -= plant.getCost();
-        placePlantInternal(plant, position, true);
+        if (chargeSun) {
+            sun -= plant.getCost();
+        }
+        placePlantInternal(plant, position, startCooldown && !cooldownsDisabled);
         return plant;
+    }
+
+    public Plant plantImitater(PlantType copiedType, int imitaterLevel, Position position) {
+        return plantImitater(copiedType, imitaterLevel, position, true, true);
     }
 
     public void placePlantForFree(Plant plant, Position position) {

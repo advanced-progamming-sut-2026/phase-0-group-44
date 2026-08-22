@@ -14,6 +14,10 @@ public final class PlantAttackEffectCatalog {
     static {
         // Clip names confirmed from runtime errors are exact; others are best-effort
         // guesses of "animation" until verified the same way.
+        register(PlantType.CACTUS, "768/INITIAL/EFFECTS/CACTUS_AIRATTACK/CACTUS_AIRATTACK.PAM", "idle2", 0.6f); // clip name on the effect PAM itself still guessed — verify; path confirmed, replaces old "idle"-clip guess
+        register(PlantType.FUME_SHROOM, "768/INITIAL/EFFECTS/FUMESHROOM_BUBBLES/FUMESHROOM_BUBBLES.PAM", "special", 0.6f); // clip name guessed — verify
+        register(PlantType.TORCHWOOD, "768/INITIAL/EFFECTS/TORCHWOOD_HIT_EFFECTS/TORCHWOOD_HIT_EFFECTS.PAM", "hit_normal", 0.6f); // duration guessed — verify
+        register(PlantType.WINTER_MELON, "768/FULL/EFFECTS/T_WINTERMELON_PROJECTILE/T_WINTERMELON_PROJECTILE.PAM", "animation", 0.6f);
         register(PlantType.EXPLODE_O_NUT, "768/INITIAL/EFFECTS/EXPLODEONUT_BLINK/EXPLODEONUT_BLINK.PAM", "animation", 0.6f); // clip name guessed — verify
         register(PlantType.SUN_BEAN, "768/FULL/EFFECTS/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY1/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY1.PAM", "animation", 0.6f); // clip name guessed — verify
         register(PlantType.CAULIPOWER, "768/INITIAL/EFFECTS/CAULIPOWER_PROJECTILE/CAULIPOWER_PROJECTILE.PAM", "animation", 0.9f);
