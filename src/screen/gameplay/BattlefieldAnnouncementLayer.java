@@ -137,9 +137,10 @@ public final class BattlefieldAnnouncementLayer {
         String normalized = event.trim().toLowerCase(Locale.ROOT);
         if (normalized.startsWith("wave ") && normalized.endsWith(" started.")) {
             queueWaveBanner(currentWave);
-        } else if (normalized.startsWith("necromancy spawned")) {
+        } else if (normalized.startsWith("necromancy is stirring")
+                || normalized.startsWith("necromancy spawned")) {
             queueEventBanner("necromancy-" + currentWave, "NECROMANCY!");
-        } else if (normalized.startsWith("a zombie emerged from flooded low tide")) {
+        } else if (normalized.startsWith("low tide zombies incoming")) {
             queueEventBanner("low-tide-" + currentWave, "LOW TIDE! ZOMBIES ARE EMERGING!");
         }
     }

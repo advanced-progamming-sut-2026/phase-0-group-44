@@ -1026,10 +1026,20 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             // Plant What You Get deliberately ignores both sun cost and cooldown
             // until the player presses START WAVE. Keep the seed cards visually
             // available too, so the HUD matches the actual planting rules.
-            seedBank.sync(freeSetup ? Integer.MAX_VALUE : sun, type ->
-                    !freeSetup && !previewMode
+            GameSession activeSession = Store.getActiveSession();
+            seedBank.sync(
+                    freeSetup ? Integer.MAX_VALUE : sun,
+                    type -> !freeSetup && !previewMode
                             && liveEngine != null
-                            && liveEngine.isOnCooldown(type));
+                            && liveEngine.isOnCooldown(type),
+                    type -> freeSetup || previewMode || liveEngine == null
+                            ? 0.0
+                            : liveEngine.getCooldown(type),
+                    type -> activeSession != null
+                            && ((activeSession.getSelection() != null
+                            && activeSession.getSelection().isDiamondBoosted(type))
+                            || activeSession.hasPendingGreenhouseBoost(type))
+            );
         }
         if (conveyorBelt != null) {
             GameEngine liveEngine = engine();

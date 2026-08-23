@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.ToDoubleFunction;
 
 
 public final class BattlefieldSeedBank {
@@ -46,6 +47,9 @@ public final class BattlefieldSeedBank {
     private final Table root;
     private final Map<PlantType, Stack> cardsByType = new LinkedHashMap<>();
     private final Map<PlantType, Integer> costByType = new LinkedHashMap<>();
+    private final Map<PlantType, Image> lockedTintByType = new LinkedHashMap<>();
+    private final Map<PlantType, Label> cooldownLabelsByType = new LinkedHashMap<>();
+    private final Map<PlantType, Label> boostLabelsByType = new LinkedHashMap<>();
     private final SeedDragHandler dragHandler;
 
     public BattlefieldSeedBank(
@@ -116,6 +120,27 @@ public final class BattlefieldSeedBank {
         lockedTint.setVisible(false);
         lockedTint.setTouchable(Touchable.disabled);
         stack.add(lockedTint);
+        lockedTintByType.put(type, lockedTint);
+
+        Label cooldownLabel = new Label("", skin, "medium_outline");
+        cooldownLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
+        cooldownLabel.setColor(1f, 0.92f, 0.35f, 1f);
+        cooldownLabel.setFontScale(0.66f);
+        cooldownLabel.setBounds(4f, CARD_HEIGHT * 0.36f, CARD_WIDTH - 8f, 24f);
+        cooldownLabel.setVisible(false);
+        cooldownLabel.setTouchable(Touchable.disabled);
+        stack.add(cooldownLabel);
+        cooldownLabelsByType.put(type, cooldownLabel);
+
+        Label boostLabel = new Label("BOOST", skin, "medium_outline");
+        boostLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
+        boostLabel.setColor(0.48f, 1f, 0.38f, 1f);
+        boostLabel.setFontScale(0.48f);
+        boostLabel.setBounds(CARD_WIDTH - 42f, CARD_HEIGHT - 18f, 39f, 16f);
+        boostLabel.setVisible(false);
+        boostLabel.setTouchable(Touchable.disabled);
+        stack.add(boostLabel);
+        boostLabelsByType.put(type, boostLabel);
 
         stack.addListener(new InputListener() {
             private int activePointer = -1;
@@ -181,13 +206,35 @@ public final class BattlefieldSeedBank {
         return stack;
     }
 
-    public void sync(int sun, Predicate<PlantType> onCooldown) {
+    public void sync(
+            int sun,
+            Predicate<PlantType> onCooldown,
+            ToDoubleFunction<PlantType> cooldownRemaining,
+            Predicate<PlantType> boosted
+    ) {
         for (Map.Entry<PlantType, Stack> entry : cardsByType.entrySet()) {
             PlantType type = entry.getKey();
             boolean affordable = sun >= costByType.get(type);
             boolean cooling = onCooldown.test(type);
-            Image lockedTint = (Image) entry.getValue().getChildren().peek();
-            lockedTint.setVisible(!affordable || cooling);
+
+            Image lockedTint = lockedTintByType.get(type);
+            if (lockedTint != null) {
+                lockedTint.setVisible(!affordable || cooling);
+            }
+
+            Label cooldown = cooldownLabelsByType.get(type);
+            if (cooldown != null) {
+                double remaining = Math.max(0.0, cooldownRemaining.applyAsDouble(type));
+                cooldown.setVisible(cooling && remaining > 0.0);
+                if (cooling && remaining > 0.0) {
+                    cooldown.setText(String.format(java.util.Locale.ROOT, "%.1fs", remaining));
+                }
+            }
+
+            Label boost = boostLabelsByType.get(type);
+            if (boost != null) {
+                boost.setVisible(boosted.test(type));
+            }
         }
     }
 }

@@ -153,7 +153,9 @@ public final class AdventureInitializer {
         for (FrozenZombiePlacement placement : rules.getFrozenZombies()) {
             model.inGame.zombie.Zombie zombie =
                     engine.spawnZombie(placement.getType(), placement.getRow(), placement.getX());
-            zombie.applyFreeze(Double.MAX_VALUE);
+            // Match the Phase-1/Frostbite rule: the zombie is trapped in a
+            // breakable ice block, not permanently frozen forever.
+            zombie.encaseInIce(600);
         }
     }
 }

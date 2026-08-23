@@ -41,7 +41,7 @@ public final class BattlefieldChapterEffects {
     private static final Pattern WATER_EVENT = Pattern.compile(
             "Water level now covers (\\d+) right-side columns\\.");
     private static final Pattern DARK_EVENT = Pattern.compile(
-            "(?:Necromancy spawned a zombie beneath grave|A Dark Ages grave appeared at) "
+            "(?:Necromancy is stirring beneath grave|A Dark Ages grave appeared at) "
                     + "\\((\\d+),\\s*(\\d+)\\).*");
 
     private final BattlefieldTheme theme;
@@ -464,8 +464,8 @@ public final class BattlefieldChapterEffects {
         float endX = board.x - width;
         float y = cell.y - cell.height * 0.34f;
 
-        addMovingPam(frontLayer, CHILL_WIND_PAM, "animation", 0.96f,
-                startX, y, width, height, endX, y, 1.22f, delay);
+        addMovingPam(frontLayer, CHILL_WIND_PAM, "animation", 1.02f,
+                startX, y, width, height, endX, y, 1.38f, delay);
 
         // Bright ice streaks remain readable even over cyan Frostbite tiles.
         for (int i = 0; i < 9; i++) {

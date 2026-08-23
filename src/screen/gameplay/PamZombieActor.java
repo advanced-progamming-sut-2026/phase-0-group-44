@@ -226,7 +226,7 @@ public final class PamZombieActor extends Actor {
         if (previewMode) {
             drawPreview(batch);
         } else {
-            drawGameplay(batch);
+            drawGameplay(batch, parentAlpha);
         }
     }
 
@@ -255,7 +255,7 @@ public final class PamZombieActor extends Actor {
         );
     }
 
-    private void drawGameplay(Batch batch) {
+    private void drawGameplay(Batch batch, float parentAlpha) {
         if (zombie == null
                 || animationInfo == null
                 || currentClip == null) {
@@ -331,14 +331,24 @@ public final class PamZombieActor extends Actor {
                 centerY
         );
 
+        /*
+         * PAM rendering must not inherit whatever tint/alpha the previously drawn
+         * Scene2D actor left on the shared Batch. Night Ops deliberately ends its
+         * environment layer with translucent blue overlays; without resetting the
+         * Batch here, zombies inherit that alpha and look like ghosts.
+         */
         Color originalBatchColor = new Color(batch.getColor());
+        Color actorColor = getColor();
+        float actorAlpha = actorColor.a * parentAlpha;
+        batch.setColor(actorColor.r, actorColor.g, actorColor.b, actorAlpha);
+
         if (zombie.getBooleanState("GLOWING")) {
             float pulse = MathUtils.sin(stateTime * 7.0f) * 0.5f + 0.5f;
             batch.setColor(
                     1f,
                     0.78f + 0.18f * pulse,
                     0.30f + 0.24f * pulse,
-                    originalBatchColor.a
+                    actorAlpha
             );
         }
 

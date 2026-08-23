@@ -133,8 +133,13 @@ public class Zombie {
         if (amount <= 0 || isDead()) {
             return 0;
         }
+        boolean encasedBefore = isEncasedInIce();
         List<String> armorBefore = activeArmorNames();
         int dealt = takeDamage(amount, damageType);
+        if (encasedBefore && !isEncasedInIce() && engine != null) {
+            engine.recordEvent("Frozen zombie ice shattered in row " + row
+                    + " at x " + String.format(java.util.Locale.ROOT, "%.2f", x) + ".");
+        }
         for (String nameBefore : armorBefore) {
             ZombieArmorPart part = findArmorPart(nameBefore);
             if (part != null && part.isBroken()) {
@@ -157,14 +162,39 @@ public class Zombie {
             return 0;
         }
         DamageType type = damageType == null ? DamageType.NORMAL : damageType;
+        int remaining = amount;
+        int dealt = 0;
+
+        /*
+         * Frostbite's pre-placed frozen zombies are encased in a separate ice
+         * shell. Damage must break that shell before the zombie is exposed.
+         * Fire shatters the shell immediately and then continues into the zombie.
+         */
+        if (isEncasedInIce()) {
+            if (type == DamageType.FIRE) {
+                clearEncasingIce();
+            } else {
+                int iceHealth = getEncasingIceHealth();
+                int absorbed = Math.min(iceHealth, remaining);
+                iceHealth -= absorbed;
+                remaining -= absorbed;
+                dealt += absorbed;
+                putState("FROSTBITE_ICE_HP", Math.max(0, iceHealth));
+                if (iceHealth <= 0) {
+                    clearEncasingIce();
+                }
+                if (remaining <= 0) {
+                    return dealt;
+                }
+            }
+        }
+
         if (type == DamageType.FIRE) {
             thaw();
             if (definition != null && definition.isFireImmune()) {
-                return 0;
+                return dealt;
             }
         }
-        int remaining = amount;
-        int dealt = 0;
         if (type != DamageType.POISON && type != DamageType.TRUE) {
             for (ZombieArmorPart part : armorParts) {
                 if (remaining <= 0) {
@@ -188,6 +218,33 @@ public class Zombie {
             return;
         }
         applyEffect(ZombieEffectType.FROZEN, seconds, 0);
+    }
+
+    /**
+     * Encases a zombie in the chapter's breakable Frostbite ice block.
+     * This is intentionally separate from ordinary temporary freeze effects.
+     */
+    public void encaseInIce(int health) {
+        putState("FROSTBITE_ENCASED", true);
+        putState("FROSTBITE_ICE_HP", Math.max(1, health));
+        // Chapter ice must stop even Frostbite-native zombies, so bypass the
+        // ordinary freeze-immunity check used by projectiles/plants.
+        applyEffect(ZombieEffectType.FROZEN, Double.MAX_VALUE, 0);
+    }
+
+    public boolean isEncasedInIce() {
+        return getBooleanState("FROSTBITE_ENCASED")
+                && getEncasingIceHealth() > 0;
+    }
+
+    public int getEncasingIceHealth() {
+        return getIntState("FROSTBITE_ICE_HP", 0);
+    }
+
+    private void clearEncasingIce() {
+        putState("FROSTBITE_ENCASED", false);
+        putState("FROSTBITE_ICE_HP", 0);
+        thaw();
     }
 
     public void applySlow(double seconds) {

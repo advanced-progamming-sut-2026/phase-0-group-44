@@ -34,6 +34,16 @@ public final class AdventureRuleSystem {
             return;
         }
 
+        // Gameplay may advance several simulation ticks in one rendered frame.
+        // The runtime delay is deliberately longer than that batch so the low-tide
+        // warning reaches BattlefieldAnnouncementLayer before these zombies spawn.
+        if (state.tickLowTideSpawnDelay()) {
+            spawnPendingLowTideZombies(engine, state);
+        }
+        if (state.tickNecromancySpawnDelay()) {
+            spawnPendingNecromancyZombies(engine, state);
+        }
+
         state.tickElapsed();
         processNewWave(engine, state);
         tickConveyor(engine, state);
@@ -52,10 +62,10 @@ public final class AdventureRuleSystem {
             applyIcyWind(engine, rules);
         } else if (rules.getWorld() == GameWorld.BIG_WAVE_BEACH) {
             applyWaterLevel(engine, state, rules, wave);
-            spawnLowTideZombies(engine, rules, state.getWaterColumns());
+            queueLowTideZombies(engine, rules, state);
         } else if (rules.getWorld() == GameWorld.DARK_AGES) {
             createDarkAgesGraves(engine, rules);
-            runNecromancy(engine, rules);
+            queueNecromancy(engine, rules, state);
         }
     }
 
@@ -145,7 +155,7 @@ public final class AdventureRuleSystem {
                     || plant.getEffectiveDefinition().hasTag(PlantTag.FIRE)) {
                 continue;
             }
-            engine.addIceHit(plant); // handles the 3-hit freeze threshold + ICE obstacle placement
+            engine.addIceHit(plant);
         }
         if (!rows.isEmpty()) {
             engine.recordEvent("Icy wind affected rows " + rows + ".");
@@ -223,17 +233,42 @@ public final class AdventureRuleSystem {
                 || plant.getEffectiveType() == PlantType.LILY_PAD;
     }
 
-    private void spawnLowTideZombies(GameEngine engine, ChapterRules rules, int waterColumns) {
+    private void queueLowTideZombies(
+            GameEngine engine,
+            ChapterRules rules,
+            AdventureRuntimeState state
+    ) {
+        int waterColumns = state.getWaterColumns();
         if (waterColumns <= 0) {
             return;
         }
+
         int waterStart = engine.getGameMap().getColumns() - waterColumns;
+        List<TileCoordinate> queued = new ArrayList<>();
         for (TileCoordinate coordinate : rules.getLowTideTiles()) {
             if (coordinate.getX() < waterStart) {
                 continue;
             }
-            engine.spawnZombie(ZombieType.NORMAL, coordinate.getY(), coordinate.getX() + 0.5);
-            engine.recordEvent("A zombie emerged from flooded low tide at " + coordinate + ".");
+            state.queueLowTideSpawn(coordinate);
+            queued.add(coordinate);
+        }
+
+        if (!queued.isEmpty()) {
+            engine.recordEvent("Low tide zombies incoming at " + queued + ".");
+        }
+    }
+
+    private void spawnPendingLowTideZombies(
+            GameEngine engine,
+            AdventureRuntimeState state
+    ) {
+        for (TileCoordinate coordinate : state.drainLowTideSpawns()) {
+            engine.spawnZombie(
+                    ZombieType.NORMAL,
+                    coordinate.getY(),
+                    coordinate.getX() + 0.5
+            );
+            engine.recordEvent("A zombie emerged from low tide at " + coordinate + ".");
         }
     }
 
@@ -252,30 +287,99 @@ public final class AdventureRuleSystem {
                 }
             }
         }
+
         int count = Math.min(rules.getDarkGravesPerWave(), valid.size());
-        for (int i = 0; i < count; i++) {
+        if (count <= 0) {
+            return;
+        }
+
+        /*
+         * Make the chapter's necromancy mechanic reliably observable. The old
+         * implementation placed all graves uniformly across ~45 cells, so the two
+         * configured necromancy cells almost never contained a grave and the
+         * mechanic could go an entire level without occurring.
+         *
+         * Prefer ONE free configured necromancy cell, then place the remaining
+         * graves randomly exactly as before. This preserves the phase-1 count and
+         * random grave payloads while making the chapter identity testable.
+         */
+        Position preferred = chooseFreeNecromancyPosition(map, rules, valid, random);
+        int placed = 0;
+        if (preferred != null) {
+            valid.remove(preferred);
+            placeDarkAgesGrave(engine, map, random, preferred);
+            placed++;
+        }
+
+        while (placed < count && !valid.isEmpty()) {
             Position pos = valid.remove(random.nextInt(valid.size()));
-            String payload = switch (random.nextInt(3)) {
-                case 1 -> "SUN_50";
-                case 2 -> "PLANT_FOOD";
-                default -> "";
-            };
-            map.setObstacle(pos, ObstacleType.GRAVE, 700, payload);
-            engine.recordEvent("A Dark Ages grave appeared at (" + pos.getColumn()
-                    + ", " + pos.getRow() + ") containing "
-                    + (payload.isEmpty() ? "nothing" : payload) + ".");
+            placeDarkAgesGrave(engine, map, random, pos);
+            placed++;
         }
     }
 
-    private void runNecromancy(GameEngine engine, ChapterRules rules) {
+    private Position chooseFreeNecromancyPosition(
+            GameMap map,
+            ChapterRules rules,
+            List<Position> valid,
+            Random random
+    ) {
+        List<Position> candidates = new ArrayList<>();
+        for (TileCoordinate coordinate : rules.getNecromancyTiles()) {
+            Position pos = new Position(coordinate.getY(), coordinate.getX());
+            if (map.isInside(pos) && valid.contains(pos)) {
+                candidates.add(pos);
+            }
+        }
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        return candidates.get(random.nextInt(candidates.size()));
+    }
+
+    private void placeDarkAgesGrave(
+            GameEngine engine,
+            GameMap map,
+            Random random,
+            Position pos
+    ) {
+        String payload = switch (random.nextInt(3)) {
+            case 1 -> "SUN_50";
+            case 2 -> "PLANT_FOOD";
+            default -> "";
+        };
+        map.setObstacle(pos, ObstacleType.GRAVE, 700, payload);
+        engine.recordEvent("A Dark Ages grave appeared at (" + pos.getColumn()
+                + ", " + pos.getRow() + ") containing "
+                + (payload.isEmpty() ? "nothing" : payload) + ".");
+    }
+
+    private void queueNecromancy(
+            GameEngine engine,
+            ChapterRules rules,
+            AdventureRuntimeState state
+    ) {
         GameMap map = engine.getGameMap();
         for (TileCoordinate coordinate : rules.getNecromancyTiles()) {
             Position pos = new Position(coordinate.getY(), coordinate.getX());
-            if (!map.isInside(pos)) {
+            if (!map.isInside(pos) || !engine.isGrave(map.getTile(pos))) {
                 continue;
             }
-            Tile tile = map.getTile(pos);
-            if (!engine.isGrave(tile)) {
+            state.queueNecromancySpawn(coordinate);
+            engine.recordEvent("Necromancy is stirring beneath grave " + coordinate + ".");
+        }
+    }
+
+    private void spawnPendingNecromancyZombies(
+            GameEngine engine,
+            AdventureRuntimeState state
+    ) {
+        GameMap map = engine.getGameMap();
+        for (TileCoordinate coordinate : state.drainNecromancySpawns()) {
+            Position pos = new Position(coordinate.getY(), coordinate.getX());
+            // A defensive check keeps the delayed visual flow safe if some future
+            // mechanic removes the grave between warning and spawn.
+            if (!map.isInside(pos) || !engine.isGrave(map.getTile(pos))) {
                 continue;
             }
             engine.spawnZombie(ZombieType.NORMAL, coordinate.getY(), coordinate.getX() + 0.5);

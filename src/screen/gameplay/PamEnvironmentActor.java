@@ -1,6 +1,7 @@
 package screen.gameplay;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import pvz.libpvz.pam.PamPlayer;
@@ -95,6 +96,21 @@ public final class PamEnvironmentActor extends Actor {
         }
         float centerX = getX() + getWidth() * 0.5f + xOffset;
         float centerY = getY() + getHeight() * 0.5f + yOffset;
+
+        /*
+         * Scene2D shares one Batch across every actor. Tinted translucent overlays
+         * (Dark Ages atmosphere, Night Ops, mower glows, etc.) can leave that Batch
+         * with a low alpha. PAM drawing does not reset it by itself, so mowers and
+         * other PAM environment actors can accidentally render ghost-like.
+         */
+        Color originalBatchColor = new Color(batch.getColor());
+        Color actorColor = getColor();
+        batch.setColor(
+                actorColor.r,
+                actorColor.g,
+                actorColor.b,
+                actorColor.a * parentAlpha
+        );
         try {
             player.draw(batch, pamPath, clip, stateTime,
                     centerX, centerY, scale, scale, true);
@@ -103,6 +119,8 @@ public final class PamEnvironmentActor extends Actor {
             failed = true;
             Gdx.app.error("PamEnvironmentActor",
                     "Could not render PAM " + pamPath + " clip " + clip, exception);
+        } finally {
+            batch.setColor(originalBatchColor);
         }
     }
 }

@@ -17,6 +17,7 @@ import model.Tile;
 import model.config.GameWorld;
 import model.enums.ObstacleType;
 import model.enums.TerrainType;
+import model.level.SpecialLevelType;
 import model.level.ChapterRules;
 import model.sim.adventure.AdventureRuntimeState;
 import pvz.libpvz.pam.PamPlayer;
@@ -105,6 +106,7 @@ public final class BattlefieldEnvironmentLayer extends Group {
         // It is drawn first so tile/obstacle actors remain above it.
         addBeachSeaBody();
         addDarkAgesAtmosphere();
+        addNightOpsAtmosphere(engine, preview);
 
         for (int row = 0; row < BattlefieldLayout.ROWS; row++) {
             for (int column = 0; column < BattlefieldLayout.COLUMNS; column++) {
@@ -165,6 +167,57 @@ public final class BattlefieldEnvironmentLayer extends Group {
         rightShade.setColor(0.02f, 0.01f, 0.05f, 0.08f);
         rightShade.setBounds(board.x + board.width - 14f, board.y, 14f, board.height);
         addActor(rightShade);
+    }
+
+    private void addNightOpsAtmosphere(GameEngine engine, boolean preview) {
+        if (!isNightOps(engine, preview)) {
+            return;
+        }
+        Rectangle board = layout.boardBounds();
+
+        // Deeper board-wide darkness so Night Ops reads immediately as a night map.
+        // The tint stays on the background/environment layer only, which keeps
+        // plants and zombies readable on top of the darker playfield.
+        Image nightWash = new Image(whiteTexture);
+        nightWash.setColor(0.02f, 0.05f, 0.11f, 0.28f);
+        nightWash.setBounds(board.x, board.y, board.width, board.height);
+        addActor(nightWash);
+
+        // Slightly darker top sky strip so the whole board feels less like midday.
+        Image topShade = new Image(whiteTexture);
+        topShade.setColor(0.01f, 0.03f, 0.08f, 0.17f);
+        topShade.setBounds(board.x, board.y + board.height * 0.58f,
+                board.width, board.height * 0.42f);
+        addActor(topShade);
+
+        // Edge falloff improves contrast around zombies entering from the beach side.
+        Image leftShade = new Image(whiteTexture);
+        leftShade.setColor(0.01f, 0.02f, 0.05f, 0.12f);
+        leftShade.setBounds(board.x, board.y, board.width * 0.20f, board.height);
+        addActor(leftShade);
+
+        Image rightShade = new Image(whiteTexture);
+        rightShade.setColor(0.01f, 0.03f, 0.07f, 0.18f);
+        rightShade.setBounds(board.x + board.width * 0.72f, board.y,
+                board.width * 0.28f, board.height);
+        addActor(rightShade);
+
+        // Soft cool moonlight band keeps spawned zombies easy to pick out
+        // without brightening the whole beach back up.
+        Image moonBand = new Image(whiteTexture);
+        moonBand.setColor(0.30f, 0.50f, 0.72f, 0.08f);
+        moonBand.setBounds(board.x + board.width * 0.62f, board.y,
+                board.width * 0.20f, board.height);
+        addActor(moonBand);
+    }
+
+    private boolean isNightOps(GameEngine engine, boolean preview) {
+        if (!preview && engine != null && engine.getAdventureState() != null
+                && engine.getAdventureState().getConfig() != null) {
+            return engine.getAdventureState().getConfig().getSpecialType()
+                    == SpecialLevelType.NIGHT_OPS;
+        }
+        return false;
     }
 
     private void addSlipperyTile(Rectangle cell, boolean up) {
@@ -363,11 +416,11 @@ public final class BattlefieldEnvironmentLayer extends Group {
             }
 
             Rectangle bounds = layout.mowerBounds(row);
-            // MOWER_DARK's supplied idle clip is extremely subtle against the
-            // Dark Ages background. Its transition clip keeps the complete mower
-            // readable while it is waiting, then LawnMowerAnimationLayer takes
-            // over with transition -> attack once the model marks it used.
-            String clip = theme.world() == GameWorld.DARK_AGES ? "transition" : "idle";
+            // Keep the real mower in its stable waiting pose. Earlier we used
+            // the transition clip as a workaround for an alpha-leak bug; now that
+            // PamEnvironmentActor resets the shared Batch correctly, the native
+            // idle clip is visible without looking like a translucent animation trail.
+            String clip = "idle";
             float scale = theme.mowerScale();
             if (theme.world() == GameWorld.FROSTBITE_CAVES) {
                 scale *= 1.24f;
@@ -395,12 +448,11 @@ public final class BattlefieldEnvironmentLayer extends Group {
                 continue;
             }
 
-            // These two supplied mower idle clips are intentionally quite soft.
-            // Drawing the same native PAM a second time makes them read clearly
-            // against the bright ice/sand without replacing them with generated art.
+            // Frostbite/Beach remain intentionally reinforced against their very
+            // bright backgrounds. Dark Ages no longer needs a duplicate draw now
+            // that its mower renders at the correct alpha.
             if (theme.world() == GameWorld.FROSTBITE_CAVES
-                    || theme.world() == GameWorld.BIG_WAVE_BEACH
-                    || theme.world() == GameWorld.DARK_AGES) {
+                    || theme.world() == GameWorld.BIG_WAVE_BEACH) {
                 addPam(bounds, theme.mowerPam(), clip, scale, 0f, 0f);
             }
         }

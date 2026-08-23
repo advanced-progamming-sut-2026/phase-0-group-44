@@ -250,7 +250,47 @@ public final class BattlefieldSpecialLevelLayer {
             addProtectedTiles(engine, previewMode);
         } else if (type == SpecialLevelType.DEAD_LINE) {
             addDeadLine(engine, session, previewMode);
+        } else if (type == SpecialLevelType.NIGHT_OPS) {
+            addNightOpsAtmosphere();
         }
+    }
+
+    /**
+     * Night Ops uses the same beach battlefield, but presents it as a readable
+     * night battle. This layer sits below plants/zombies, so the environment
+     * darkens without making important entities hard to see.
+     */
+    private void addNightOpsAtmosphere() {
+        Image nightWash = new Image(whiteTexture);
+        nightWash.setTouchable(Touchable.disabled);
+        nightWash.setColor(0.015f, 0.035f, 0.12f, 0.34f);
+        nightWash.setBounds(0f, 0f, 1280f, 720f);
+        boardLayer.addActor(nightWash);
+
+        Rectangle board = layout.boardBounds();
+
+        Image horizon = new Image(whiteTexture);
+        horizon.setTouchable(Touchable.disabled);
+        horizon.setColor(0.18f, 0.40f, 0.62f, 0.12f);
+        horizon.setBounds(
+                board.x,
+                board.y + board.height * 0.78f,
+                board.width,
+                board.height * 0.22f
+        );
+        boardLayer.addActor(horizon);
+
+        Image leftShade = new Image(whiteTexture);
+        leftShade.setTouchable(Touchable.disabled);
+        leftShade.setColor(0f, 0f, 0.04f, 0.16f);
+        leftShade.setBounds(0f, 0f, 150f, 720f);
+        boardLayer.addActor(leftShade);
+
+        Image bottomShade = new Image(whiteTexture);
+        bottomShade.setTouchable(Touchable.disabled);
+        bottomShade.setColor(0f, 0f, 0.04f, 0.12f);
+        bottomShade.setBounds(0f, 0f, 1280f, 90f);
+        boardLayer.addActor(bottomShade);
     }
 
     private void addProtectedTiles(GameEngine engine, boolean previewMode) {
@@ -1040,7 +1080,7 @@ public final class BattlefieldSpecialLevelLayer {
                 yield "PLANT FROM THE CONVEYOR  •  READY " + packets;
             }
             case LOCKED_PLANTS -> lockedPlantsDetail(session, previewMode);
-            case NIGHT_OPS -> "NIGHT OPS  •  SKY SUN IS DISABLED";
+            case NIGHT_OPS -> "NO SKY SUN  •  PRODUCE SUN WITH PLANTS";
         };
     }
 

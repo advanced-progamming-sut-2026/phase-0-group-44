@@ -22,6 +22,11 @@ public final class AdventureRuntimeState {
     private long elapsedTicks;
     private int conveyorTicks;
     private int waterColumns;
+    private final Set<TileCoordinate> pendingLowTideSpawns = new LinkedHashSet<>();
+    private int pendingLowTideSpawnDelayTicks;
+    private final Set<TileCoordinate> pendingNecromancySpawns = new LinkedHashSet<>();
+    private int pendingNecromancySpawnDelayTicks;
+
 
     public AdventureRuntimeState(
             AdventureLevelConfig config,
@@ -109,4 +114,65 @@ public final class AdventureRuntimeState {
     public void setWaterColumns(int waterColumns) {
         this.waterColumns = waterColumns;
     }
+
+    public void queueLowTideSpawn(TileCoordinate coordinate) {
+        if (coordinate != null) {
+            pendingLowTideSpawns.add(coordinate);
+            // Gameplay can advance up to four model ticks in one render frame.
+            // Five ticks guarantees the warning event reaches the UI before the
+            // queued zombies are allowed to spawn.
+            pendingLowTideSpawnDelayTicks = Math.max(pendingLowTideSpawnDelayTicks, 5);
+        }
+    }
+
+    public boolean tickLowTideSpawnDelay() {
+        if (pendingLowTideSpawns.isEmpty()) {
+            pendingLowTideSpawnDelayTicks = 0;
+            return false;
+        }
+        if (pendingLowTideSpawnDelayTicks > 0) {
+            pendingLowTideSpawnDelayTicks--;
+        }
+        return pendingLowTideSpawnDelayTicks <= 0;
+    }
+
+    public Set<TileCoordinate> drainLowTideSpawns() {
+        if (pendingLowTideSpawns.isEmpty()) {
+            return Set.of();
+        }
+        Set<TileCoordinate> result = new LinkedHashSet<>(pendingLowTideSpawns);
+        pendingLowTideSpawns.clear();
+        return result;
+    }
+
+    public void queueNecromancySpawn(TileCoordinate coordinate) {
+        if (coordinate != null) {
+            pendingNecromancySpawns.add(coordinate);
+            // As with low tide, leave enough model ticks for the render/UI layer
+            // to consume the warning before anything appears on the lawn.
+            pendingNecromancySpawnDelayTicks = Math.max(pendingNecromancySpawnDelayTicks, 5);
+        }
+    }
+
+    public boolean tickNecromancySpawnDelay() {
+        if (pendingNecromancySpawns.isEmpty()) {
+            pendingNecromancySpawnDelayTicks = 0;
+            return false;
+        }
+        if (pendingNecromancySpawnDelayTicks > 0) {
+            pendingNecromancySpawnDelayTicks--;
+        }
+        return pendingNecromancySpawnDelayTicks <= 0;
+    }
+
+    public Set<TileCoordinate> drainNecromancySpawns() {
+        if (pendingNecromancySpawns.isEmpty()) {
+            return Set.of();
+        }
+        Set<TileCoordinate> result = new LinkedHashSet<>(pendingNecromancySpawns);
+        pendingNecromancySpawns.clear();
+        return result;
+    }
+
+
 }
