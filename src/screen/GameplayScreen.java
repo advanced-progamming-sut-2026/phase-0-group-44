@@ -185,7 +185,10 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private static final double SPLIT_PEA_RANGE = 20.0; // matches ShooterBehavior's default forward range; ignores RANGE stat bonus — verify
 
     private static final double GOLD_BLOOM_IDLE_SECONDS = 0.5; // guessed — verify; must sum with below to SunProducerBehavior.INSTANT_POSE_SECONDS
-    private static final double GOLD_BLOOM_ATTACK_SECONDS = 0.6; // guessed — verify
+    private static final Set<PlantType> MINT_TYPES = Set.of(
+            PlantType.ENLIGHTEN_MINT, PlantType.APPEASE_MINT, PlantType.ARMA_MINT,
+            PlantType.BOMBARD_MINT, PlantType.ENFORCE_MINT, PlantType.REINFORCE_MINT,
+            PlantType.ENCHANT_MINT);
 
     private static final ZombieType[] ZOMBIE_TEST_TYPES = {
             ZombieType.NORMAL,
@@ -237,9 +240,14 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     }
 
     private String plantIdleClip(PlantType type) {
+        if (MINT_TYPES.contains(type)) {
+            return "intro";
+        }
+        if (MINE_TYPES.contains(type)) {
+            return "plant";
+        }
         return PlantAnimationCatalog.clipName(type, PlantAnimationState.IDLE);
     }
-
 
     private enum ToolMode {
         NONE,
@@ -2071,17 +2079,13 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         }
         removePlantedActor(row, column);
         Rectangle cell = layout.cellBounds(row, column);
-        String initialClip = MINE_TYPES.contains(type) ? "plant" : "idle";
-        String resolvedPam = plantIdlePam(type);
-        if (type == PlantType.GOLD_BLOOM) {
-            System.out.println("[GoldBloom] resolved PAM path = " + resolvedPam
-                    + " initialClip=" + initialClip
-                    + " idleClips=" + PlantAnimationCatalog.idleClipSequence(type));
-        }
+        String initialClip = MINE_TYPES.contains(type) ? "plant"
+                : MINT_TYPES.contains(type) ? "intro"
+                  : "idle";
         PamEnvironmentActor idle = new PamEnvironmentActor(
-                pamPlayer, resolvedPam, initialClip, 0.42f, 0f, 0f);
+                pamPlayer, plantIdlePam(type), initialClip, 0.42f, 0f, 0f);
         idle.setIdleClips(PlantAnimationCatalog.idleClipSequence(type));
-        if (!MINE_TYPES.contains(type)) {
+        if (!MINE_TYPES.contains(type) && !MINT_TYPES.contains(type)) {
             idle.resumeIdleCycle();
         }
         float[] idleBounds = scaledBounds(cell, PLANT_ANIMATION_SCALE);
@@ -2243,7 +2247,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 updateCitronAnimation(actor, plant);
             } else if (type == PlantType.SPLIT_PEA) {
                 updateSplitPeaAnimation(actor, plant);
-            } else if (type == PlantType.GOLD_BLOOM) {
+            }  else if (MINT_TYPES.contains(type)) {
+                updateMintAnimation(actor, plant, type);
+            }else if (type == PlantType.GOLD_BLOOM) {
                 updateGoldBloomAnimation(actor, plant);
             } else {
                 String attackClip = PlantAnimationCatalog.attackClipName(type);
@@ -2266,6 +2272,17 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             }
         }
     }
+
+    private void updateMintAnimation(PamEnvironmentActor actor, Plant plant, PlantType type) {
+        String phase = plant.getState("MINT_CLIP", String.class, "intro");
+        PlantAnimationState state = switch (phase) {
+            case "loop" -> PlantAnimationState.LOOP;
+            case "outro" -> PlantAnimationState.OUTRO;
+            default -> PlantAnimationState.INTRO;
+        };
+        actor.setClip(PlantAnimationCatalog.clipName(type, state));
+    }
+
     private void updateGoldBloomAnimation(PamEnvironmentActor actor, Plant plant) {
         double age = plant.getAgeSeconds();
         if (age < GOLD_BLOOM_IDLE_SECONDS) {

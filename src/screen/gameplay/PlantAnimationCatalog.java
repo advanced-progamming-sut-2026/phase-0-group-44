@@ -35,11 +35,23 @@ public final class PlantAnimationCatalog {
         return PlantAnimationSpec.builder(PlantAnimationTier.INITIAL);
     }
 
+    private static PlantAnimationSpec.Builder mint() {
+        return PlantAnimationSpec.builder(PlantAnimationTier.MINT);
+    }
+
+
     private static PlantAnimationSpec.Builder full() {
         return PlantAnimationSpec.builder(PlantAnimationTier.FULL);
     }
 
     private static void register() {
+        put(PlantType.ENLIGHTEN_MINT, mint().folder("ENLIGHTENMINT")); // confirmed: [intro, loop, outro]; folder default ENLIGHTENMINT matches
+        put(PlantType.APPEASE_MINT, mint().folder("APPEASEMINT"));   // confirmed: [intro, loop, outro]; folder default APPEASEMINT matches
+        put(PlantType.ARMA_MINT, mint().folder("ARMAMINT"));      // confirmed: [intro, loop, outro]; folder default ARMAMINT matches
+        put(PlantType.BOMBARD_MINT, mint().folder("BOMBARDMINT"));   // confirmed: [intro, loop, outro]; folder default BOMBARDMINT matches
+        put(PlantType.ENFORCE_MINT, mint().folder("ENFORCEMINT"));   // confirmed: [intro, loop, outro]; folder default ENFORCEMINT matches
+        put(PlantType.REINFORCE_MINT, mint().folder("REINFORCEMINT")); // confirmed: [intro, loop, outro]; folder default REINFORCEMINT matches
+        put(PlantType.ENCHANT_MINT, mint().folder("ENCHANTMINT"));   // confirmed: [intro, loop, outro]; folder default ENCHANTMINT matches
         put(PlantType.SUN_SHROOM, initial()
                 .clip(PlantAnimationState.IDLE, "idle_stage3")
                 .clip(PlantAnimationState.ATTACK, "special_stage1"));
@@ -56,7 +68,6 @@ public final class PlantAnimationCatalog {
         put(PlantType.SPLIT_PEA, initial()); // attack/attack2/attack3 = right/both/left, chosen at runtime in GameplayScreen
         put(PlantType.SEA_SHROOM, full().idleStages(2));
         put(PlantType.CACTUS, initial().idleStages(3)); // confirmed: [idle, idle2, idle3, attack, down, down_idle, down_attack, up]
-        put(PlantType.TANGLE_KELP, initial()); // confirmed: [idle, attack]
         put(PlantType.TORCHWOOD, initial()); // confirmed: [idle]
         put(PlantType.LILY_PAD, full().idleStages(4)); // confirmed: [idle, idle2, idle3, idle4]
         put(PlantType.IMITATER, initial().folder("IMITATER").idleStages(2)); // confirmed: [idle, idle2, attack]
@@ -68,13 +79,9 @@ public final class PlantAnimationCatalog {
         put(PlantType.SUN_BEAN, initial().idleStages(2)); // idle, idle2 — no damage clips supplied
         put(PlantType.STARFRUIT, initial());
         put(PlantType.SWEET_POTATO, initial().clip(PlantAnimationState.DAMAGE, "idle_damage"));
-        put(PlantType.APPEASE_MINT, initial());
-        put(PlantType.ARMA_MINT, initial());
-        put(PlantType.BOMBARD_MINT, initial());
         put(PlantType.BONK_CHOY, initial().idleStages(3));
         put(PlantType.BOWLING_BULB, full());
         put(PlantType.CABBAGE_PULT, initial());
-        put(PlantType.CACTUS, initial().idleStages(3));
         put(PlantType.CAULIPOWER, initial().idleStages(4)
                 .clip(PlantAnimationState.IDLE, "idle1_1")
                 .clip(PlantAnimationState.IDLE2, "idle2_1")
@@ -98,15 +105,11 @@ public final class PlantAnimationCatalog {
                 .clip(PlantAnimationState.IDLE, "idle3_1")
                 .clip(PlantAnimationState.ATTACK, "attack"));
 
-        // real clips: idle1_1, idle1_2, idle2_1..4, idle3_1..3, idle4_1..3, attack, plantfood, water
-        put(PlantType.ENCHANT_MINT, initial());
+        // real clips: idle1_1, idle1_2, idle2_1..4, idle3_1..3, idle4_1..3, attack, plantfood, waterm
         put(PlantType.ENDURIAN, full().damageStages(1)
                 .clip(PlantAnimationState.IDLE, "attack_loop"));
-        put(PlantType.ENFORCE_MINT, initial());
-        put(PlantType.ENLIGHTEN_MINT, initial());
         put(PlantType.EXPLODE_O_NUT, initial().idleStages(3).damageStages(3));
         put(PlantType.FIRE_PEASHOOTER, initial().idleStages(2));
-        put(PlantType.FUME_SHROOM, initial());
         put(PlantType.GARLIC, full().damageStages(2)
                 .clip(PlantAnimationState.DAMAGE, "idle_damage")
                 .clip(PlantAnimationState.DAMAGE2, "idle_damage2"));
@@ -118,13 +121,11 @@ public final class PlantAnimationCatalog {
         put(PlantType.HYPNO_SHROOM, initial());
         put(PlantType.ICE_SHROOM, full());
         put(PlantType.ICEBERG_LETTUCE, initial().folder("ICEBURG")); // asset folder is short/misspelled — verify
-        put(PlantType.IMITATER, initial().folder("IMITATER")); // enum spelling differs from folder — verify
         put(PlantType.JALAPENO, initial());
         put(PlantType.KERNEL_PULT, initial().folder("KERNALPULT")); // folder uses "KERNAL" — verify
         put(PlantType.KIWIBEAST, initial()
                 .clip(PlantAnimationState.IDLE, "idle_stage1_")
                 .clip(PlantAnimationState.ATTACK, "attack_stage1"));
-        put(PlantType.LILY_PAD, full());
         put(PlantType.MAGNET_SHROOM, full());
         put(PlantType.MEGA_GATLING_PEA, initial().folder("MEGAGATLING")); // folder drops "PEA" — verify
         put(PlantType.MELON_PULT, initial());

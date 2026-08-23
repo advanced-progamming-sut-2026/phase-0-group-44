@@ -86,11 +86,9 @@ public class SunProducerBehavior extends AbstractTimedBehavior {
             plant.markAttacked();
             plant.putState("INSTANT_ATTACK_STARTED", true);
             justStartedAttack = true;
-            System.out.println("[GoldBloom] attack started at age=" + age);
         }
 
         if (!justStartedAttack && age >= GOLD_BLOOM_IDLE_SECONDS + GOLD_BLOOM_ATTACK_SECONDS) {
-            System.out.println("[GoldBloom] expiring at age=" + age);
             plant.expire(engine);
         }
     }
