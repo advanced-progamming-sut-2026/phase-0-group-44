@@ -36,3 +36,4 @@ bin/
 # local save data
 /data/
 *.patch
+pvz2-latest-main.zip
