@@ -497,6 +497,10 @@ public class Zombie {
         return effects.containsKey(ZombieEffectType.STUNNED);
     }
 
+    public boolean isPoisoned() {
+        return effects.containsKey(ZombieEffectType.POISONED);
+    }
+
     public double getFrozenSeconds() {
         return remaining(ZombieEffectType.FROZEN);
     }

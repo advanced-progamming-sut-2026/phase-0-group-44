@@ -9,6 +9,7 @@ import model.inGame.projectile.IceEffect;
 import model.inGame.projectile.NormalEffect;
 import model.inGame.projectile.ProjectileEffect;
 import model.inGame.projectile.ProjectileFactory;
+import model.inGame.projectile.Projectile;
 import model.inGame.zombie.Zombie;
 
 public class ShooterBehavior extends AbstractTimedBehavior {
@@ -131,16 +132,19 @@ public class ShooterBehavior extends AbstractTimedBehavior {
                 }
             }
             case BOWLING -> {
-                int bulbDamage = nextBowlingBulbDamage(plant, damage);
-                if (bulbDamage > 0) {
-                    engine.spawnProjectile(projectileFactory.bouncing(plant, row, bulbDamage,
-                            effect, 3, range));
+                BowlingBulbShot shot = nextBowlingBulbShot(plant, damage);
+                if (shot.damage() > 0) {
+                    plant.putState("LAST_BOWLING_VARIANT", shot.variant());
+                    Projectile projectile = projectileFactory.bouncing(
+                            plant, row, shot.damage(), effect, 3, range);
+                    projectile.setVisualVariant(shot.variant());
+                    engine.spawnProjectile(projectile);
                 }
             }
         }
     }
 
-    private int nextBowlingBulbDamage(Plant plant, int upgradedCyanDamage) {
+    private BowlingBulbShot nextBowlingBulbShot(Plant plant, int upgradedCyanDamage) {
         double regenerationDelta = plant.getStats().getSpecial("REGEN_INTERVAL", 0);
         double now = plant.getAgeSeconds();
         double orangeCooldown = Math.max(1.0, 10.0 + regenerationDelta);
@@ -152,17 +156,21 @@ public class ShooterBehavior extends AbstractTimedBehavior {
         int damageUpgrade = upgradedCyanDamage - 40;
         if (now - lastOrange >= orangeCooldown) {
             plant.putState("BOWLING_LAST_ORANGE", now);
-            return 180 + damageUpgrade;
+            return new BowlingBulbShot(180 + damageUpgrade, 3);
         }
         if (now - lastBlue >= blueCooldown) {
             plant.putState("BOWLING_LAST_BLUE", now);
-            return 120 + damageUpgrade;
+            return new BowlingBulbShot(120 + damageUpgrade, 2);
         }
         if (now - lastCyan >= cyanCooldown) {
             plant.putState("BOWLING_LAST_CYAN", now);
-            return 40 + damageUpgrade;
+            return new BowlingBulbShot(40 + damageUpgrade, 1);
         }
-        return 0;
+        return BowlingBulbShot.NONE;
+    }
+
+    private record BowlingBulbShot(int damage, int variant) {
+        private static final BowlingBulbShot NONE = new BowlingBulbShot(0, 0);
     }
 
     private void fireDirect(Plant plant, GameEngine engine, int row, int direction,
@@ -196,10 +204,15 @@ public class ShooterBehavior extends AbstractTimedBehavior {
             int damage = 300 + (plant.getStats().getDamage() - 40);
             ProjectileEffect explosive = new model.inGame.projectile.AreaEffect(
                     new NormalEffect(), damage / 2, 1, 1, model.enums.DamageType.NORMAL);
+            // Plant Food rolls all three supplied bulb visuals together.
+            // Damage remains identical; the variant only selects artwork.
             for (int i = 0; i < 3; i++) {
-                engine.spawnProjectile(projectileFactory.bouncing(
-                        plant, plant.getPosition().getRow(), damage, explosive, 5, 20.0));
+                Projectile projectile = projectileFactory.bouncing(
+                        plant, plant.getPosition().getRow(), damage, explosive, 5, 20.0);
+                projectile.setVisualVariant(i + 1);
+                engine.spawnProjectile(projectile);
             }
+            plant.putState("LAST_BOWLING_VARIANT", 3);
             return;
         }
         if (mode == Mode.THREE_LANES) {

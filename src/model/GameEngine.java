@@ -14,8 +14,10 @@ import model.inGame.plant.Plant;
 import model.inGame.plant.PlantDefinition;
 import model.inGame.plant.PlantFactory;
 import model.inGame.plant.PlantRegistry;
+import model.inGame.projectile.ButterEffect;
 import model.inGame.projectile.FireEffect;
 import model.inGame.projectile.Projectile;
+import model.inGame.projectile.ProjectileImpact;
 import model.inGame.zombie.Zombie;
 import model.inGame.zombie.ZombieFactory;
 import model.sim.adventure.AdventureRuleSystem;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.ToDoubleFunction;
 
 @SuppressWarnings("PMD.ExcessiveClassLength")
 public class GameEngine {
@@ -43,6 +46,9 @@ public class GameEngine {
     private final GameMap gameMap;
     private final List<Zombie> zombies = new ArrayList<>();
     private final List<Projectile> projectiles = new ArrayList<>();
+    private final List<PendingProjectile> pendingProjectiles = new ArrayList<>();
+    private final List<ProjectileImpact> projectileImpacts = new ArrayList<>();
+    private ToDoubleFunction<Projectile> projectileReleaseDelayProvider = projectile -> 0.0;
     private final Map<PlantType, Double> seedCooldowns = new EnumMap<>(PlantType.class);
     private final Map<PlantCategory, Double> familyBoosts = new EnumMap<>(PlantCategory.class);
     private final List<String> events = new ArrayList<>();
@@ -413,6 +419,11 @@ public class GameEngine {
         for (Projectile projectile : new ArrayList<>(projectiles)) {
             projectile.tick(this, deltaSeconds);
         }
+        tickPendingProjectiles(deltaSeconds);
+        for (ProjectileImpact impact : projectileImpacts) {
+            impact.tick(deltaSeconds);
+        }
+        projectileImpacts.removeIf(ProjectileImpact::isExpired);
         tickFallingSuns(deltaSeconds);
         tickPlantFoodPickups(deltaSeconds);
         projectiles.removeIf(projectile -> !projectile.isActive());
@@ -660,9 +671,78 @@ public class GameEngine {
     }
 
     public void spawnProjectile(Projectile projectile) {
-        if (projectile != null) {
-            projectiles.add(projectile);
+        if (projectile == null) {
+            return;
         }
+        double releaseDelay = Math.max(0.0,
+                projectileReleaseDelayProvider.applyAsDouble(projectile));
+        if (releaseDelay <= 0.000001) {
+            projectiles.add(projectile);
+            return;
+        }
+        pendingProjectiles.add(new PendingProjectile(projectile, releaseDelay));
+    }
+
+    /**
+     * Optional presentation hook used by the graphical gameplay screen.
+     * Headless/model callers leave this unset, preserving immediate projectile
+     * spawning for existing simulation semantics and tests.
+     */
+    public void setProjectileReleaseDelayProvider(
+            ToDoubleFunction<Projectile> delayProvider) {
+        if (delayProvider == null) {
+            projectileReleaseDelayProvider = projectile -> 0.0;
+            flushPendingProjectiles();
+            return;
+        }
+        projectileReleaseDelayProvider = delayProvider;
+    }
+
+    private void tickPendingProjectiles(double deltaSeconds) {
+        for (int index = pendingProjectiles.size() - 1; index >= 0; index--) {
+            PendingProjectile pending = pendingProjectiles.get(index);
+            pending.remainingSeconds -= deltaSeconds;
+            if (pending.remainingSeconds <= 0.000001) {
+                projectiles.add(pending.projectile);
+                pendingProjectiles.remove(index);
+            }
+        }
+    }
+
+    private void flushPendingProjectiles() {
+        for (PendingProjectile pending : pendingProjectiles) {
+            projectiles.add(pending.projectile);
+        }
+        pendingProjectiles.clear();
+    }
+
+    public void recordProjectileImpact(Projectile projectile, int row, double x) {
+        recordProjectileImpact(projectile, row, x, false);
+    }
+
+    /**
+     * Records a short-lived presentation marker for a projectile collision.
+     * Secondary markers are used by splash/AoE effects so every zombie that
+     * visibly takes splash damage receives collision feedback too.
+     */
+    public void recordProjectileImpact(
+            Projectile projectile,
+            int row,
+            double x,
+            boolean secondary
+    ) {
+        if (projectile == null) {
+            return;
+        }
+        projectileImpacts.add(new ProjectileImpact(
+                projectile.getSourceType(),
+                projectile.getType(),
+                projectile.getEffect().damageType(),
+                projectile.getEffect() instanceof ButterEffect,
+                secondary,
+                row,
+                x
+        ));
     }
 
     public List<Zombie> getZombiesInLane(int row) {
@@ -1275,6 +1355,10 @@ public class GameEngine {
         return List.copyOf(projectiles);
     }
 
+    public List<ProjectileImpact> getProjectileImpacts() {
+        return List.copyOf(projectileImpacts);
+    }
+
     public List<String> getEvents() {
         return List.copyOf(events);
     }
@@ -1282,4 +1366,14 @@ public class GameEngine {
     public Random getRandom() {
         return random;
     }
+    private static final class PendingProjectile {
+        private final Projectile projectile;
+        private double remainingSeconds;
+
+        private PendingProjectile(Projectile projectile, double remainingSeconds) {
+            this.projectile = projectile;
+            this.remainingSeconds = remainingSeconds;
+        }
+    }
+
 }

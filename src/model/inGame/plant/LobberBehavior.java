@@ -89,7 +89,9 @@ public class LobberBehavior extends AbstractTimedBehavior {
         ProjectileEffect effect;
         if (mode == Mode.KERNEL) {
             double butterChance = 0.25 + plant.getStats().getSpecial("BUTTER_CHANCE", 0);
-            if (engine.getRandom().nextDouble() < butterChance) {
+            boolean butter = engine.getRandom().nextDouble() < butterChance;
+            plant.putState("LAST_KERNEL_BUTTER", butter);
+            if (butter) {
                 damage = Math.max(damage, 40 + (plant.getStats().getDamage() - 20));
                 effect = new ButterEffect(4.0);
             } else {

@@ -29,10 +29,14 @@ public class Projectile {
     private int maxHits;
     private double remainingRange;
     private Zombie target;
+    private final double spawnX;
+    private final int spawnRow;
     private final double landingX;
+    private final double flightDuration;
     private double flightRemaining;
     private boolean active = true;
     private boolean peaProjectile;
+    private int visualVariant;
 
     Projectile(PlantType sourceType, int row, double x, int direction, int damage,
                double speed, ProjectileType type, ProjectileEffect effect,
@@ -49,8 +53,11 @@ public class Projectile {
         this.maxHits = Math.max(1, maxHits);
         this.remainingRange = Math.max(0.1, range);
         this.target = target;
+        this.spawnX = x;
+        this.spawnRow = row;
         this.landingX = target == null ? x + this.direction * range : target.getX();
-        this.flightRemaining = Math.max(0.05, flightTime);
+        this.flightDuration = Math.max(0.05, flightTime);
+        this.flightRemaining = this.flightDuration;
         this.peaProjectile = peaProjectile;
         this.collisionLogic = switch (type) {
             case DIRECT -> new NormalCollision();
@@ -123,6 +130,7 @@ public class Projectile {
             boolean destroyed =
                     engine.getGameMap().getTile(row, blocker).getObstacle() == model.enums.ObstacleType.NONE;
             if (dealt > 0) {
+                engine.recordProjectileImpact(this, row, blocker + 0.5);
                 engine.recordEvent(sourceType + " projectile hit " + obstacleType.name()
                         + " for " + dealt + (destroyed ? "; it was destroyed." : "."));
             }
@@ -184,6 +192,7 @@ public class Projectile {
             boolean destroyed = engine.getGameMap().getTile(row, landingColumn).getObstacle()
                     == model.enums.ObstacleType.NONE;
             if (dealt > 0) {
+                engine.recordProjectileImpact(this, row, landingColumn + 0.5);
                 engine.recordEvent(sourceType + " projectile hit " + obstacleType.name()
                         + " for " + dealt + (destroyed ? "; it was destroyed." : "."));
             }
@@ -214,6 +223,7 @@ public class Projectile {
             return;
         }
         hitZombieIds.add(zombie.getId());
+        engine.recordProjectileImpact(this, zombie.getRow(), zombie.getX());
         if (zombie.projectileDisposition(this, engine)
                 == model.inGame.zombie.ZombieProjectileDisposition.BLOCK) {
             engine.recordEvent(zombie.getName() + " blocked a " + type + " projectile.");
@@ -236,6 +246,42 @@ public class Projectile {
         return x;
     }
 
+    /** Smooth visual progress for lobbed/homing projectiles. */
+    public double getFlightProgress() {
+        if (type != ProjectileType.LOBBED && type != ProjectileType.HOMING) {
+            return 1.0;
+        }
+        return Math.max(0.0, Math.min(1.0,
+                1.0 - flightRemaining / Math.max(0.05, flightDuration)));
+    }
+
+    /** Model-derived x coordinate used by the renderer between discrete simulation ticks. */
+    public double getVisualX() {
+        if (type != ProjectileType.LOBBED && type != ProjectileType.HOMING) {
+            return x;
+        }
+        double destination = target != null && !target.isDead() ? target.getX() : landingX;
+        double progress = getFlightProgress();
+        return spawnX + (destination - spawnX) * progress;
+    }
+
+    /** Fractional row coordinate for homing shots that can cross lanes. */
+    public double getVisualRow() {
+        if (type != ProjectileType.HOMING || target == null || target.isDead()) {
+            return row;
+        }
+        double progress = getFlightProgress();
+        return spawnRow + (target.getRow() - spawnRow) * progress;
+    }
+
+    /** 0..1 arc height used by lobbed projectiles. */
+    public double getVisualArc() {
+        if (type != ProjectileType.LOBBED) {
+            return 0.0;
+        }
+        return Math.sin(Math.PI * getFlightProgress());
+    }
+
     public int getDirection() {
         return direction;
     }
@@ -254,6 +300,20 @@ public class Projectile {
 
     public ProjectileEffect getEffect() {
         return effect;
+    }
+
+    /**
+     * Optional presentation variant selected by the source plant. Gameplay
+     * collision/damage never depends on this value; it only lets the renderer
+     * choose the matching supplied projectile artwork (for example Bowling
+     * Bulb's cyan/blue/orange bulbs).
+     */
+    public int getVisualVariant() {
+        return visualVariant;
+    }
+
+    public void setVisualVariant(int visualVariant) {
+        this.visualVariant = Math.max(0, visualVariant);
     }
 
     public void setEffect(ProjectileEffect effect) {

@@ -109,6 +109,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private BattlefieldSpecialLevelLayer specialLevelLayer;
     private Group entityLayer;
     private ZombieActorManager zombieActorManager;
+    private ProjectileActorManager projectileActorManager;
     private Group pickupLayer;
     private Group interactionLayer;
     private Group hudLayer;
@@ -157,6 +158,17 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private final Map<String, Double> spawnedEffectForAttackAt = new LinkedHashMap<>();
     private static final Set<PlantType> MINE_TYPES = Set.of(
             PlantType.POTATO_MINE, PlantType.PRIMAL_POTATO_MINE);
+    private static final Set<PlantType> MOVING_PROJECTILE_PLANTS = Set.of(
+            PlantType.PEASHOOTER, PlantType.REPEATER, PlantType.THREEPEATER,
+            PlantType.SNOW_PEA, PlantType.ROTOBAGA, PlantType.PEA_POD,
+            PlantType.SPLIT_PEA, PlantType.CITRON, PlantType.CAULIPOWER,
+            PlantType.ELECTRIC_BLUEBERRY, PlantType.BOWLING_BULB,
+            PlantType.FIRE_PEASHOOTER, PlantType.STARFRUIT, PlantType.GOO_PEASHOOTER,
+            PlantType.MEGA_GATLING_PEA, PlantType.SEA_SHROOM, PlantType.PUFF_SHROOM,
+            PlantType.CACTUS, PlantType.FUME_SHROOM, PlantType.CABBAGE_PULT,
+            PlantType.KERNEL_PULT, PlantType.MELON_PULT, PlantType.WINTER_MELON,
+            PlantType.PEPPER_PULT, PlantType.CAT_TAIL
+    );
 
     /** Mines show a brief planting pose, then a short recover pose, then idle forever
      *  — this visual sequence is independent of the real (gameplay) arm timer. */
@@ -168,7 +180,13 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private static final Map<PlantType, Double> ATTACK_WINDOW_SECONDS = Map.of(
             PlantType.SQUASH, 0.7,
             PlantType.DOOM_SHROOM, 1.1);
+    /*
+     * Actor bounds only position the PAM; PamEnvironmentActor's scale parameter
+     * controls the actual rendered plant size. 0.42 made gameplay plants much
+     * smaller than the same supplied PAMs in Greenhouse (roughly 0.61–0.70).
+     */
     private static final float PLANT_ANIMATION_SCALE = 1.75f;
+    private static final float PLANT_PAM_SCALE = 0.62f;
 
     private final Map<String, PlantType> placedPlantTypes = new LinkedHashMap<>();
     private Group imitaterPickerLayer;
@@ -178,7 +196,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
     private final Map<String, Float> cactusUpPoseRemaining = new LinkedHashMap<>();
     private static final double CACTUS_MELEE_RANGE = 1.0; // guessed adjacency threshold — verify
     private static final float CACTUS_UP_POSE_SECONDS = 0.4f; // guessed transition-pose duration — verify
-    private final Map<String, Integer> bowlingBulbSpecialIndex = new LinkedHashMap<>();
     private final Map<String, Double> bowlingBulbLastAttackSeen = new LinkedHashMap<>();
     private final Map<String, Double> bowlingBulbReloadStartedAt = new LinkedHashMap<>();
     private static final double BOWLING_BULB_RELOAD_STAGE_SECONDS = 0.3; // guessed per-stage reload duration — verify
@@ -416,6 +433,25 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                             pamPlayer
                     );
             zombieActorManager.sync(engine());
+        }
+
+        projectileActorManager = null;
+        if (!previewMode && engine() != null && pamPlayer != null) {
+            /*
+             * Keep the model authoritative, but defer graphical projectile
+             * insertion until the plant PAM reaches its firing frame.
+             * Headless/model tests never install this provider and therefore
+             * retain the original immediate-spawn semantics.
+             */
+            engine().setProjectileReleaseDelayProvider(
+                    ProjectileAssetCatalog::releaseDelaySeconds);
+            projectileActorManager = new ProjectileActorManager(
+                    entityLayer,
+                    layout,
+                    pamPlayer,
+                    pamTextures
+            );
+            projectileActorManager.sync(engine());
         }
 
         frostbiteStateLayer = new BattlefieldFrostbiteStateLayer(
@@ -1910,7 +1946,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
         if (pamPlayer != null) {
             dragGhost = new PamEnvironmentActor(
-                    pamPlayer, plantIdlePam(type), plantIdleClip(type), 0.42f, 0f, 0f);
+                    pamPlayer, plantIdlePam(type), plantIdleClip(type), PLANT_PAM_SCALE, 0f, 0f);
 
             dragGhost.setVisible(true);
             pickupLayer.addActor(dragGhost);
@@ -2093,7 +2129,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 : MINT_TYPES.contains(type) ? "intro"
                   : "idle";
         PamEnvironmentActor idle = new PamEnvironmentActor(
-                pamPlayer, plantIdlePam(type), initialClip, 0.42f, 0f, 0f);
+                pamPlayer, plantIdlePam(type), initialClip, PLANT_PAM_SCALE, 0f, 0f);
         idle.setIdleClips(PlantAnimationCatalog.idleClipSequence(type));
         if (!MINE_TYPES.contains(type) && !MINT_TYPES.contains(type)) {
             idle.resumeIdleCycle();
@@ -2113,7 +2149,6 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         spawnedEffectForAttackAt.remove(key);
         cactusMeleeActive.remove(key);
         cactusUpPoseRemaining.remove(key);
-        bowlingBulbSpecialIndex.remove(key);
         bowlingBulbLastAttackSeen.remove(key);
         bowlingBulbReloadStartedAt.remove(key);
         if (existing != null) {
@@ -2190,6 +2225,7 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 boolean alreadyHandledViaAttackClip = spawnedEffectForAttackAt.containsKey(key);
                 if (!alreadyHandledViaAttackClip
                         && vanishedType != null
+                        && !MOVING_PROJECTILE_PLANTS.contains(vanishedType)
                         && PlantAttackEffectCatalog.forType(vanishedType) != null) {
                     spawnAttackEffect(vanishedType, row, column);
                 }
@@ -2257,13 +2293,17 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                 updateCitronAnimation(actor, plant);
             } else if (type == PlantType.SPLIT_PEA) {
                 updateSplitPeaAnimation(actor, plant);
-            }  else if (MINT_TYPES.contains(type)) {
+            } else if (type == PlantType.KERNEL_PULT) {
+                updateKernelPultAnimation(actor, plant);
+            } else if (MINT_TYPES.contains(type)) {
                 updateMintAnimation(actor, plant, type);
             }else if (type == PlantType.GOLD_BLOOM) {
                 updateGoldBloomAnimation(actor, plant);
             } else {
                 String attackClip = PlantAnimationCatalog.attackClipName(type);
-                double window = ATTACK_WINDOW_SECONDS.getOrDefault(type, 0.6);
+                double window = Math.max(
+                        ATTACK_WINDOW_SECONDS.getOrDefault(type, 0.6),
+                        ProjectileAssetCatalog.attackWindowSeconds(type));
                 if (plant.isAttackingWithin(window)) {
                     actor.setClip(attackClip);
                     actor.setTimeScale(ATTACK_TIME_SCALE.getOrDefault(type, 1f));
@@ -2278,7 +2318,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
                     && lastAttackAt > Double.NEGATIVE_INFINITY
                     && (alreadySpawnedFor == null || alreadySpawnedFor < lastAttackAt)) {
                 spawnedEffectForAttackAt.put(key, lastAttackAt);
-                spawnAttackEffect(type, row, column);
+                if (!MOVING_PROJECTILE_PLANTS.contains(type)) {
+                    spawnAttackEffect(type, row, column);
+                }
             }
         }
     }
@@ -2315,23 +2357,19 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         boolean attacking = plant.isAttackingWithin(ATTACK_WINDOW_SECONDS.getOrDefault(PlantType.BOWLING_BULB, 0.6));
 
         if (attacking) {
+            int variant = Math.max(1, Math.min(3,
+                    plant.getState("LAST_BOWLING_VARIANT", Integer.class, 1)));
             Double seen = bowlingBulbLastAttackSeen.get(key);
             if (seen == null || seen < lastAttackAt) {
                 bowlingBulbLastAttackSeen.put(key, lastAttackAt);
-                int index = bowlingBulbSpecialIndex.getOrDefault(key, 0);
-                spawnBowlingBulbEffect(specialStages[index], plant);
-                int next = index + 1;
-                if (next >= specialStages.length) {
-                    next = 0;
+                // The least-charged cyan bulb is the final depleted stage;
+                // start the visible reload sequence after it leaves the plant.
+                if (variant == 1) {
                     bowlingBulbReloadStartedAt.put(key, age);
                 }
-                bowlingBulbSpecialIndex.put(key, next);
             }
-            int shownIndex = bowlingBulbSpecialIndex.getOrDefault(key, 1) - 1;
-            if (shownIndex < 0) {
-                shownIndex = specialStages.length - 1;
-            }
-            actor.setClip(PlantAnimationCatalog.clipName(PlantType.BOWLING_BULB, specialStages[shownIndex]));
+            actor.setClip(PlantAnimationCatalog.clipName(
+                    PlantType.BOWLING_BULB, specialStages[variant - 1]));
             return;
         }
 
@@ -2390,6 +2428,19 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
             return;
         }
         actor.setClip(PlantAnimationCatalog.clipName(PlantType.CITRON, PlantAnimationState.IDLE2));
+    }
+
+    private void updateKernelPultAnimation(PamEnvironmentActor actor, Plant plant) {
+        double window = ProjectileAssetCatalog.attackWindowSeconds(
+                PlantType.KERNEL_PULT);
+        if (!plant.isAttackingWithin(window)) {
+            actor.resumeIdleCycle();
+            return;
+        }
+        String clip = plant.getBooleanState("LAST_KERNEL_BUTTER")
+                ? "attack2"
+                : PlantAnimationCatalog.attackClipName(PlantType.KERNEL_PULT);
+        actor.setClip(clip);
     }
 
     private void updateSplitPeaAnimation(PamEnvironmentActor actor, Plant plant) {
@@ -2544,6 +2595,9 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
         if (zombieActorManager != null && displayEngine != null) {
             zombieActorManager.sync(displayEngine);
         }
+        if (projectileActorManager != null && displayEngine != null) {
+            projectileActorManager.sync(displayEngine);
+        }
 
         environmentLayer.sync(displayEngine, previewMode);
         if (lawnMowerAnimationLayer != null) {
@@ -2581,6 +2635,14 @@ public final class GameplayScreen implements Screen, BattlefieldSeedBank.SeedDra
 
     @Override
     public void dispose() {
+        GameEngine activeEngine = engine();
+        if (activeEngine != null) {
+            activeEngine.setProjectileReleaseDelayProvider(null);
+        }
+        if (projectileActorManager != null) {
+            projectileActorManager.dispose();
+            projectileActorManager = null;
+        }
         if (stage != null) {
             stage.dispose();
         }

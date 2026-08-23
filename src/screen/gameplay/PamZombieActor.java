@@ -340,9 +340,27 @@ public final class PamZombieActor extends Actor {
         Color originalBatchColor = new Color(batch.getColor());
         Color actorColor = getColor();
         float actorAlpha = actorColor.a * parentAlpha;
-        batch.setColor(actorColor.r, actorColor.g, actorColor.b, actorAlpha);
 
-        if (zombie.getBooleanState("GLOWING")) {
+        /*
+         * Phase 2 requires active zombie effects to be visually obvious; a
+         * colour change is explicitly sufficient. Keep the tint subtle enough
+         * that the original PAM artwork and armor remain readable.
+         *
+         * Priority follows the strongest movement-affecting state first. Butter
+         * uses STUNNED, so the warm yellow tint also makes a buttered zombie
+         * immediately distinguishable after the butter splat lands.
+         */
+        if (zombie.isFrozen()) {
+            batch.setColor(0.58f, 0.84f, 1.00f, actorAlpha);
+        } else if (zombie.isStunned()) {
+            batch.setColor(1.00f, 0.88f, 0.46f, actorAlpha);
+        } else if (zombie.isPoisoned()) {
+            batch.setColor(0.64f, 1.00f, 0.55f, actorAlpha);
+        } else if (zombie.isSlowed()) {
+            batch.setColor(0.72f, 0.91f, 1.00f, actorAlpha);
+        } else if (zombie.isHypnotized()) {
+            batch.setColor(0.82f, 0.67f, 1.00f, actorAlpha);
+        } else if (zombie.getBooleanState("GLOWING")) {
             float pulse = MathUtils.sin(stateTime * 7.0f) * 0.5f + 0.5f;
             batch.setColor(
                     1f,
@@ -350,6 +368,8 @@ public final class PamZombieActor extends Actor {
                     0.30f + 0.24f * pulse,
                     actorAlpha
             );
+        } else {
+            batch.setColor(actorColor.r, actorColor.g, actorColor.b, actorAlpha);
         }
 
         pamPlayer.draw(

@@ -244,6 +244,39 @@ public final class PlantSelectionScreen implements Screen {
         Table bottomBar = new Table();
         bottomBar.pad(4f, 0f, 4f, 0f);
 
+        User user = Store.getLoggedInUser();
+        boolean debugMode = user != null
+                && user.getSettings() != null
+                && user.getSettings().isDebugMode();
+
+        if (debugMode) {
+            TextButton unlockAllButton = new TextButton(
+                    "DEBUG: UNLOCK ALL PLANTS",
+                    skin,
+                    "green_small"
+            );
+            unlockAllButton.addListener(new ChangeListener() {
+                @Override
+                public void changed(ChangeEvent event, Actor actor) {
+                    Result<String> result =
+                            collectionController.cheatBuyAllPlants(Store.getLoggedInUser());
+                    if (result.getStatus()) {
+                        toast.showInfo(result.getMessage());
+                        refreshGrid();
+                        refreshSidebar();
+                        refreshDetailPanel();
+                    } else {
+                        toast.showError(result.getMessage());
+                    }
+                }
+            });
+            bottomBar.add(unlockAllButton)
+                    .height(52f)
+                    .width(250f)
+                    .left()
+                    .padRight(18f);
+        }
+
         TextButton letsRockButton = new TextButton("LET'S ROCK!", skin, "purple");
         letsRockButton.addListener(new ChangeListener() {
             @Override

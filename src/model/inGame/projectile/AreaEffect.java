@@ -29,14 +29,29 @@ public class AreaEffect implements ProjectileEffect {
         }
         Position center = new Position(zombie.getRow(), Math.max(0, zombie.getColumn()));
         for (Zombie nearby : engine.getZombiesInArea(center, rowRadius, columnRadius)) {
-            if (nearby != zombie && !nearby.isDead()) {
-                nearby.receiveDamage(splashDamage, splashType, engine);
-                if (splashType == DamageType.ICE) {
-                    nearby.applySlow(5.0);
-                } else if (splashType == DamageType.FIRE) {
-                    nearby.thaw();
-                }
+            if (nearby == zombie || nearby.isDead()) {
+                continue;
             }
+
+            // Match the primary IceEffect/FireEffect semantics for splash
+            // victims as well. Some zombie behaviours react specifically to
+            // elemental hits, not only to the DamageType passed to health.
+            if (splashType == DamageType.ICE) {
+                nearby.onIceHit(engine);
+            } else if (splashType == DamageType.FIRE) {
+                nearby.onFireHit(engine);
+            }
+
+            nearby.receiveDamage(splashDamage, splashType, engine);
+            if (splashType == DamageType.ICE) {
+                nearby.applySlow(5.0);
+            } else if (splashType == DamageType.FIRE) {
+                nearby.thaw();
+            }
+
+            // The primary target already gets an impact marker in Projectile.hit().
+            // Splash targets need their own marker so AoE damage is readable.
+            engine.recordProjectileImpact(projectile, nearby.getRow(), nearby.getX(), true);
         }
     }
 
